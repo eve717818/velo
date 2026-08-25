@@ -75,6 +75,7 @@ Create `package.json`:
   "private": true,
   "version": "0.1.0",
   "type": "module",
+  "packageManager": "pnpm@11.19.0",
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
@@ -94,24 +95,24 @@ Run:
 
 ```powershell
 pnpm add react react-dom react-router-dom dexie dexie-react-hooks lucide-react motion clsx @fontsource-variable/plus-jakarta-sans
-pnpm add -D vite @vitejs/plugin-react typescript vite-tsconfig-paths vite-plugin-pwa sharp vitest jsdom fake-indexeddb @testing-library/react @testing-library/jest-dom @testing-library/user-event @playwright/test @axe-core/playwright eslint @eslint/js typescript-eslint eslint-plugin-react-hooks eslint-plugin-react-refresh globals
+pnpm add -D vite @vitejs/plugin-react typescript@5.9.3 @types/react @types/react-dom vite-plugin-pwa sharp vitest jsdom fake-indexeddb @testing-library/react @testing-library/jest-dom @testing-library/user-event @playwright/test @axe-core/playwright eslint @eslint/js typescript-eslint eslint-plugin-react-hooks eslint-plugin-react-refresh globals
 ```
 
 Expected: `package.json` receives concrete compatible versions and `pnpm-lock.yaml` is created. The lockfile is the version source of truth.
 
 - [ ] **Step 2: Add TypeScript, Vite, ESLint, HTML and test setup**
 
-Configure strict TypeScript with `@/* -> src/*`, Vite React and `vite-tsconfig-paths`, JSDOM, and `src/test/setup.ts` containing:
+Configure strict TypeScript with `@/* -> src/*` and no deprecated `baseUrl`, Vite React with native `resolve.alias`, JSDOM, and `src/test/setup.ts` containing:
 
 `vite.config.ts` begins with:
 
 ```ts
 import react from "@vitejs/plugin-react"
 import { defineConfig } from "vitest/config"
-import tsconfigPaths from "vite-tsconfig-paths"
 
 export default defineConfig({
-  plugins: [react(), tsconfigPaths()],
+  plugins: [react()],
+  resolve: { alias: { "@": "/src" } },
   test: {
     environment: "jsdom",
     setupFiles: ["./src/test/setup.ts"],
@@ -132,9 +133,9 @@ import tseslint from "typescript-eslint"
 export default tseslint.config(
   { ignores: ["dist", "coverage", "playwright-report", "test-results"] },
   js.configs.recommended,
-  ...tseslint.configs.recommendedTypeChecked,
   {
     files: ["**/*.{ts,tsx}"],
+    extends: [...tseslint.configs.recommendedTypeChecked],
     languageOptions: {
       ecmaVersion: 2023,
       globals: globals.browser,
@@ -145,6 +146,10 @@ export default tseslint.config(
       ...reactHooks.configs.recommended.rules,
       "react-refresh/only-export-components": ["warn", { allowConstantExport: true }],
     },
+  },
+  {
+    files: ["**/*.js"],
+    extends: [tseslint.configs.disableTypeChecked],
   },
 )
 ```
@@ -234,7 +239,7 @@ git commit -m "build: bootstrap Velo frontend"
 
 **Interfaces:**
 - Produces: `formatLocalDate(date: Date): string` returning `YYYY-MM-DD` in local time.
-- Produces: `PlanTask`, `KnowledgeNode`, `NoteDocument`, `VeloDB`, singleton `veloDb`, and `seedHomeDemo(db: VeloDB, now: Date): Promise<void>`.
+- Produces: `PlanTask`, `KnowledgeNode`, `NoteDocument`, `AppMeta`, `VeloDB`, singleton `veloDb`, and `seedHomeDemo(db: VeloDB, now: Date): Promise<void>`.
 
 - [ ] **Step 1: Write failing local-date and database tests**
 
@@ -254,6 +259,8 @@ expect(await db.planTasks.where("isCompleted").equals(1).count()).toBe(3)
 expect(await db.notes.orderBy("updatedAt").last()).toMatchObject({ title: "线性代数：矩阵的秩" })
 await db.delete()
 ```
+
+Add three non-empty-database cases: task-only, note-only, and mixed task/note data. In each case `seedHomeDemo` must leave existing domain rows unchanged, must not add demo rows, and must write `homeDemoSeed = "v1:skipped-existing-data"` to `appMeta`.
 
 - [ ] **Step 2: Run the tests and confirm they fail**
 
@@ -301,6 +308,12 @@ export interface NoteDocument {
   createdAt: number
   updatedAt: number
 }
+
+export interface AppMeta {
+  key: string
+  value: string
+  updatedAt: number
+}
 ```
 
 - [ ] **Step 4: Implement the typed Dexie schema**
@@ -312,6 +325,7 @@ this.version(1).stores({
   planTasks: "id, [scope+periodKey], periodKey, isCompleted, order, updatedAt",
   knowledgeNodes: "id, parentId, type, order, updatedAt",
   notes: "id, nodeId, title, updatedAt",
+  appMeta: "key, updatedAt",
 })
 ```
 
@@ -319,7 +333,7 @@ Export `const veloDb = new VeloDB("velo")`.
 
 - [ ] **Step 5: Implement idempotent seed data**
 
-`seedHomeDemo` must return immediately when any plan task exists. Otherwise insert these five ordered day tasks for the supplied local date: completed `英语阅读 · Chapter 3`, completed `线性代数 · 习题整理`, completed `程序设计 · 函数与递归`, incomplete `高等数学 · 导数复习`, and incomplete `物理实验报告 · 数据整理`. Insert the recent note titled `线性代数：矩阵的秩`. Use `crypto.randomUUID()` and a single Dexie transaction.
+`seedHomeDemo` must use a single transaction over `planTasks`, `knowledgeNodes`, `notes`, and `appMeta`. If `appMeta.homeDemoSeed` already exists, return without domain writes. When the marker is absent, count all three domain tables: seed only if every count is zero; otherwise write `homeDemoSeed = "v1:skipped-existing-data"` and leave all domain rows untouched. A fresh database receives these five ordered day tasks: completed `英语阅读 · Chapter 3`, completed `线性代数 · 习题整理`, completed `程序设计 · 函数与递归`, incomplete `高等数学 · 导数复习`, and incomplete `物理实验报告 · 数据整理`; it also receives the recent note `线性代数：矩阵的秩` and marker `homeDemoSeed = "v1:applied"`.
 
 - [ ] **Step 6: Run database checks**
 
@@ -354,15 +368,19 @@ git commit -m "feat: add local Velo database"
 - Modify: `src/main.tsx`
 
 **Interfaces:**
-- Produces: `VeloLogo({ compact?: boolean, className?: string }): JSX.Element`.
+- Produces: `VeloLogo({ compact?: boolean, tone?: "default" | "mono" | "reverse", className?: string }): JSX.Element`.
 - Produces semantic CSS tokens including `--color-brand`, `--color-surface`, `--color-coral`, `--color-mint`, `--motion-fast`, and `--motion-page`.
 
 - [ ] **Step 1: Write the failing logo accessibility test**
 
 ```tsx
-render(<VeloLogo />)
+const { rerender } = render(<VeloLogo />)
 expect(screen.getByRole("img", { name: "Velo" })).toBeInTheDocument()
 expect(screen.queryByText(/微流/)).not.toBeInTheDocument()
+rerender(<VeloLogo tone="mono" />)
+expect(screen.getByRole("img", { name: "Velo" })).toHaveAttribute("data-tone", "mono")
+rerender(<VeloLogo tone="reverse" />)
+expect(screen.getByRole("img", { name: "Velo" })).toHaveAttribute("data-tone", "reverse")
 ```
 
 - [ ] **Step 2: Run the test and confirm it fails**
@@ -373,31 +391,32 @@ Expected: FAIL because `VeloLogo` does not exist.
 
 - [ ] **Step 3: Create the scalable logo assets**
 
-Build `velo-wordmark.svg` as an accessible viewBox-based SVG containing the stylized `vel` lettering plus an open circular `o` and a blue-violet closing accent. Build `velo-mark.svg` from the same open `o` geometry for PWA icons. Required colors are `#11131A` and `#574FE6`; no raster image is embedded.
+Build `velo-wordmark.svg` as path-only accessible SVG geometry containing stylized `v`, `e`, `l`, and the open circular `o`; do not use `<text>`, an external font, or an embedded raster. Build `velo-mark.svg` from the same open `o` geometry for PWA icons. Geometry uses `currentColor` for ink and `var(--velo-logo-accent, currentColor)` for the accent, so default, monochrome, and reverse variants share one asset.
 
 Use this standalone mark geometry:
 
 ```svg
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-labelledby="title">
   <title id="title">Velo</title>
-  <rect width="64" height="64" rx="16" fill="#f7f7ff"/>
-  <circle cx="32" cy="32" r="19" fill="none" stroke="#11131a" stroke-width="8" stroke-linecap="round" stroke-dasharray="92 28" transform="rotate(-42 32 32)"/>
-  <path d="M47 18a22 22 0 0 1 7 14" fill="none" stroke="#574fe6" stroke-width="8" stroke-linecap="round"/>
+  <circle cx="32" cy="32" r="19" fill="none" stroke="currentColor" stroke-width="8" stroke-linecap="round" stroke-dasharray="92 28" transform="rotate(-42 32 32)"/>
+  <path d="M47 18a22 22 0 0 1 7 14" fill="none" stroke="var(--velo-logo-accent, currentColor)" stroke-width="8" stroke-linecap="round"/>
 </svg>
 ```
 
-Use this wordmark structure and keep the same `o` geometry in `VeloLogo.tsx`:
+Use this path-only wordmark structure and keep the same `o` geometry in `VeloLogo.tsx`:
 
 ```svg
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 144 40" role="img" aria-labelledby="title">
   <title id="title">Velo</title>
-  <text x="0" y="31" fill="#11131a" font-family="Plus Jakarta Sans, Arial, sans-serif" font-size="40" font-weight="700" letter-spacing="-2">vel</text>
-  <circle cx="126" cy="20" r="12" fill="none" stroke="#11131a" stroke-width="7" stroke-linecap="round" stroke-dasharray="58 18" transform="rotate(-42 126 20)"/>
-  <path d="M136 10a15 15 0 0 1 5 10" fill="none" stroke="#574fe6" stroke-width="7" stroke-linecap="round"/>
+  <path d="M4 7h8l10 24L32 7h8L25 35h-6L4 7Z" fill="currentColor"/>
+  <path d="M42 22c0-9 6-15 15-15 9 0 14 7 14 16v3H50c1 4 4 6 9 6 4 0 7-1 10-3v6c-3 2-7 3-11 3-10 0-16-6-16-16Zm8-2h13c0-4-2-7-6-7s-6 3-7 7Z" fill="currentColor"/>
+  <path d="M77 3h8v27c0 2 1 3 3 3h2v6h-4c-6 0-9-3-9-9V3Z" fill="currentColor"/>
+  <circle cx="112" cy="23" r="12" fill="none" stroke="currentColor" stroke-width="7" stroke-linecap="round" stroke-dasharray="58 18" transform="rotate(-42 112 23)"/>
+  <path d="M122 13a15 15 0 0 1 5 10" fill="none" stroke="var(--velo-logo-accent, currentColor)" stroke-width="7" stroke-linecap="round"/>
 </svg>
 ```
 
-`VeloLogo` must render the wordmark through `<svg role="img" aria-label="Velo">`, use `compact` to render the standalone mark, and keep colors inheritable through CSS custom properties.
+`VeloLogo` must render the wordmark through `<svg role="img" aria-label="Velo">`, use `compact` to render the standalone mark, and accept `tone: "default" | "mono" | "reverse"`. Default uses ink `#11131A` and accent `#574FE6`; mono sets accent to `currentColor`; reverse uses white ink plus a pale-lavender accent. Component tests verify all tones preserve the accessible name, and Task 8 captures default, mono, reverse, and 24px compact browser snapshots.
 
 - [ ] **Step 4: Define exact semantic tokens**
 
@@ -458,6 +477,9 @@ git commit -m "feat: add Velo brand system"
 - Create: `src/components/navigation/PrimaryNav.tsx`
 - Create: `src/components/navigation/PrimaryNav.test.tsx`
 - Create: `src/components/navigation/PrimaryNav.module.css`
+- Create: `src/components/navigation/MobileTopMenu.tsx`
+- Create: `src/components/navigation/MobileTopMenu.test.tsx`
+- Create: `src/components/navigation/MobileTopMenu.module.css`
 - Create: `src/pages/PlansPage.tsx`
 - Create: `src/pages/HomePage.tsx`
 - Create: `src/pages/NotesPage.tsx`
@@ -466,12 +488,12 @@ git commit -m "feat: add Velo brand system"
 - Modify: `src/app/App.tsx`
 
 **Interfaces:**
-- Produces: `AppRoutes(): JSX.Element`, `AppShell(): JSX.Element`, and `PrimaryNav({ variant }: { variant: "mobile" | "rail" }): JSX.Element`.
+- Produces: `AppRoutes(): JSX.Element`, `AppShell(): JSX.Element`, `PrimaryNav({ variant }: { variant: "mobile" | "rail" }): JSX.Element`, and `MobileTopMenu(): JSX.Element`.
 - Consumes: `VeloLogo` and React Router `NavLink`/`Outlet`.
 
 - [ ] **Step 1: Write failing route and navigation tests**
 
-Test with `MemoryRouter` that `/plans` renders heading `学习计划`, that navigation exposes 首页、计划、笔记、专注, and that 设置 appears in the rail variant but not the mobile primary list.
+Test with `MemoryRouter` that `/plans` renders heading `学习计划`, that navigation exposes 首页、计划、笔记、专注, and that 设置 appears in the rail variant but not the mobile primary list. Separately render `MobileTopMenu`, activate its `打开菜单` button, assert a menu item named `设置`, click it, and verify the router location becomes `/settings`.
 
 - [ ] **Step 2: Run the focused tests and confirm they fail**
 
@@ -519,12 +541,14 @@ export function SettingsPage() {
 
 Use Lucide icons `House`, `CalendarDays`, `NotebookTabs`, `Timer`, `Settings`. CSS displays the bottom bar below 768px and the rail at/above 768px. Every link has visible text, `aria-current` from `NavLink`, a 44px minimum target, and a stable focus ring.
 
+`MobileTopMenu` owns the small-screen settings path. It uses a 44px `Ellipsis` button labeled `打开菜单`, opens a focusable popover containing a `设置` link, closes on Escape/outside click/navigation, and restores focus to the trigger. `AppShell` displays it below 768px and hides it at/above 768px.
+
 - [ ] **Step 5: Verify navigation behavior**
 
 Run:
 
 ```powershell
-pnpm test:run src/components/navigation/PrimaryNav.test.tsx src/app/App.test.tsx
+pnpm test:run src/components/navigation/PrimaryNav.test.tsx src/components/navigation/MobileTopMenu.test.tsx src/app/App.test.tsx
 pnpm typecheck
 ```
 
@@ -743,6 +767,7 @@ git commit -m "feat: add Velo motion system"
 - Create: `src/pwa/PWAUpdatePrompt.test.tsx`
 - Create: `src/pwa/RegisterPWA.tsx`
 - Create: `src/pwa/RegisterPWA.module.css`
+- Create: `src/app/build-id.ts`
 - Modify: `vite.config.ts`
 - Modify: `src/app/App.tsx`
 - Modify: `src/vite-env.d.ts`
@@ -786,6 +811,8 @@ Add `VitePWA` with `registerType: "prompt"`, `includeAssets: ["brand/velo-mark.s
 
 `RegisterPWA` maps `useRegisterSW()` state to `PWAUpdatePrompt`; updating calls `updateServiceWorker(true)`.
 
+Inject `__VELO_BUILD_ID__` from `process.env.VITE_BUILD_ID ?? "dev"` through Vite `define`, export it from `src/app/build-id.ts`, and expose it as `data-build-id` on the application root. This deterministic identifier is used only to verify a real two-build service-worker update in Task 8.
+
 - [ ] **Step 5: Run component and production-build checks**
 
 Run:
@@ -812,6 +839,8 @@ git commit -m "feat: add offline Velo PWA"
 - Create: `playwright.config.ts`
 - Create: `e2e/home.spec.ts`
 - Create: `e2e/pwa.spec.ts`
+- Create: `scripts/verify-pwa-lifecycle.mjs`
+- Modify: `package.json`
 - Modify: `README.md`
 - Modify: `GLOBAL-CONSOLE.md` in the workplace root after acceptance
 
@@ -836,13 +865,28 @@ expect(await page.evaluate(() => document.documentElement.scrollWidth <= documen
 
 At 390px assert bottom navigation is visible and the rail is hidden; at 834px assert the rail is visible and the bottom bar is hidden. Click each destination and assert the corresponding page heading.
 
+At 390px activate `打开菜单`, click `设置`, and assert the `设置` page landmark is visible. The test must prove settings is reachable without adding it to the bottom navigation.
+
 - [ ] **Step 3: Write accessibility and reduced-motion checks**
 
 Run `AxeBuilder({ page }).analyze()` and assert zero violations. Emulate reduced motion and assert navigation completes with the target heading visible within 100ms and no element reports an active transform transition longer than 1ms.
 
+Capture four logo states in the production browser: default wordmark, monochrome wordmark, reverse wordmark on the brand surface, and compact mark at 24px. Assert each SVG has the `Velo` accessible name, non-zero bounds, and no overflow; retain snapshots for review.
+
 - [ ] **Step 4: Write install/offline checks**
 
-Assert the page links a manifest, the manifest name is `Velo`, and the service worker controls the page after reload. Set the browser context offline, reload `/`, and assert `Velo` plus the locally seeded home content remain visible.
+Use a new browser context with cleared cookies, Cache Storage, service workers, and IndexedDB. Assert the page links a manifest, manifest name is `Velo`, display is `standalone`, required icons exist, the service worker reaches `activated`, and the fresh database shows `homeDemoSeed = "v1:applied"`. Reload once online, switch the context offline, reload `/`, and assert `Velo` plus the locally seeded home content remain visible.
+
+Create `scripts/verify-pwa-lifecycle.mjs` to exercise a real update:
+
+1. run `pnpm build` with `VITE_BUILD_ID=pwa-v1`;
+2. start a Node static HTTP server that serves the current `dist` directory without in-memory caching;
+3. open Chromium, wait for service-worker control, and assert root `data-build-id="pwa-v1"`;
+4. run a second build into the same `dist` directory with `VITE_BUILD_ID=pwa-v2`;
+5. call `registration.update()`, wait for the app's `发现 Velo 新版本` prompt, click `立即更新`, and assert the reloaded root has `data-build-id="pwa-v2"`;
+6. close browser and server in `finally` blocks and exit non-zero on timeout or assertion failure.
+
+Add script `test:pwa-lifecycle: "node scripts/verify-pwa-lifecycle.mjs"` to `package.json`.
 
 - [ ] **Step 5: Run the full fresh verification matrix**
 
@@ -851,11 +895,12 @@ Run:
 ```powershell
 pnpm verify
 pnpm test:e2e
+pnpm test:pwa-lifecycle
 git diff --check
 git status --short
 ```
 
-Expected: unit/component tests report zero failures; typecheck, lint and build exit 0; Playwright reports all projects passing; `git diff --check` has no errors; only the intended README update remains before commit.
+Expected: unit/component tests report zero failures; typecheck, lint and build exit 0; Playwright reports all projects passing; the two-build PWA lifecycle check reaches `pwa-v2`; `git diff --check` has no errors; only the intended README update remains before commit.
 
 - [ ] **Step 6: Update project documentation**
 
@@ -864,7 +909,7 @@ README must list install, `pnpm dev`, `pnpm verify`, `pnpm test:e2e`, offline be
 - [ ] **Step 7: Commit the acceptance suite and documentation**
 
 ```powershell
-git add playwright.config.ts e2e README.md
+git add playwright.config.ts e2e scripts/verify-pwa-lifecycle.mjs package.json README.md
 git commit -m "test: verify Velo milestone one"
 ```
 
@@ -877,6 +922,7 @@ In `D:\workplace\GLOBAL-CONSOLE.md`, change project status to `待验收`, recor
 ```powershell
 pnpm verify
 pnpm test:e2e
+pnpm test:pwa-lifecycle
 git diff --check
 git status --short
 ```
