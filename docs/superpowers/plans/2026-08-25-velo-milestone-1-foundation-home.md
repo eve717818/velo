@@ -366,6 +366,8 @@ git commit -m "feat: add local Velo database"
 - Create: `src/styles/reset.css`
 - Create: `src/styles/global.css`
 - Modify: `src/main.tsx`
+- Modify: `package.json`
+- Modify: `pnpm-lock.yaml`
 
 **Interfaces:**
 - Produces: `VeloLogo({ compact?: boolean, tone?: "default" | "mono" | "reverse", className?: string }): JSX.Element`.
@@ -391,28 +393,30 @@ Expected: FAIL because `VeloLogo` does not exist.
 
 - [ ] **Step 3: Create the scalable logo assets**
 
-Build `velo-wordmark.svg` as path-only accessible SVG geometry containing stylized `v`, `e`, `l`, and the open circular `o`; do not use `<text>`, an external font, or an embedded raster. Build `velo-mark.svg` from the same open `o` geometry for PWA icons. Geometry uses `currentColor` for ink and `var(--velo-logo-accent, currentColor)` for the accent, so default, monochrome, and reverse variants share one asset.
+Build `velo-wordmark.svg` as path-only accessible SVG geometry containing stylized `v`, `e`, `l`, and the open circular `o`; do not use `<text>`, an external font, or an embedded raster. Build `velo-mark.svg` from the same open `o` geometry for PWA icons. Standalone assets set root `color:#11131A`; geometry uses `currentColor` for ink and `var(--velo-logo-accent, #574FE6)` for the accent, so direct rasterizers get approved defaults while CSS consumers can override both.
+
+Install `@types/node` as a development dependency because the Node-environment Sharp rasterization test and later asset scripts import Node APIs.
 
 Use this standalone mark geometry:
 
 ```svg
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-labelledby="title">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-labelledby="title" style="color:#11131A">
   <title id="title">Velo</title>
   <circle cx="32" cy="32" r="19" fill="none" stroke="currentColor" stroke-width="8" stroke-linecap="round" stroke-dasharray="92 28" transform="rotate(-42 32 32)"/>
-  <path d="M47 18a22 22 0 0 1 7 14" fill="none" stroke="var(--velo-logo-accent, currentColor)" stroke-width="8" stroke-linecap="round"/>
+  <path d="M47 18a22 22 0 0 1 7 14" fill="none" stroke="var(--velo-logo-accent, #574FE6)" stroke-width="8" stroke-linecap="round"/>
 </svg>
 ```
 
 Use this path-only wordmark structure and keep the same `o` geometry in `VeloLogo.tsx`:
 
 ```svg
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 144 40" role="img" aria-labelledby="title">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 144 40" role="img" aria-labelledby="title" style="color:#11131A">
   <title id="title">Velo</title>
   <path d="M4 7h8l10 24L32 7h8L25 35h-6L4 7Z" fill="currentColor"/>
   <path d="M42 22c0-9 6-15 15-15 9 0 14 7 14 16v3H50c1 4 4 6 9 6 4 0 7-1 10-3v6c-3 2-7 3-11 3-10 0-16-6-16-16Zm8-2h13c0-4-2-7-6-7s-6 3-7 7Z" fill="currentColor"/>
   <path d="M77 3h8v27c0 2 1 3 3 3h2v6h-4c-6 0-9-3-9-9V3Z" fill="currentColor"/>
   <circle cx="112" cy="23" r="12" fill="none" stroke="currentColor" stroke-width="7" stroke-linecap="round" stroke-dasharray="58 18" transform="rotate(-42 112 23)"/>
-  <path d="M122 13a15 15 0 0 1 5 10" fill="none" stroke="var(--velo-logo-accent, currentColor)" stroke-width="7" stroke-linecap="round"/>
+  <path d="M122 13a15 15 0 0 1 5 10" fill="none" stroke="var(--velo-logo-accent, #574FE6)" stroke-width="7" stroke-linecap="round"/>
 </svg>
 ```
 
