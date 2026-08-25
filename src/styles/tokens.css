@@ -1,0 +1,20 @@
+:root {
+  --color-canvas: #f7f7ff;
+  --color-surface: #ffffff;
+  --color-surface-muted: #f0efff;
+  --color-text: #11131a;
+  --color-text-muted: #6f7280;
+  --color-brand: #574fe6;
+  --color-brand-strong: #4037c8;
+  --color-coral: #ff8178;
+  --color-coral-soft: #ffe2df;
+  --color-mint: #dff6ec;
+  --color-mint-strong: #139b6b;
+  --color-sticky: #ffd86a;
+  --radius-control: 14px;
+  --radius-card: 24px;
+  --shadow-card: 0 16px 40px rgb(55 47 130 / 10%);
+  --motion-fast: 160ms;
+  --motion-page: 280ms;
+  --ease-flow: cubic-bezier(.2, .8, .2, 1);
+}
