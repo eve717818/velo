@@ -1,0 +1,51 @@
+.navigation {
+  gap: 6px;
+}
+
+.link {
+  align-items: center;
+  border-radius: var(--radius-control);
+  color: var(--color-text-muted);
+  display: flex;
+  font-weight: 650;
+  gap: 10px;
+  min-height: 44px;
+  text-decoration: none;
+}
+
+.link:focus-visible,
+.link:hover {
+  background: var(--color-surface-muted);
+  color: var(--color-brand-strong);
+}
+
+.link:focus-visible {
+  outline: 3px solid var(--color-brand);
+  outline-offset: 2px;
+}
+
+.active {
+  background: var(--color-surface-muted);
+  color: var(--color-brand-strong);
+}
+
+.rail {
+  display: grid;
+}
+
+.rail .link {
+  padding: 10px 12px;
+}
+
+.mobile {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.mobile .link {
+  flex-direction: column;
+  font-size: 12px;
+  gap: 2px;
+  justify-content: center;
+  padding: 5px 2px;
+}

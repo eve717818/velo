@@ -1,0 +1,78 @@
+.shell {
+  min-height: 100vh;
+}
+
+.rail,
+.mobileNavigation {
+  display: none;
+}
+
+.mobileHeader {
+  align-items: center;
+  background: var(--color-surface);
+  border-bottom: 1px solid rgb(17 19 26 / 8%);
+  display: flex;
+  height: 64px;
+  justify-content: space-between;
+  padding: 10px 20px;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.mobileLogo {
+  height: 32px;
+  width: 32px;
+}
+
+.content {
+  margin: 0 auto;
+  max-width: 1200px;
+  padding: 32px 20px 104px;
+}
+
+.mobileNavigation {
+  background: var(--color-surface);
+  border-top: 1px solid rgb(17 19 26 / 8%);
+  bottom: 0;
+  display: block;
+  left: 0;
+  position: fixed;
+  right: 0;
+  z-index: 10;
+}
+
+@media (min-width: 768px) {
+  .shell {
+    display: grid;
+    grid-template-columns: 232px minmax(0, 1fr);
+  }
+
+  .rail {
+    background: var(--color-surface);
+    border-right: 1px solid rgb(17 19 26 / 8%);
+    display: flex;
+    flex-direction: column;
+    gap: 40px;
+    min-height: 100vh;
+    padding: 28px 16px;
+    position: sticky;
+    top: 0;
+  }
+
+  .railLogo {
+    height: auto;
+    margin-left: 8px;
+    width: 108px;
+  }
+
+  .mobileHeader,
+  .mobileNavigation {
+    display: none;
+  }
+
+  .content {
+    margin: 0;
+    padding: 48px;
+  }
+}

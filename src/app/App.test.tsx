@@ -7,4 +7,12 @@ describe("App", () => {
     render(<App />)
     expect(screen.getByRole("application", { name: "Velo" })).toBeInTheDocument()
   })
+
+  it("renders the plans shell destination at /plans", () => {
+    window.history.pushState({}, "", "/plans")
+
+    render(<App />)
+
+    expect(screen.getByRole("heading", { name: "学习计划" })).toBeInTheDocument()
+  })
 })
