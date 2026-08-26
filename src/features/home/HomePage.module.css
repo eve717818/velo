@@ -1,0 +1,500 @@
+.page {
+  margin: 0 auto;
+  max-width: 1080px;
+}
+
+.header {
+  align-items: flex-start;
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 36px;
+}
+
+.header h1 {
+  font-size: clamp(30px, 7vw, 44px);
+  letter-spacing: -0.04em;
+  line-height: 1.15;
+}
+
+.header p {
+  color: var(--color-text-muted);
+  font-size: 17px;
+  margin-top: 8px;
+}
+
+.notificationButton {
+  align-items: center;
+  background: var(--color-surface);
+  border: 1px solid rgb(17 19 26 / 9%);
+  border-radius: 50%;
+  color: var(--color-text);
+  cursor: pointer;
+  display: flex;
+  flex: 0 0 auto;
+  height: 46px;
+  justify-content: center;
+  width: 46px;
+}
+
+.notificationButton:hover {
+  color: var(--color-brand-strong);
+}
+
+.notificationButton:focus-visible,
+.nextCard:focus-visible,
+.noteRow:focus-visible,
+.quickAction:focus-visible,
+.sectionLink:focus-visible,
+.emptyLink:focus-visible {
+  outline: 3px solid var(--color-brand);
+  outline-offset: 3px;
+}
+
+.cockpitGrid {
+  display: grid;
+  gap: 30px;
+}
+
+.panel,
+.nextCard,
+.noteRow,
+.quickActions {
+  border: 1px solid rgb(17 19 26 / 7%);
+  box-shadow: var(--shadow-card);
+}
+
+.sectionTitle {
+  font-size: 20px;
+  letter-spacing: -0.02em;
+  line-height: 1.3;
+}
+
+.sectionHeadingRow {
+  align-items: center;
+  display: flex;
+  justify-content: space-between;
+}
+
+.sectionLink {
+  color: var(--color-text-muted);
+  font-size: 14px;
+  text-decoration: none;
+}
+
+.sectionLink:hover {
+  color: var(--color-brand-strong);
+}
+
+.progressPanel {
+  background: linear-gradient(125deg, #554ed9, #676ce3);
+  border: 0;
+  border-radius: var(--radius-card);
+  color: white;
+  padding: 22px 24px;
+}
+
+.progressPanel .sectionTitle {
+  color: rgb(255 255 255 / 88%);
+  font-size: 16px;
+  font-weight: 650;
+}
+
+.progressCapsule {
+  align-items: center;
+  display: flex;
+  gap: 20px;
+  justify-content: space-between;
+  margin-top: 18px;
+}
+
+.progressSegments {
+  display: flex;
+  flex: 1;
+  gap: 8px;
+}
+
+.progressSegment,
+.progressSegmentComplete {
+  background: rgb(255 255 255 / 28%);
+  border-radius: 999px;
+  display: block;
+  height: 9px;
+  min-width: 8px;
+}
+
+.progressSegmentComplete {
+  background: white;
+}
+
+.progressCount {
+  font-size: 27px;
+  letter-spacing: -0.04em;
+  white-space: nowrap;
+}
+
+.nextSection,
+.noteSection,
+.quickSection {
+  display: grid;
+  gap: 16px;
+}
+
+.nextCard {
+  align-items: center;
+  background: linear-gradient(115deg, #ff9188 0%, #f6c1cb 54%, #d9d4fb 100%);
+  border: 0;
+  border-radius: var(--radius-card);
+  color: var(--color-text);
+  display: grid;
+  gap: 18px;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  min-height: 176px;
+  padding: 24px;
+  text-decoration: none;
+}
+
+.nextIcon,
+.nextArrow {
+  align-items: center;
+  background: rgb(255 255 255 / 90%);
+  border-radius: 50%;
+  display: flex;
+  flex: 0 0 auto;
+  height: 62px;
+  justify-content: center;
+  width: 62px;
+}
+
+.nextIcon {
+  color: var(--color-coral);
+}
+
+.nextArrow {
+  color: var(--color-brand);
+}
+
+.nextCopy {
+  display: grid;
+  gap: 7px;
+  min-width: 0;
+}
+
+.nextCopy strong {
+  font-size: clamp(20px, 5vw, 26px);
+  line-height: 1.35;
+}
+
+.taskSubject,
+.taskMeta {
+  font-size: 13px;
+}
+
+.taskSubject {
+  color: var(--color-brand-strong);
+  font-weight: 700;
+}
+
+.taskMeta {
+  color: rgb(17 19 26 / 68%);
+}
+
+.emptyCard {
+  align-items: center;
+  display: flex;
+  justify-content: space-between;
+}
+
+.emptyCard p {
+  color: rgb(17 19 26 / 68%);
+  font-size: 14px;
+  margin-top: 6px;
+}
+
+.emptyLink {
+  background: rgb(255 255 255 / 88%);
+  border-radius: var(--radius-control);
+  color: var(--color-brand-strong);
+  flex: 0 0 auto;
+  font-size: 14px;
+  font-weight: 700;
+  min-height: 44px;
+  padding: 11px 16px;
+  text-decoration: none;
+}
+
+.noteRow {
+  align-items: center;
+  background: var(--color-mint);
+  border: 0;
+  border-radius: var(--radius-card);
+  color: var(--color-text);
+  display: grid;
+  gap: 16px;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  min-height: 148px;
+  padding: 20px;
+  text-decoration: none;
+}
+
+.noteIcon {
+  align-items: center;
+  background: rgb(255 255 255 / 88%);
+  border-radius: 50%;
+  color: var(--color-mint-strong);
+  display: flex;
+  height: 58px;
+  justify-content: center;
+  width: 58px;
+}
+
+.noteCopy {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+
+.noteCopy strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.noteCopy span {
+  color: var(--color-text-muted);
+  font-size: 13px;
+}
+
+.annotationPreview {
+  align-items: center;
+  background: var(--color-sticky);
+  box-shadow: 0 7px 16px rgb(101 75 10 / 16%);
+  color: #3b321a;
+  display: flex;
+  font-size: 12px;
+  height: 76px;
+  justify-content: center;
+  line-height: 1.4;
+  max-width: 96px;
+  overflow: hidden;
+  padding: 10px;
+  transform: rotate(-1.5deg);
+  width: 82px;
+}
+
+.emptyNote {
+  display: flex;
+  justify-content: space-between;
+}
+
+.quickActions {
+  background: var(--color-surface);
+  border-radius: var(--radius-card);
+  display: grid;
+  overflow: hidden;
+}
+
+.quickAction {
+  align-items: center;
+  color: var(--color-text);
+  display: flex;
+  gap: 16px;
+  min-height: 92px;
+  padding: 16px 20px;
+  text-decoration: none;
+}
+
+.quickAction + .quickAction {
+  border-top: 1px solid rgb(17 19 26 / 8%);
+}
+
+.quickAction:hover {
+  background: #fafaff;
+}
+
+.quickAction > span:last-child {
+  display: grid;
+  gap: 3px;
+}
+
+.quickAction small {
+  color: var(--color-text-muted);
+  font-size: 12px;
+}
+
+.actionIcon {
+  align-items: center;
+  border-radius: 18px;
+  display: flex;
+  flex: 0 0 auto;
+  height: 58px;
+  justify-content: center;
+  width: 58px;
+}
+
+.actionViolet {
+  background: #ebe9ff;
+  color: var(--color-brand-strong);
+}
+
+.actionMint {
+  background: var(--color-mint);
+  color: var(--color-mint-strong);
+}
+
+.actionIndigo {
+  background: #e8e9ff;
+  color: #3f46cc;
+}
+
+.loadingBlock {
+  background: #e9e9f5;
+  border-radius: var(--radius-card);
+}
+
+.loadingProgress {
+  height: 126px;
+}
+
+.loadingTask {
+  height: 220px;
+}
+
+.loadingNote {
+  height: 190px;
+}
+
+.loadingActions {
+  height: 308px;
+}
+
+.visuallyHidden {
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  height: 1px;
+  overflow: hidden;
+  position: absolute;
+  white-space: nowrap;
+  width: 1px;
+}
+
+@media (max-width: 520px) {
+  .header {
+    margin-bottom: 30px;
+  }
+
+  .nextCard {
+    gap: 12px;
+    padding: 20px 18px;
+  }
+
+  .nextIcon,
+  .nextArrow {
+    height: 50px;
+    width: 50px;
+  }
+
+  .noteRow {
+    gap: 10px;
+    padding: 18px 14px;
+  }
+
+  .noteIcon {
+    height: 48px;
+    width: 48px;
+  }
+
+  .annotationPreview {
+    height: 70px;
+    width: 68px;
+  }
+
+  .emptyCard,
+  .emptyNote {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+}
+
+@media (min-width: 960px) {
+  .cockpitGrid {
+    grid-template-areas:
+      "progress task"
+      "note note"
+      "actions actions";
+    grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
+  }
+
+  .progressPanel,
+  .loadingProgress {
+    grid-area: progress;
+  }
+
+  .nextSection,
+  .loadingTask {
+    grid-area: task;
+  }
+
+  .noteSection,
+  .loadingNote {
+    grid-area: note;
+  }
+
+  .quickSection,
+  .loadingActions {
+    grid-area: actions;
+  }
+
+  .progressPanel {
+    align-content: center;
+    display: grid;
+    min-height: 221px;
+  }
+
+  .loadingProgress,
+  .loadingTask {
+    height: 221px;
+  }
+
+  .quickActions {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .quickAction + .quickAction {
+    border-left: 1px solid rgb(17 19 26 / 8%);
+    border-top: 0;
+  }
+
+  .loadingActions {
+    height: 124px;
+  }
+}
+
+@media (min-width: 1100px) {
+  .header {
+    margin-bottom: 42px;
+  }
+
+  .cockpitGrid {
+    gap: 34px;
+    grid-template-areas:
+      "progress task"
+      "note note"
+      "actions actions";
+  }
+
+  .progressPanel {
+    padding: 30px;
+  }
+
+  .nextCard {
+    min-height: 178px;
+  }
+
+  .noteRow {
+    min-height: 160px;
+  }
+
+  .quickAction {
+    min-height: 112px;
+  }
+}

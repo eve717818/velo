@@ -1,7 +1,7 @@
 import { Route, Routes } from "react-router-dom"
 import { AppShell } from "@/app/AppShell"
+import { HomePage } from "@/features/home/HomePage"
 import { FocusPage } from "@/pages/FocusPage"
-import { HomePage } from "@/pages/HomePage"
 import { NotesPage } from "@/pages/NotesPage"
 import { PlansPage } from "@/pages/PlansPage"
 import { SettingsPage } from "@/pages/SettingsPage"

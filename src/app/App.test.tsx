@@ -8,7 +8,7 @@ describe("App", () => {
     expect(screen.getByRole("application", { name: "Velo" })).toBeInTheDocument()
   })
 
-  it("renders the plans shell destination at /plans", () => {
+  it("renders the plans shell destination at /plans", async () => {
     const originalPath = `${window.location.pathname}${window.location.search}${window.location.hash}`
     const originalState = window.history.state as unknown
 
@@ -17,7 +17,7 @@ describe("App", () => {
 
       render(<App />)
 
-      expect(screen.getByRole("heading", { name: "学习计划" })).toBeInTheDocument()
+      expect(await screen.findByRole("heading", { name: "学习计划" })).toBeInTheDocument()
     } finally {
       window.history.replaceState(originalState, "", originalPath)
     }

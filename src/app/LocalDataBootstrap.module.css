@@ -1,0 +1,117 @@
+.bootstrapShell {
+  min-height: 100vh;
+}
+
+.loadingRail {
+  display: none;
+}
+
+.loadingCanvas {
+  margin: 0 auto;
+  max-width: 1200px;
+  padding: 40px 20px 104px;
+}
+
+.loadingHeader,
+.loadingGrid > div {
+  background: #e9e9f5;
+  border-radius: var(--radius-card);
+}
+
+.loadingHeader {
+  height: 88px;
+  margin-bottom: 34px;
+  max-width: 380px;
+}
+
+.loadingGrid {
+  display: grid;
+  gap: 24px;
+}
+
+.loadingGrid > div:nth-child(1) {
+  height: 128px;
+}
+
+.loadingGrid > div:nth-child(2) {
+  height: 210px;
+}
+
+.loadingGrid > div:nth-child(3) {
+  height: 170px;
+}
+
+.loadingGrid > div:nth-child(4) {
+  height: 260px;
+}
+
+.errorState {
+  align-items: center;
+  display: flex;
+  justify-content: center;
+  min-height: 100vh;
+  padding: 24px;
+  text-align: center;
+}
+
+.errorState h1 {
+  font-size: clamp(24px, 4vw, 36px);
+}
+
+.errorState p {
+  color: var(--color-text-muted);
+  margin-top: 10px;
+}
+
+.errorState button {
+  background: var(--color-brand);
+  border: 0;
+  border-radius: var(--radius-control);
+  color: white;
+  cursor: pointer;
+  margin-top: 24px;
+  min-height: 44px;
+  padding: 10px 24px;
+}
+
+.errorState button:focus-visible {
+  outline: 3px solid var(--color-brand-strong);
+  outline-offset: 3px;
+}
+
+.visuallyHidden {
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  height: 1px;
+  overflow: hidden;
+  position: absolute;
+  white-space: nowrap;
+  width: 1px;
+}
+
+@media (min-width: 768px) {
+  .bootstrapShell {
+    display: grid;
+    grid-template-columns: 232px minmax(0, 1fr);
+  }
+
+  .loadingRail {
+    background: #efeff9;
+    border-right: 1px solid rgb(17 19 26 / 8%);
+    display: block;
+  }
+
+  .loadingCanvas {
+    margin: 0;
+    padding: 48px;
+  }
+
+  .loadingGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .loadingGrid > div:nth-child(4) {
+    grid-column: 1 / -1;
+    height: 140px;
+  }
+}
