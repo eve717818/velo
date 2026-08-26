@@ -1,6 +1,7 @@
 import { Bell } from "lucide-react"
 import type { VeloDB } from "@/db/velo-db"
 import { NextTaskCard } from "./components/NextTaskCard"
+import { HomeLoadingCockpit } from "./components/HomeLoadingCockpit"
 import { ProgressPanel } from "./components/ProgressPanel"
 import { QuickActions } from "./components/QuickActions"
 import { RecentNoteRow } from "./components/RecentNoteRow"
@@ -42,14 +43,9 @@ export function HomePage({ db, now }: HomePageProps) {
       </header>
 
       {isLoading ? (
-        <div className={styles.cockpitGrid} aria-hidden="true">
-          <div className={`${styles.loadingBlock} ${styles.loadingProgress}`} />
-          <div className={`${styles.loadingBlock} ${styles.loadingTask}`} />
-          <div className={`${styles.loadingBlock} ${styles.loadingNote}`} />
-          <div className={`${styles.loadingBlock} ${styles.loadingActions}`} />
-        </div>
+        <HomeLoadingCockpit />
       ) : (
-        <div className={styles.cockpitGrid}>
+        <div aria-label="今日学习工作台" className={styles.cockpitGrid} data-layout="bento" role="region">
           <ProgressPanel completedCount={snapshot.completedCount} totalCount={snapshot.totalCount} />
           <NextTaskCard task={snapshot.nextTask} totalCount={snapshot.totalCount} />
           <RecentNoteRow note={snapshot.recentNote} />

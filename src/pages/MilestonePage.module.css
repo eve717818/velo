@@ -1,0 +1,36 @@
+.page {
+  margin: 0 auto;
+  max-width: 920px;
+}
+
+.page h1 {
+  font-size: clamp(36px, 7vw, 64px);
+  letter-spacing: -0.055em;
+  line-height: 1;
+}
+
+.surface {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-card-large);
+  box-shadow: var(--shadow-card);
+  margin-top: 34px;
+  min-height: 260px;
+  padding: clamp(24px, 5vw, 48px);
+}
+
+.eyebrow {
+  color: var(--color-brand-strong);
+  font-size: 12px;
+  font-weight: 750;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+}
+
+.surface p:last-child {
+  color: var(--color-text-muted);
+  font-size: clamp(17px, 2.5vw, 21px);
+  line-height: 1.6;
+  margin-top: 24px;
+  max-width: 560px;
+}

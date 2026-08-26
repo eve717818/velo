@@ -2,21 +2,47 @@
 
 > 捕捉灵感，保持心流。Catch ideas, keep flowing.
 
-Velo 是面向大学生的本地优先学习工作台，提供学习驾驶舱、日/周/月/学期计划、树状知识笔记、番茄钟，以及由用户自带 API 驱动的 AI 学习能力。
+Velo 是面向大学生的本地优先学习工作台。本里程碑交付了可运行、可安装、可离线打开的响应式应用基础，以及黑白 Bento + Velo 紫点睛的首页学习驾驶舱。
 
-## 当前状态
+## 已实现
 
-- 阶段：产品设计规格待验收
-- 分支：`docs/initial-product-spec`
-- 规格：[Velo 产品设计规格](docs/superpowers/specs/2026-08-25-velo-product-design.md)
-- 首个实现里程碑：响应式应用基础、PWA、本地数据库、主页驾驶舱
+- React、TypeScript、Vite 与 Dexie 本地数据层
+- 首页种子数据：当日任务 3/5、下一项“高等数学 · 导数复习”、最近笔记“线性代数：矩阵的秩”
+- 首页、计划、笔记、专注、设置五个可访问路由
+- 手机、平板与桌面响应式导航和布局
+- 全局页面转场、进度动效和 `prefers-reduced-motion` 降级
+- PWA manifest、离线缓存、更新提示与版本切换验证
+- 单元测试、无障碍检查与六档视口端到端测试
 
-## 设计基准
+## 本地运行
 
-- [Web 主页方向](docs/design/velo-web-home-direction.png)
-- [手机版主页（已确认）](docs/design/velo-mobile-home-approved.png)
-- [Logo 方案 3](docs/design/velo-logo-concept-3.png)
+```powershell
+pnpm install
+pnpm dev
+```
 
-## 开发约定
+生产预览：
 
-实际开发只在本目录对应的项目 worktree 中进行；同级 `repository` 保留稳定 `main` 基线。每个功能使用独立的 `feat/*`、`fix/*`、`docs/*` 或 `chore/*` 分支，并在提交前运行适用测试、`git diff --check` 与变更范围检查。
+```powershell
+pnpm build
+pnpm preview
+```
+
+## 验证
+
+```powershell
+pnpm verify
+pnpm test:e2e
+pnpm test:pwa-lifecycle
+```
+
+`test:pwa-lifecycle` 会依次构建 `pwa-v1` 与 `pwa-v2`，在本机 Chrome 中验证“发现新版本 → 立即更新 → 载入新构建”的完整链路。
+
+## 设计资料
+
+- [产品设计规格](docs/superpowers/specs/2026-08-25-velo-product-design.md)
+- [里程碑 1 实施计划](docs/superpowers/plans/2026-08-25-velo-milestone-1-foundation-home.md)
+- [最终设计 QA](design-qa.md)
+- [视觉对照图](docs/qa/velo-style-comparison-final.png)
+
+计划、笔记、专注与设置页目前展示清晰的阶段状态；树状知识库、学习计划卡片、拍照录入、批注便签、番茄钟和 AI 能力将在后续里程碑逐项实现。

@@ -6,43 +6,57 @@
   display: none;
 }
 
-.loadingCanvas {
+.loadingContent {
   margin: 0 auto;
-  max-width: 1200px;
-  padding: 40px 20px 104px;
+  max-width: 1240px;
+  padding: 30px 18px 112px;
 }
 
-.loadingHeader,
-.loadingGrid > div {
-  background: #e9e9f5;
-  border-radius: var(--radius-card);
-}
-
-.loadingHeader {
-  height: 88px;
-  margin-bottom: 34px;
-  max-width: 380px;
-}
-
-.loadingGrid {
+.loadingMobileNavigation {
+  background: rgb(255 255 255 / 88%);
+  border: 1px solid var(--color-border);
+  border-bottom: 0;
+  border-radius: 22px 22px 0 0;
+  bottom: 0;
   display: grid;
-  gap: 24px;
+  gap: 8px;
+  grid-template-columns: repeat(4, 1fr);
+  left: 8px;
+  padding: 13px 18px 12px;
+  position: fixed;
+  right: 8px;
+  z-index: 20;
 }
 
-.loadingGrid > div:nth-child(1) {
-  height: 128px;
+.loadingMobileNavigation span {
+  background: #dededb;
+  border-radius: 999px;
+  height: 32px;
 }
 
-.loadingGrid > div:nth-child(2) {
-  height: 210px;
+.loadingGreeting {
+  display: grid;
+  gap: 10px;
 }
 
-.loadingGrid > div:nth-child(3) {
-  height: 170px;
+.loadingGreeting span {
+  background: #dededb;
+  border-radius: 999px;
+  display: block;
 }
 
-.loadingGrid > div:nth-child(4) {
-  height: 260px;
+.loadingGreeting span:first-child {
+  height: 46px;
+  width: min(70vw, 310px);
+}
+
+.loadingGreeting span:last-child {
+  height: 18px;
+  width: 148px;
+}
+
+.loadingNotification {
+  background: var(--color-surface);
 }
 
 .errorState {
@@ -64,7 +78,7 @@
 }
 
 .errorState button {
-  background: var(--color-brand);
+  background: var(--color-surface-strong);
   border: 0;
   border-radius: var(--radius-control);
   color: white;
@@ -75,7 +89,7 @@
 }
 
 .errorState button:focus-visible {
-  outline: 3px solid var(--color-brand-strong);
+  outline: 3px solid var(--color-brand);
   outline-offset: 3px;
 }
 
@@ -92,26 +106,50 @@
 @media (min-width: 768px) {
   .bootstrapShell {
     display: grid;
-    grid-template-columns: 232px minmax(0, 1fr);
+    grid-template-columns: 206px minmax(0, 1fr);
   }
 
   .loadingRail {
-    background: #efeff9;
-    border-right: 1px solid rgb(17 19 26 / 8%);
-    display: block;
+    background: var(--color-surface-strong);
+    display: flex;
+    flex-direction: column;
+    gap: 50px;
+    min-height: 100vh;
+    padding: 30px 18px;
   }
 
-  .loadingCanvas {
+  .loadingRailLogo {
+    color: white !important;
+    height: auto;
+    margin-left: 8px;
+    width: 104px;
+    --velo-logo-accent: #8a7cff !important;
+  }
+
+  .loadingRailNavigation {
+    display: grid;
+    gap: 12px;
+  }
+
+  .loadingRailNavigation span {
+    background: rgb(255 255 255 / 10%);
+    border-radius: var(--radius-control);
+    height: 44px;
+  }
+
+  .loadingContent {
     margin: 0;
-    padding: 48px;
+    max-width: none;
+    padding: 44px clamp(28px, 4vw, 64px) 64px;
   }
 
-  .loadingGrid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+  .loadingMobileNavigation {
+    display: none;
   }
+}
 
-  .loadingGrid > div:nth-child(4) {
-    grid-column: 1 / -1;
-    height: 140px;
+@media (min-width: 1180px) {
+  .bootstrapShell {
+    grid-template-columns: 232px minmax(0, 1fr);
   }
 }

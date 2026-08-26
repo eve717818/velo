@@ -13,6 +13,7 @@
     "test": "vitest",
     "test:run": "vitest run",
     "test:e2e": "pnpm build && playwright test",
+    "test:pwa-lifecycle": "node scripts/verify-pwa-lifecycle.mjs",
     "assets:pwa": "node scripts/generate-pwa-assets.mjs",
     "verify": "pnpm typecheck && pnpm lint && pnpm test:run && pnpm build"
   },
@@ -25,7 +26,8 @@
     "motion": "^13.1.1",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
-    "react-router-dom": "^7.18.2"
+    "react-router-dom": "^7.18.2",
+    "workbox-window": "7.4.1"
   },
   "devDependencies": {
     "@axe-core/playwright": "^4.13.0",

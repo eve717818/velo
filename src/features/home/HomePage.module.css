@@ -1,43 +1,50 @@
 .page {
   margin: 0 auto;
-  max-width: 1080px;
+  max-width: 1180px;
 }
 
 .header {
   align-items: flex-start;
   display: flex;
   justify-content: space-between;
-  margin-bottom: 36px;
+  margin-bottom: 28px;
 }
 
 .header h1 {
-  font-size: clamp(30px, 7vw, 44px);
-  letter-spacing: -0.04em;
-  line-height: 1.15;
+  font-size: clamp(32px, 7vw, 58px);
+  font-weight: 750;
+  letter-spacing: -0.055em;
+  line-height: 1.02;
 }
 
 .header p {
   color: var(--color-text-muted);
-  font-size: 17px;
-  margin-top: 8px;
+  font-size: 15px;
+  margin-top: 10px;
 }
 
 .notificationButton {
   align-items: center;
   background: var(--color-surface);
-  border: 1px solid rgb(17 19 26 / 9%);
+  border: 1px solid var(--color-border);
   border-radius: 50%;
   color: var(--color-text);
   cursor: pointer;
-  display: flex;
+  display: none;
   flex: 0 0 auto;
-  height: 46px;
+  height: 48px;
   justify-content: center;
-  width: 46px;
+  transition:
+    color var(--motion-fast) var(--ease-flow),
+    transform var(--motion-fast) var(--ease-flow),
+    box-shadow var(--motion-fast) var(--ease-flow);
+  width: 48px;
 }
 
 .notificationButton:hover {
+  box-shadow: var(--shadow-card);
   color: var(--color-brand-strong);
+  transform: translateY(-2px);
 }
 
 .notificationButton:focus-visible,
@@ -52,20 +59,21 @@
 
 .cockpitGrid {
   display: grid;
-  gap: 30px;
+  gap: 18px;
 }
 
 .panel,
 .nextCard,
 .noteRow,
-.quickActions {
-  border: 1px solid rgb(17 19 26 / 7%);
+.quickAction {
+  border: 1px solid var(--color-border);
   box-shadow: var(--shadow-card);
 }
 
 .sectionTitle {
-  font-size: 20px;
-  letter-spacing: -0.02em;
+  font-size: 16px;
+  font-weight: 720;
+  letter-spacing: -0.025em;
   line-height: 1.3;
 }
 
@@ -77,7 +85,8 @@
 
 .sectionLink {
   color: var(--color-text-muted);
-  font-size: 14px;
+  font-size: 13px;
+  font-weight: 650;
   text-decoration: none;
 }
 
@@ -86,49 +95,55 @@
 }
 
 .progressPanel {
-  background: linear-gradient(125deg, #554ed9, #676ce3);
+  background: var(--color-surface-strong);
   border: 0;
-  border-radius: var(--radius-card);
-  color: white;
-  padding: 22px 24px;
+  border-radius: var(--radius-card-large);
+  color: var(--color-text-inverse);
+  min-height: 218px;
+  padding: 24px;
 }
 
 .progressPanel .sectionTitle {
-  color: rgb(255 255 255 / 88%);
-  font-size: 16px;
-  font-weight: 650;
+  color: rgb(248 248 246 / 68%);
+  font-size: 14px;
+  font-weight: 620;
 }
 
 .progressCapsule {
-  align-items: center;
+  align-items: flex-end;
   display: flex;
-  gap: 20px;
-  justify-content: space-between;
-  margin-top: 18px;
+  flex-direction: column-reverse;
+  gap: 34px;
+  margin-top: 26px;
 }
 
 .progressSegments {
   display: flex;
-  flex: 1;
-  gap: 8px;
+  gap: 7px;
+  width: 100%;
 }
 
 .progressSegment,
 .progressSegmentComplete {
-  background: rgb(255 255 255 / 28%);
+  background: white;
   border-radius: 999px;
   display: block;
-  height: 9px;
+  height: 8px;
   min-width: 8px;
+  transform-origin: left center;
 }
 
 .progressSegmentComplete {
-  background: white;
+  background: var(--color-brand);
 }
 
 .progressCount {
-  font-size: 27px;
-  letter-spacing: -0.04em;
+  align-self: flex-start;
+  font-size: clamp(42px, 11vw, 64px);
+  font-variant-numeric: tabular-nums;
+  font-weight: 650;
+  letter-spacing: -0.065em;
+  line-height: 0.9;
   white-space: nowrap;
 }
 
@@ -136,41 +151,59 @@
 .noteSection,
 .quickSection {
   display: grid;
-  gap: 16px;
+  gap: 12px;
 }
 
 .nextCard {
   align-items: center;
-  background: linear-gradient(115deg, #ff9188 0%, #f6c1cb 54%, #d9d4fb 100%);
-  border: 0;
+  background: var(--color-surface);
   border-radius: var(--radius-card);
   color: var(--color-text);
   display: grid;
-  gap: 18px;
+  gap: 14px;
   grid-template-columns: auto minmax(0, 1fr) auto;
-  min-height: 176px;
-  padding: 24px;
+  min-height: 166px;
+  padding: 20px;
   text-decoration: none;
+  transition:
+    transform var(--motion-fast) var(--ease-flow),
+    box-shadow var(--motion-fast) var(--ease-flow),
+    border-color var(--motion-fast) var(--ease-flow);
+}
+
+.nextCard:hover,
+.noteRow:hover,
+.quickAction:hover {
+  border-color: rgb(109 93 252 / 28%);
+  box-shadow: var(--shadow-raised);
+  transform: translateY(-2px);
+}
+
+.nextCard:active,
+.noteRow:active,
+.quickAction:active {
+  transform: scale(.985);
 }
 
 .nextIcon,
 .nextArrow {
   align-items: center;
-  background: rgb(255 255 255 / 90%);
   border-radius: 50%;
   display: flex;
   flex: 0 0 auto;
-  height: 62px;
+  height: 52px;
   justify-content: center;
-  width: 62px;
+  width: 52px;
 }
 
 .nextIcon {
-  color: var(--color-coral);
+  background: var(--color-brand-soft);
+  color: var(--color-brand-strong);
 }
 
 .nextArrow {
-  color: var(--color-brand);
+  background: var(--color-surface-strong);
+  color: white;
 }
 
 .nextCopy {
@@ -180,22 +213,23 @@
 }
 
 .nextCopy strong {
-  font-size: clamp(20px, 5vw, 26px);
-  line-height: 1.35;
+  font-size: clamp(18px, 4vw, 24px);
+  letter-spacing: -0.025em;
+  line-height: 1.25;
 }
 
 .taskSubject,
 .taskMeta {
-  font-size: 13px;
+  font-size: 12px;
 }
 
 .taskSubject {
   color: var(--color-brand-strong);
-  font-weight: 700;
+  font-weight: 720;
 }
 
 .taskMeta {
-  color: rgb(17 19 26 / 68%);
+  color: var(--color-text-muted);
 }
 
 .emptyCard {
@@ -205,46 +239,49 @@
 }
 
 .emptyCard p {
-  color: rgb(17 19 26 / 68%);
+  color: var(--color-text-muted);
   font-size: 14px;
   margin-top: 6px;
 }
 
 .emptyLink {
-  background: rgb(255 255 255 / 88%);
+  background: var(--color-surface-strong);
   border-radius: var(--radius-control);
-  color: var(--color-brand-strong);
+  color: white;
   flex: 0 0 auto;
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 700;
   min-height: 44px;
-  padding: 11px 16px;
+  padding: 12px 16px;
   text-decoration: none;
 }
 
 .noteRow {
   align-items: center;
-  background: var(--color-mint);
-  border: 0;
+  background: var(--color-surface-muted);
   border-radius: var(--radius-card);
   color: var(--color-text);
   display: grid;
-  gap: 16px;
+  gap: 14px;
   grid-template-columns: auto minmax(0, 1fr) auto;
-  min-height: 148px;
-  padding: 20px;
+  min-height: 142px;
+  padding: 18px;
   text-decoration: none;
+  transition:
+    transform var(--motion-fast) var(--ease-flow),
+    box-shadow var(--motion-fast) var(--ease-flow),
+    border-color var(--motion-fast) var(--ease-flow);
 }
 
 .noteIcon {
   align-items: center;
-  background: rgb(255 255 255 / 88%);
-  border-radius: 50%;
-  color: var(--color-mint-strong);
+  background: var(--color-surface);
+  border-radius: 18px;
+  color: var(--color-text);
   display: flex;
-  height: 58px;
+  height: 52px;
   justify-content: center;
-  width: 58px;
+  width: 52px;
 }
 
 .noteCopy {
@@ -261,24 +298,25 @@
 
 .noteCopy span {
   color: var(--color-text-muted);
-  font-size: 13px;
+  font-size: 12px;
 }
 
 .annotationPreview {
   align-items: center;
-  background: var(--color-sticky);
-  box-shadow: 0 7px 16px rgb(101 75 10 / 16%);
-  color: #3b321a;
+  background: var(--color-brand);
+  border-radius: 16px;
+  box-shadow: 0 10px 22px rgb(78 62 232 / 22%);
+  color: white;
   display: flex;
-  font-size: 12px;
-  height: 76px;
+  font-size: 11px;
+  height: 70px;
   justify-content: center;
-  line-height: 1.4;
-  max-width: 96px;
+  line-height: 1.35;
+  max-width: 90px;
   overflow: hidden;
   padding: 10px;
   transform: rotate(-1.5deg);
-  width: 82px;
+  width: 74px;
 }
 
 .emptyNote {
@@ -287,28 +325,28 @@
 }
 
 .quickActions {
-  background: var(--color-surface);
-  border-radius: var(--radius-card);
   display: grid;
-  overflow: hidden;
+  gap: 10px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
 .quickAction {
   align-items: center;
+  background: var(--color-surface);
+  border-radius: 20px;
   color: var(--color-text);
   display: flex;
-  gap: 16px;
-  min-height: 92px;
-  padding: 16px 20px;
+  flex-direction: column;
+  gap: 10px;
+  justify-content: center;
+  min-height: 142px;
+  padding: 14px 6px;
+  text-align: center;
   text-decoration: none;
-}
-
-.quickAction + .quickAction {
-  border-top: 1px solid rgb(17 19 26 / 8%);
-}
-
-.quickAction:hover {
-  background: #fafaff;
+  transition:
+    transform var(--motion-fast) var(--ease-flow),
+    box-shadow var(--motion-fast) var(--ease-flow),
+    border-color var(--motion-fast) var(--ease-flow);
 }
 
 .quickAction > span:last-child {
@@ -316,55 +354,91 @@
   gap: 3px;
 }
 
+.quickAction strong {
+  font-size: 13px;
+}
+
 .quickAction small {
   color: var(--color-text-muted);
-  font-size: 12px;
+  display: none;
+  font-size: 11px;
+  line-height: 1.35;
 }
 
 .actionIcon {
   align-items: center;
+  background: var(--color-surface-muted);
   border-radius: 18px;
+  color: var(--color-text);
   display: flex;
   flex: 0 0 auto;
-  height: 58px;
+  height: 52px;
   justify-content: center;
-  width: 58px;
+  width: 52px;
 }
 
 .actionViolet {
-  background: #ebe9ff;
-  color: var(--color-brand-strong);
+  background: var(--color-brand);
+  color: white;
 }
 
-.actionMint {
-  background: var(--color-mint);
-  color: var(--color-mint-strong);
-}
-
+.actionMint,
 .actionIndigo {
-  background: #e8e9ff;
-  color: #3f46cc;
+  background: var(--color-surface-muted);
+  color: var(--color-text);
 }
 
-.loadingBlock {
-  background: #e9e9f5;
-  border-radius: var(--radius-card);
+.loadingCard,
+.loadingQuickAction {
+  pointer-events: none;
 }
 
-.loadingProgress {
-  height: 126px;
+.loadingShape,
+.loadingCircle {
+  background: rgb(109 93 252 / 16%);
+  display: block;
 }
 
-.loadingTask {
-  height: 220px;
+.loadingShape {
+  border-radius: 999px;
 }
 
-.loadingNote {
-  height: 190px;
+.loadingCircle {
+  border-radius: 50%;
+  height: 52px;
+  width: 52px;
 }
 
-.loadingActions {
-  height: 308px;
+.progressPanel .loadingShape {
+  background: rgb(255 255 255 / 20%);
+}
+
+.loadingProgressTrack {
+  height: 8px;
+  width: 100%;
+}
+
+.loadingProgressCount {
+  align-self: flex-start;
+  height: 48px;
+  width: 96px;
+}
+
+.loadingTaskCopy,
+.loadingNoteCopy {
+  height: 20px;
+  width: min(100%, 210px);
+}
+
+.loadingAnnotation {
+  height: 70px;
+  width: 74px;
+}
+
+.loadingActionCopy {
+  background: #dededb;
+  height: 16px;
+  width: min(70px, 78%);
 }
 
 .visuallyHidden {
@@ -377,35 +451,27 @@
   width: 1px;
 }
 
-@media (max-width: 520px) {
-  .header {
-    margin-bottom: 30px;
-  }
-
+@media (max-width: 420px) {
   .nextCard {
-    gap: 12px;
-    padding: 20px 18px;
+    gap: 11px;
+    padding: 18px 14px;
   }
 
   .nextIcon,
-  .nextArrow {
-    height: 50px;
-    width: 50px;
+  .nextArrow,
+  .noteIcon {
+    height: 46px;
+    width: 46px;
   }
 
   .noteRow {
     gap: 10px;
-    padding: 18px 14px;
-  }
-
-  .noteIcon {
-    height: 48px;
-    width: 48px;
+    padding: 16px 12px;
   }
 
   .annotationPreview {
-    height: 70px;
-    width: 68px;
+    height: 64px;
+    width: 62px;
   }
 
   .emptyCard,
@@ -415,86 +481,107 @@
   }
 }
 
-@media (min-width: 960px) {
-  .cockpitGrid {
-    grid-template-areas:
-      "progress task"
-      "note note"
-      "actions actions";
-    grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
-  }
-
-  .progressPanel,
-  .loadingProgress {
-    grid-area: progress;
-  }
-
-  .nextSection,
-  .loadingTask {
-    grid-area: task;
-  }
-
-  .noteSection,
-  .loadingNote {
-    grid-area: note;
-  }
-
-  .quickSection,
-  .loadingActions {
-    grid-area: actions;
-  }
-
-  .progressPanel {
-    align-content: center;
-    display: grid;
-    min-height: 221px;
-  }
-
-  .loadingProgress,
-  .loadingTask {
-    height: 221px;
-  }
-
-  .quickActions {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-  }
-
-  .quickAction + .quickAction {
-    border-left: 1px solid rgb(17 19 26 / 8%);
-    border-top: 0;
-  }
-
-  .loadingActions {
-    height: 124px;
+@media (min-width: 560px) {
+  .quickAction small {
+    display: block;
   }
 }
 
-@media (min-width: 1100px) {
+@media (min-width: 700px) {
   .header {
-    margin-bottom: 42px;
+    margin-bottom: 36px;
+  }
+
+  .notificationButton {
+    display: flex;
   }
 
   .cockpitGrid {
-    gap: 34px;
+    gap: 22px;
     grid-template-areas:
       "progress task"
       "note note"
       "actions actions";
+    grid-template-columns: minmax(0, .9fr) minmax(0, 1.1fr);
   }
 
   .progressPanel {
-    padding: 30px;
+    grid-area: progress;
+    min-height: 214px;
   }
 
-  .nextCard {
-    min-height: 178px;
+  .nextSection {
+    grid-area: task;
   }
 
-  .noteRow {
-    min-height: 160px;
+  .noteSection {
+    grid-area: note;
+  }
+
+  .quickSection {
+    grid-area: actions;
   }
 
   .quickAction {
-    min-height: 112px;
+    flex-direction: row;
+    gap: 14px;
+    justify-content: flex-start;
+    min-height: 102px;
+    padding: 16px 18px;
+    text-align: left;
+  }
+}
+
+@media (min-width: 1024px) {
+  .header {
+    margin-bottom: 44px;
+  }
+
+  .cockpitGrid {
+    gap: 26px;
+    grid-template-areas:
+      "progress task"
+      "progress note"
+      "actions actions";
+    grid-template-columns: minmax(300px, .82fr) minmax(420px, 1.18fr);
+  }
+
+  .progressPanel {
+    align-content: space-between;
+    display: grid;
+    min-height: 430px;
+    padding: 30px;
+  }
+
+  .progressCapsule {
+    gap: 48px;
+  }
+
+  .nextCard,
+  .noteRow {
+    min-height: 176px;
+  }
+
+  .quickAction {
+    min-height: 114px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .notificationButton,
+  .nextCard,
+  .noteRow,
+  .quickAction {
+    transition-duration: 0ms;
+  }
+
+  .notificationButton:hover,
+  .nextCard:hover,
+  .noteRow:hover,
+  .quickAction:hover,
+  .nextCard:active,
+  .noteRow:active,
+  .quickAction:active {
+    transform: none;
   }
 }

@@ -11,6 +11,10 @@
   gap: 10px;
   min-height: 44px;
   text-decoration: none;
+  transition:
+    background var(--motion-fast) var(--ease-flow),
+    color var(--motion-fast) var(--ease-flow),
+    transform var(--motion-fast) var(--ease-flow);
 }
 
 .link:focus-visible,
@@ -34,7 +38,19 @@
 }
 
 .rail .link {
+  color: rgb(248 248 246 / 62%);
   padding: 10px 12px;
+}
+
+.rail .link:hover,
+.rail .link:focus-visible {
+  background: rgb(255 255 255 / 10%);
+  color: var(--color-text-inverse);
+}
+
+.rail .active {
+  background: var(--color-brand);
+  color: white;
 }
 
 .mobile {
@@ -48,4 +64,16 @@
   gap: 2px;
   justify-content: center;
   padding: 5px 2px;
+}
+
+@media (hover: hover) {
+  .link:hover {
+    transform: translateY(-1px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .link {
+    transition-duration: 0ms;
+  }
 }

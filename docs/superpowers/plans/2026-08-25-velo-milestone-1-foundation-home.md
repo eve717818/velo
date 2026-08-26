@@ -17,7 +17,8 @@
 - Mobile bottom navigation exposes 首页、计划、笔记、专注; 设置 is reached from the top menu. Tablet/desktop uses a left rail with 设置 at the bottom.
 - Core planning/note data must remain usable offline and persist in IndexedDB; no account or cloud sync is introduced.
 - Normal body text must meet WCAG 2.2 AA contrast, and touch-primary controls must be at least 44×44 CSS pixels.
-- Glass surfaces are limited to navigation, drawers, and transient overlays; routine content uses opaque or softly tinted surfaces.
+- The approved visual system is warm white/light gray with black-and-white Bento surfaces and Velo purple reserved for progress, focus, selection, and primary actions.
+- Glass surfaces are limited to the mobile navigation, drawers, and transient overlays; routine content uses opaque surfaces with restrained borders and shadows.
 - Motion must explain state changes, avoid looping decoration, and provide a no-displacement `prefers-reduced-motion` path.
 - Milestone 1 routes beyond the home cockpit are accessible shell destinations only; plan, note, and focus workflows are implemented in their own later milestones.
 
@@ -652,12 +653,12 @@ Expected: FAIL because the cockpit components are not implemented.
 
 - [ ] **Step 6: Implement the approved responsive composition**
 
-Match `docs/design/velo-web-home-direction.png` and `docs/design/velo-mobile-home-approved.png`:
+Use the existing approved Logo 3 assets and the user's 2026-08-26 Apple Bento reference as the current visual authority; the older pastel mockups remain historical context only:
 
 - header: approved wordmark, greeting, local date, notifications button;
-- compact blue-violet segmented progress capsule;
-- coral-to-lavender next-task card;
-- mint recent-note row with a yellow annotation preview;
+- dominant black progress card with a restrained Velo-purple progress accent;
+- white/light-gray next-task and recent-note cards with high-contrast type and one small purple focal detail;
+- asymmetric but aligned Bento proportions rather than a uniform card wall;
 - lower thumb-zone quick actions;
 - mobile single stream, tablet two-column transition, desktop rail plus wide canvas.
 

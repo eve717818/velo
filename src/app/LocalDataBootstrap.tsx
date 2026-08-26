@@ -1,6 +1,10 @@
 import { type ReactNode, useEffect, useState } from "react"
+import { VeloLogo } from "@/components/brand/VeloLogo"
 import { seedHomeDemo } from "@/db/seed"
 import { veloDb, type VeloDB } from "@/db/velo-db"
+import { HomeLoadingCockpit } from "@/features/home/components/HomeLoadingCockpit"
+import homeStyles from "@/features/home/HomePage.module.css"
+import { MobileHeader } from "./MobileHeader"
 import styles from "./LocalDataBootstrap.module.css"
 
 interface LocalDataBootstrapProps {
@@ -68,18 +72,36 @@ export function LocalDataBootstrap({ children, db = veloDb }: LocalDataBootstrap
   }
 
   return (
-    <div aria-busy="true" aria-label="正在准备本地学习数据" className={styles.bootstrapShell} role="status">
-      <aside className={styles.loadingRail} aria-hidden="true" />
-      <main className={styles.loadingCanvas}>
-        <span className={styles.visuallyHidden}>正在准备本地学习数据</span>
-        <div className={styles.loadingHeader} aria-hidden="true" />
-        <div className={styles.loadingGrid} aria-hidden="true">
-          <div />
-          <div />
-          <div />
-          <div />
+    <div aria-busy="true" aria-label="正在准备本地学习数据" className={styles.bootstrapShell} role="group">
+      <MobileHeader />
+      <aside className={styles.loadingRail} aria-hidden="true">
+        <VeloLogo className={styles.loadingRailLogo} />
+        <div className={styles.loadingRailNavigation}>
+          {Array.from({ length: 5 }, (_, index) => (
+            <span key={index} />
+          ))}
         </div>
-      </main>
+      </aside>
+      <div className={styles.loadingContent}>
+        <main className={homeStyles.page}>
+          <header className={homeStyles.header} aria-hidden="true">
+            <div className={styles.loadingGreeting}>
+              <span />
+              <span />
+            </div>
+            <span className={`${homeStyles.notificationButton} ${styles.loadingNotification}`} />
+          </header>
+          <HomeLoadingCockpit />
+        </main>
+      </div>
+      <div className={styles.loadingMobileNavigation} aria-hidden="true">
+        {Array.from({ length: 4 }, (_, index) => (
+          <span key={index} />
+        ))}
+      </div>
+      <span aria-label="正在准备本地学习数据" className={styles.visuallyHidden} role="status">
+        正在准备本地学习数据
+      </span>
     </div>
   )
 }
