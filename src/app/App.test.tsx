@@ -9,10 +9,17 @@ describe("App", () => {
   })
 
   it("renders the plans shell destination at /plans", () => {
-    window.history.pushState({}, "", "/plans")
+    const originalPath = `${window.location.pathname}${window.location.search}${window.location.hash}`
+    const originalState = window.history.state as unknown
 
-    render(<App />)
+    try {
+      window.history.pushState({}, "", "/plans")
 
-    expect(screen.getByRole("heading", { name: "学习计划" })).toBeInTheDocument()
+      render(<App />)
+
+      expect(screen.getByRole("heading", { name: "学习计划" })).toBeInTheDocument()
+    } finally {
+      window.history.replaceState(originalState, "", originalPath)
+    }
   })
 })

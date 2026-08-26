@@ -1,17 +1,32 @@
 import { useCallback, useEffect, useRef, useState } from "react"
 import { Ellipsis } from "lucide-react"
-import { NavLink } from "react-router-dom"
+import { NavLink, useLocation } from "react-router-dom"
 import styles from "./MobileTopMenu.module.css"
 
 export function MobileTopMenu() {
-  const [isOpen, setIsOpen] = useState(false)
+  const [openLocationKey, setOpenLocationKey] = useState<string | null>(null)
+  const location = useLocation()
   const triggerRef = useRef<HTMLButtonElement>(null)
   const popoverRef = useRef<HTMLDivElement>(null)
+  const previousLocationKeyRef = useRef(location.key)
+  const hasOpenMenuRef = useRef(false)
+  const isOpen = openLocationKey === location.key
 
   const closeMenu = useCallback(() => {
-    setIsOpen(false)
+    hasOpenMenuRef.current = false
+    setOpenLocationKey(null)
     triggerRef.current?.focus()
   }, [])
+
+  useEffect(() => {
+    if (previousLocationKeyRef.current !== location.key) {
+      previousLocationKeyRef.current = location.key
+      if (hasOpenMenuRef.current) {
+        hasOpenMenuRef.current = false
+        triggerRef.current?.focus()
+      }
+    }
+  }, [location.key])
 
   useEffect(() => {
     if (!isOpen) {
@@ -53,7 +68,15 @@ export function MobileTopMenu() {
         aria-haspopup="menu"
         aria-label="打开菜单"
         className={styles.trigger}
-        onClick={() => setIsOpen((current) => !current)}
+        onClick={() => {
+          if (isOpen) {
+            closeMenu()
+            return
+          }
+
+          hasOpenMenuRef.current = true
+          setOpenLocationKey(location.key)
+        }}
         ref={triggerRef}
         type="button"
       >

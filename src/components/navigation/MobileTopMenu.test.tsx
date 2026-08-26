@@ -1,12 +1,25 @@
+import { useEffect } from "react"
 import { render, screen } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
-import { MemoryRouter, useLocation } from "react-router-dom"
+import { MemoryRouter, useLocation, useNavigate } from "react-router-dom"
 import { describe, expect, it } from "vitest"
 import { MobileTopMenu } from "./MobileTopMenu"
 
 function LocationLabel() {
   const location = useLocation()
   return <output data-testid="location">{location.pathname}</output>
+}
+
+function RouteNavigator({ shouldNavigate }: { shouldNavigate: boolean }) {
+  const navigate = useNavigate()
+
+  useEffect(() => {
+    if (shouldNavigate) {
+      void navigate("/plans")
+    }
+  }, [navigate, shouldNavigate])
+
+  return null
 }
 
 function renderMenu() {
@@ -52,5 +65,30 @@ describe("MobileTopMenu", () => {
 
     expect(screen.queryByRole("menu")).not.toBeInTheDocument()
     expect(screen.getByRole("button", { name: "打开菜单" })).toHaveFocus()
+  })
+
+  it("closes and restores trigger focus when sibling navigation changes the route", async () => {
+    const user = userEvent.setup()
+    const { rerender } = render(
+      <MemoryRouter>
+        <MobileTopMenu />
+        <LocationLabel />
+        <RouteNavigator shouldNavigate={false} />
+      </MemoryRouter>,
+    )
+    const trigger = screen.getByRole("button", { name: "打开菜单" })
+
+    await user.click(trigger)
+    rerender(
+      <MemoryRouter>
+        <MobileTopMenu />
+        <LocationLabel />
+        <RouteNavigator shouldNavigate />
+      </MemoryRouter>,
+    )
+
+    expect(screen.getByTestId("location")).toHaveTextContent("/plans")
+    expect(screen.queryByRole("menu")).not.toBeInTheDocument()
+    expect(trigger).toHaveFocus()
   })
 })
