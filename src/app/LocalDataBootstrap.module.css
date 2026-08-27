@@ -9,22 +9,21 @@
 .loadingContent {
   margin: 0 auto;
   max-width: 1240px;
-  padding: 30px 18px 112px;
+  padding: 12px 16px 128px;
 }
 
 .loadingMobileNavigation {
   background: rgb(255 255 255 / 88%);
   border: 1px solid var(--color-border);
-  border-bottom: 0;
-  border-radius: 22px 22px 0 0;
-  bottom: 0;
+  border-radius: 26px;
+  bottom: 10px;
   display: grid;
   gap: 8px;
   grid-template-columns: repeat(4, 1fr);
-  left: 8px;
-  padding: 13px 18px 12px;
+  left: 12px;
+  padding: 12px 18px;
   position: fixed;
-  right: 8px;
+  right: 12px;
   z-index: 20;
 }
 
@@ -32,31 +31,6 @@
   background: #dededb;
   border-radius: 999px;
   height: 32px;
-}
-
-.loadingGreeting {
-  display: grid;
-  gap: 10px;
-}
-
-.loadingGreeting span {
-  background: #dededb;
-  border-radius: 999px;
-  display: block;
-}
-
-.loadingGreeting span:first-child {
-  height: 46px;
-  width: min(70vw, 310px);
-}
-
-.loadingGreeting span:last-child {
-  height: 18px;
-  width: 148px;
-}
-
-.loadingNotification {
-  background: var(--color-surface);
 }
 
 .errorState {
@@ -106,24 +80,25 @@
 @media (min-width: 768px) {
   .bootstrapShell {
     display: grid;
-    grid-template-columns: 206px minmax(0, 1fr);
+    grid-template-columns: 188px minmax(0, 1fr);
   }
 
   .loadingRail {
-    background: var(--color-surface-strong);
+    background: rgb(255 255 255 / 92%);
+    border: 1px solid var(--color-border);
+    border-radius: 30px;
+    box-shadow: var(--shadow-card);
     display: flex;
     flex-direction: column;
     gap: 50px;
-    min-height: 100vh;
-    padding: 30px 18px;
+    height: calc(100vh - 32px);
+    margin: 16px 0 16px 16px;
+    padding: 26px 14px;
   }
 
   .loadingRailLogo {
-    color: white !important;
-    height: auto;
+    font-size: 31px;
     margin-left: 8px;
-    width: 104px;
-    --velo-logo-accent: #8a7cff !important;
   }
 
   .loadingRailNavigation {
@@ -132,7 +107,7 @@
   }
 
   .loadingRailNavigation span {
-    background: rgb(255 255 255 / 10%);
+    background: var(--color-surface-muted);
     border-radius: var(--radius-control);
     height: 44px;
   }
@@ -140,7 +115,7 @@
   .loadingContent {
     margin: 0;
     max-width: none;
-    padding: 44px clamp(28px, 4vw, 64px) 64px;
+    padding: 24px 28px 56px;
   }
 
   .loadingMobileNavigation {
@@ -150,6 +125,6 @@
 
 @media (min-width: 1180px) {
   .bootstrapShell {
-    grid-template-columns: 232px minmax(0, 1fr);
+    grid-template-columns: 210px minmax(0, 1fr);
   }
 }

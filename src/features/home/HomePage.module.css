@@ -3,129 +3,136 @@
   max-width: 1180px;
 }
 
-.header {
-  align-items: flex-start;
-  display: flex;
-  justify-content: space-between;
-  margin-bottom: 28px;
-}
-
-.header h1 {
-  font-size: clamp(32px, 7vw, 58px);
-  font-weight: 750;
-  letter-spacing: -0.055em;
-  line-height: 1.02;
-}
-
-.header p {
-  color: var(--color-text-muted);
-  font-size: 15px;
-  margin-top: 10px;
-}
-
-.notificationButton {
-  align-items: center;
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
-  border-radius: 50%;
-  color: var(--color-text);
-  cursor: pointer;
-  display: none;
-  flex: 0 0 auto;
-  height: 48px;
-  justify-content: center;
-  transition:
-    color var(--motion-fast) var(--ease-flow),
-    transform var(--motion-fast) var(--ease-flow),
-    box-shadow var(--motion-fast) var(--ease-flow);
-  width: 48px;
-}
-
-.notificationButton:hover {
-  box-shadow: var(--shadow-card);
-  color: var(--color-brand-strong);
-  transform: translateY(-2px);
-}
-
-.notificationButton:focus-visible,
-.nextCard:focus-visible,
-.noteRow:focus-visible,
-.quickAction:focus-visible,
-.sectionLink:focus-visible,
-.emptyLink:focus-visible {
-  outline: 3px solid var(--color-brand);
-  outline-offset: 3px;
-}
-
 .cockpitGrid {
   display: grid;
-  gap: 18px;
+  gap: 16px;
 }
 
 .panel,
 .nextCard,
-.noteRow,
-.quickAction {
+.noteCard,
+.quickPanel {
   border: 1px solid var(--color-border);
+  border-radius: var(--radius-card-large);
   box-shadow: var(--shadow-card);
 }
 
 .sectionTitle {
-  font-size: 16px;
+  font-size: 15px;
   font-weight: 720;
-  letter-spacing: -0.025em;
+  letter-spacing: -.025em;
   line-height: 1.3;
 }
 
-.sectionHeadingRow {
+.cardHeadingRow,
+.progressHeading {
   align-items: center;
   display: flex;
   justify-content: space-between;
 }
 
+.cardIndex {
+  color: var(--color-text-faint);
+  font-family: "Outfit Variable", Outfit, sans-serif;
+  font-size: 12px;
+  font-variation-settings: "wght" 520;
+  letter-spacing: .08em;
+}
+
 .sectionLink {
+  align-items: center;
+  background: var(--color-surface-muted);
+  border-radius: 999px;
   color: var(--color-text-muted);
-  font-size: 13px;
-  font-weight: 650;
+  display: inline-flex;
+  font-size: 12px;
+  font-weight: 680;
+  min-height: 36px;
+  padding: 7px 12px;
   text-decoration: none;
+  transition:
+    background var(--motion-fast) var(--ease-flow),
+    color var(--motion-fast) var(--ease-flow);
 }
 
 .sectionLink:hover {
+  background: var(--color-brand-soft);
   color: var(--color-brand-strong);
 }
 
 .progressPanel {
-  background: var(--color-surface-strong);
-  border: 0;
-  border-radius: var(--radius-card-large);
-  color: var(--color-text-inverse);
-  min-height: 218px;
+  background: var(--color-surface);
+  min-height: 302px;
+  overflow: hidden;
   padding: 24px;
+  position: relative;
 }
 
-.progressPanel .sectionTitle {
-  color: rgb(248 248 246 / 68%);
-  font-size: 14px;
-  font-weight: 620;
+.progressPanel::after {
+  background: rgb(109 93 252 / 8%);
+  border-radius: 50%;
+  content: "";
+  height: 180px;
+  pointer-events: none;
+  position: absolute;
+  right: -72px;
+  top: -68px;
+  width: 180px;
+}
+
+.welcomeCopy {
+  max-width: 520px;
+  position: relative;
+  z-index: 1;
+}
+
+.dateLabel {
+  color: var(--color-brand-strong);
+  display: block;
+  font-size: 12px;
+  font-weight: 740;
+  letter-spacing: .04em;
+  margin-bottom: 12px;
+}
+
+.welcomeCopy h1 {
+  font-size: clamp(32px, 9vw, 48px);
+  font-weight: 760;
+  letter-spacing: -.055em;
+  line-height: 1.02;
+}
+
+.welcomeCopy p {
+  color: var(--color-text-muted);
+  font-size: 13px;
+  margin-top: 10px;
 }
 
 .progressCapsule {
-  align-items: flex-end;
-  display: flex;
-  flex-direction: column-reverse;
-  gap: 34px;
-  margin-top: 26px;
+  background: var(--color-brand-soft);
+  border-radius: 22px;
+  display: grid;
+  gap: 18px;
+  margin-top: 28px;
+  padding: 18px;
+  position: relative;
+  z-index: 1;
+}
+
+.progressHeading .sectionTitle {
+  color: var(--color-text-muted);
+  font-size: 13px;
 }
 
 .progressSegments {
   display: flex;
-  gap: 7px;
+  gap: 6px;
   width: 100%;
 }
 
 .progressSegment,
 .progressSegmentComplete {
-  background: white;
+  background: #d7d3e7;
   border-radius: 999px;
   display: block;
   height: 8px;
@@ -138,71 +145,68 @@
 }
 
 .progressCount {
-  align-self: flex-start;
-  font-size: clamp(42px, 11vw, 64px);
-  font-variant-numeric: tabular-nums;
-  font-weight: 650;
-  letter-spacing: -0.065em;
-  line-height: 0.9;
+  color: var(--color-text);
+  font-family: "Outfit Variable", Outfit, sans-serif;
+  font-size: 24px;
+  font-variation-settings: "wght" 570;
+  letter-spacing: -.045em;
+  line-height: 1;
   white-space: nowrap;
 }
 
-.nextSection,
-.noteSection,
-.quickSection {
-  display: grid;
-  gap: 12px;
+.nextCard,
+.noteCard,
+.quickPanel {
+  padding: 22px;
 }
 
 .nextCard {
+  background: var(--color-surface-strong);
+  color: var(--color-text-inverse);
+  min-height: 214px;
+}
+
+.nextCard .cardIndex,
+.nextCard .sectionTitle {
+  color: rgb(255 255 255 / 62%);
+}
+
+.taskLink {
   align-items: center;
-  background: var(--color-surface);
-  border-radius: var(--radius-card);
-  color: var(--color-text);
+  color: inherit;
   display: grid;
   gap: 14px;
   grid-template-columns: auto minmax(0, 1fr) auto;
-  min-height: 166px;
-  padding: 20px;
+  margin-top: 28px;
+  min-height: 116px;
   text-decoration: none;
-  transition:
-    transform var(--motion-fast) var(--ease-flow),
-    box-shadow var(--motion-fast) var(--ease-flow),
-    border-color var(--motion-fast) var(--ease-flow);
 }
 
-.nextCard:hover,
-.noteRow:hover,
-.quickAction:hover {
-  border-color: rgb(109 93 252 / 28%);
-  box-shadow: var(--shadow-raised);
-  transform: translateY(-2px);
-}
-
-.nextCard:active,
-.noteRow:active,
-.quickAction:active {
-  transform: scale(.985);
+.nextIcon,
+.nextArrow,
+.noteIcon,
+.actionIcon {
+  align-items: center;
+  display: flex;
+  flex: 0 0 auto;
+  justify-content: center;
 }
 
 .nextIcon,
 .nextArrow {
-  align-items: center;
-  border-radius: 50%;
-  display: flex;
-  flex: 0 0 auto;
+  border-radius: 18px;
   height: 52px;
-  justify-content: center;
   width: 52px;
 }
 
 .nextIcon {
-  background: var(--color-brand-soft);
-  color: var(--color-brand-strong);
+  background: var(--color-brand);
+  box-shadow: 0 12px 26px rgb(109 93 252 / 28%);
+  color: white;
 }
 
 .nextArrow {
-  background: var(--color-surface-strong);
+  background: rgb(255 255 255 / 10%);
   color: white;
 }
 
@@ -213,8 +217,8 @@
 }
 
 .nextCopy strong {
-  font-size: clamp(18px, 4vw, 24px);
-  letter-spacing: -0.025em;
+  font-size: clamp(18px, 4vw, 23px);
+  letter-spacing: -.025em;
   line-height: 1.25;
 }
 
@@ -224,28 +228,30 @@
 }
 
 .taskSubject {
-  color: var(--color-brand-strong);
+  color: #b9b2ff;
   font-weight: 720;
 }
 
 .taskMeta {
-  color: var(--color-text-muted);
+  color: rgb(255 255 255 / 58%);
 }
 
-.emptyCard {
+.emptyCard,
+.emptyNote {
   align-items: center;
   display: flex;
   justify-content: space-between;
+  margin-top: 24px;
 }
 
 .emptyCard p {
-  color: var(--color-text-muted);
-  font-size: 14px;
+  color: rgb(255 255 255 / 58%);
+  font-size: 13px;
   margin-top: 6px;
 }
 
 .emptyLink {
-  background: var(--color-surface-strong);
+  background: var(--color-brand);
   border-radius: var(--radius-control);
   color: white;
   flex: 0 0 auto;
@@ -256,32 +262,35 @@
   text-decoration: none;
 }
 
+.noteCard,
+.quickPanel {
+  background: var(--color-surface);
+}
+
+.noteCard {
+  min-height: 198px;
+}
+
 .noteRow {
   align-items: center;
   background: var(--color-surface-muted);
-  border-radius: var(--radius-card);
+  border-radius: 22px;
   color: var(--color-text);
   display: grid;
   gap: 14px;
   grid-template-columns: auto minmax(0, 1fr) auto;
-  min-height: 142px;
-  padding: 18px;
+  margin-top: 18px;
+  min-height: 116px;
+  padding: 16px;
   text-decoration: none;
-  transition:
-    transform var(--motion-fast) var(--ease-flow),
-    box-shadow var(--motion-fast) var(--ease-flow),
-    border-color var(--motion-fast) var(--ease-flow);
 }
 
 .noteIcon {
-  align-items: center;
   background: var(--color-surface);
-  border-radius: 18px;
-  color: var(--color-text);
-  display: flex;
-  height: 52px;
-  justify-content: center;
-  width: 52px;
+  border-radius: 17px;
+  color: var(--color-brand-strong);
+  height: 50px;
+  width: 50px;
 }
 
 .noteCopy {
@@ -303,50 +312,46 @@
 
 .annotationPreview {
   align-items: center;
-  background: var(--color-brand);
-  border-radius: 16px;
-  box-shadow: 0 10px 22px rgb(78 62 232 / 22%);
-  color: white;
+  background: var(--color-amber-soft);
+  border-radius: 15px;
+  color: #5c4514;
   display: flex;
-  font-size: 11px;
-  height: 70px;
+  font-size: 10px;
+  height: 68px;
   justify-content: center;
   line-height: 1.35;
-  max-width: 90px;
+  max-width: 82px;
   overflow: hidden;
   padding: 10px;
   transform: rotate(-1.5deg);
-  width: 74px;
+  width: 70px;
 }
 
-.emptyNote {
-  display: flex;
-  justify-content: space-between;
+.quickPanel {
+  min-height: 202px;
 }
 
 .quickActions {
   display: grid;
   gap: 10px;
   grid-template-columns: repeat(3, minmax(0, 1fr));
+  margin-top: 18px;
 }
 
 .quickAction {
   align-items: center;
-  background: var(--color-surface);
+  background: var(--color-surface-muted);
+  border: 1px solid transparent;
   border-radius: 20px;
   color: var(--color-text);
   display: flex;
   flex-direction: column;
   gap: 10px;
   justify-content: center;
-  min-height: 142px;
-  padding: 14px 6px;
+  min-height: 120px;
+  padding: 12px 6px;
   text-align: center;
   text-decoration: none;
-  transition:
-    transform var(--motion-fast) var(--ease-flow),
-    box-shadow var(--motion-fast) var(--ease-flow),
-    border-color var(--motion-fast) var(--ease-flow);
 }
 
 .quickAction > span:last-child {
@@ -355,26 +360,20 @@
 }
 
 .quickAction strong {
-  font-size: 13px;
+  font-size: 12px;
 }
 
 .quickAction small {
   color: var(--color-text-muted);
   display: none;
-  font-size: 11px;
+  font-size: 10px;
   line-height: 1.35;
 }
 
 .actionIcon {
-  align-items: center;
-  background: var(--color-surface-muted);
-  border-radius: 18px;
-  color: var(--color-text);
-  display: flex;
-  flex: 0 0 auto;
-  height: 52px;
-  justify-content: center;
-  width: 52px;
+  border-radius: 16px;
+  height: 48px;
+  width: 48px;
 }
 
 .actionViolet {
@@ -382,10 +381,51 @@
   color: white;
 }
 
-.actionMint,
+.actionMint {
+  background: var(--color-mint-soft);
+  color: #087e60;
+}
+
 .actionIndigo {
-  background: var(--color-surface-muted);
-  color: var(--color-text);
+  background: var(--color-blue-soft);
+  color: #3856b8;
+}
+
+.taskLink,
+.noteRow,
+.quickAction {
+  transition:
+    transform var(--motion-fast) var(--ease-flow),
+    box-shadow var(--motion-fast) var(--ease-flow),
+    border-color var(--motion-fast) var(--ease-flow),
+    background var(--motion-fast) var(--ease-flow);
+}
+
+.taskLink:hover,
+.noteRow:hover,
+.quickAction:hover {
+  transform: translateY(-3px);
+}
+
+.noteRow:hover,
+.quickAction:hover {
+  border-color: rgb(109 93 252 / 22%);
+  box-shadow: var(--shadow-raised);
+}
+
+.taskLink:active,
+.noteRow:active,
+.quickAction:active {
+  transform: scale(.985);
+}
+
+.taskLink:focus-visible,
+.noteRow:focus-visible,
+.quickAction:focus-visible,
+.sectionLink:focus-visible,
+.emptyLink:focus-visible {
+  outline: 3px solid var(--color-brand);
+  outline-offset: 3px;
 }
 
 .loadingCard,
@@ -395,7 +435,7 @@
 
 .loadingShape,
 .loadingCircle {
-  background: rgb(109 93 252 / 16%);
+  background: rgb(109 93 252 / 14%);
   display: block;
 }
 
@@ -404,13 +444,13 @@
 }
 
 .loadingCircle {
-  border-radius: 50%;
-  height: 52px;
-  width: 52px;
+  border-radius: 16px;
+  height: 50px;
+  width: 50px;
 }
 
 .progressPanel .loadingShape {
-  background: rgb(255 255 255 / 20%);
+  background: rgb(109 93 252 / 18%);
 }
 
 .loadingProgressTrack {
@@ -419,9 +459,8 @@
 }
 
 .loadingProgressCount {
-  align-self: flex-start;
-  height: 48px;
-  width: 96px;
+  height: 28px;
+  width: 72px;
 }
 
 .loadingTaskCopy,
@@ -431,13 +470,13 @@
 }
 
 .loadingAnnotation {
-  height: 70px;
-  width: 74px;
+  height: 68px;
+  width: 70px;
 }
 
 .loadingActionCopy {
-  background: #dededb;
-  height: 16px;
+  background: #dedde4;
+  height: 14px;
   width: min(70px, 78%);
 }
 
@@ -452,32 +491,39 @@
 }
 
 @media (max-width: 420px) {
-  .nextCard {
-    gap: 11px;
-    padding: 18px 14px;
+  .progressPanel,
+  .nextCard,
+  .noteCard,
+  .quickPanel {
+    border-radius: 28px;
+    padding: 20px;
+  }
+
+  .taskLink {
+    gap: 10px;
   }
 
   .nextIcon,
-  .nextArrow,
-  .noteIcon {
+  .nextArrow {
     height: 46px;
     width: 46px;
   }
 
   .noteRow {
     gap: 10px;
-    padding: 16px 12px;
+    padding: 14px;
   }
 
   .annotationPreview {
-    height: 64px;
-    width: 62px;
+    height: 62px;
+    width: 60px;
   }
 
   .emptyCard,
   .emptyNote {
     align-items: flex-start;
     flex-direction: column;
+    gap: 16px;
   }
 }
 
@@ -488,98 +534,108 @@
 }
 
 @media (min-width: 700px) {
-  .header {
-    margin-bottom: 36px;
-  }
-
-  .notificationButton {
-    display: flex;
-  }
-
   .cockpitGrid {
-    gap: 22px;
+    gap: 20px;
     grid-template-areas:
-      "progress task"
-      "note note"
-      "actions actions";
-    grid-template-columns: minmax(0, .9fr) minmax(0, 1.1fr);
+      "progress progress"
+      "next note"
+      "quick quick";
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .progressPanel {
+    align-items: end;
+    display: grid;
+    gap: 32px;
     grid-area: progress;
-    min-height: 214px;
+    grid-template-columns: minmax(0, 1.12fr) minmax(260px, .88fr);
+    min-height: 268px;
+    padding: 30px;
   }
 
-  .nextSection {
-    grid-area: task;
+  .progressCapsule {
+    margin-top: 0;
   }
 
-  .noteSection {
+  .nextCard {
+    grid-area: next;
+  }
+
+  .noteCard {
     grid-area: note;
   }
 
-  .quickSection {
-    grid-area: actions;
+  .quickPanel {
+    grid-area: quick;
+  }
+
+  .nextCard,
+  .noteCard {
+    min-height: 230px;
+  }
+
+  .nextArrow,
+  .annotationPreview {
+    display: none;
+  }
+
+  .taskLink,
+  .noteRow {
+    grid-template-columns: auto minmax(0, 1fr);
   }
 
   .quickAction {
     flex-direction: row;
     gap: 14px;
     justify-content: flex-start;
-    min-height: 102px;
-    padding: 16px 18px;
+    min-height: 96px;
+    padding: 14px 18px;
     text-align: left;
   }
 }
 
 @media (min-width: 1024px) {
-  .header {
-    margin-bottom: 44px;
-  }
-
   .cockpitGrid {
-    gap: 26px;
     grid-template-areas:
-      "progress task"
-      "progress note"
-      "actions actions";
-    grid-template-columns: minmax(300px, .82fr) minmax(420px, 1.18fr);
+      "progress next"
+      "note quick";
+    grid-template-columns: minmax(0, 1.05fr) minmax(0, .95fr);
   }
 
   .progressPanel {
-    align-content: space-between;
-    display: grid;
-    min-height: 430px;
-    padding: 30px;
+    align-items: stretch;
+    display: flex;
+    flex-direction: column;
+    grid-template-columns: none;
+    min-height: 330px;
   }
 
   .progressCapsule {
-    gap: 48px;
+    margin-top: auto;
   }
 
-  .nextCard,
+  .nextArrow,
+  .annotationPreview {
+    display: flex;
+  }
+
+  .taskLink,
   .noteRow {
-    min-height: 176px;
-  }
-
-  .quickAction {
-    min-height: 114px;
+    grid-template-columns: auto minmax(0, 1fr) auto;
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .notificationButton,
-  .nextCard,
+  .taskLink,
   .noteRow,
   .quickAction {
     transition-duration: 0ms;
   }
 
-  .notificationButton:hover,
-  .nextCard:hover,
+  .taskLink:hover,
   .noteRow:hover,
   .quickAction:hover,
-  .nextCard:active,
+  .taskLink:active,
   .noteRow:active,
   .quickAction:active {
     transform: none;

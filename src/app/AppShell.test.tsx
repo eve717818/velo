@@ -19,7 +19,8 @@ describe("AppShell mobile header", () => {
     const greeting = screen.getByRole("heading", { name: "早上好，Alex" })
     const wordmark = within(banner).getByRole("img", { name: "Velo" })
 
-    expect(wordmark).toHaveAttribute("viewBox", "0 0 144 40")
+    expect(wordmark).toHaveAttribute("data-wordmark-font", "Outfit")
+    expect(wordmark).toHaveTextContent("Velo")
     expect(within(banner).getByRole("button", { name: "通知" })).toBeInTheDocument()
     expect(within(banner).getByRole("button", { name: "打开菜单" })).toBeInTheDocument()
     expect(banner.compareDocumentPosition(greeting) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()

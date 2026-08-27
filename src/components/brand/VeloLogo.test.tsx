@@ -6,7 +6,10 @@ describe("VeloLogo", () => {
   it("exposes the Velo name across all supported tones", () => {
     const { rerender } = render(<VeloLogo />)
 
-    expect(screen.getByRole("img", { name: "Velo" })).toBeInTheDocument()
+    const logo = screen.getByRole("img", { name: "Velo" })
+
+    expect(logo).toHaveAttribute("data-wordmark-font", "Outfit")
+    expect(logo).toHaveTextContent("Velo")
     expect(screen.queryByText(/微流/)).not.toBeInTheDocument()
 
     rerender(<VeloLogo tone="mono" />)

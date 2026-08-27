@@ -1,5 +1,6 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-labelledby="title" color="#11131A">
-  <title id="title">Velo</title>
-  <circle cx="32" cy="32" r="19" fill="none" stroke="currentColor" stroke-width="8" stroke-linecap="round" stroke-dasharray="92 28" transform="rotate(-42 32 32)"/>
-  <path d="M47 18a22 22 0 0 1 7 14" fill="none" stroke="var(--velo-logo-accent, #574FE6)" stroke-width="8" stroke-linecap="round"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" role="img" aria-labelledby="title description">
+  <title id="title">Velo Breathing Loop</title>
+  <desc id="description">An asymmetric continuous loop spirals calmly toward a violet focus node.</desc>
+  <path d="M78 27C63 17 42 18 28 31C13 45 15 68 31 79C46 90 67 86 79 71C90 57 86 40 74 33C62 26 47 29 39 40C32 50 35 63 45 69C54 74 65 71 70 62" fill="none" stroke="#0B0B0C" stroke-width="5.6" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="70" cy="62" r="4.4" fill="#6D5DFC"/>
 </svg>

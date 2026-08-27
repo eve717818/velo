@@ -1,35 +1,43 @@
-# Velo milestone 1 design QA
+# Velo responsive cockpit design QA
 
 ## Evidence
 
-- Source reference: `C:\Users\eve717818\Desktop\微信图片_20260826134029_136_151.jpg`
-- Source dimensions: 1080 × 2400 px
-- Desktop implementation: `docs/qa/velo-desktop-1440-final.png`
-- Desktop capture: 1440 × 900 px at CSS viewport 1440 × 900
-- Mobile implementation: `docs/qa/velo-mobile-390-final.png`
-- Mobile capture: 374 × 1121 px full-page capture at CSS viewport 390 × 844
-- Side-by-side comparison: `docs/qa/velo-style-comparison-final.png` (2300 × 1500 px)
+- Source reference: `D:\新建文件夹 (2)\11.jpg`
+- Source dimensions: 1178 × 2548 px; normalized to 375 × 812 px for direct mobile comparison
+- Mobile implementation: `docs/qa/velo-mobile-390-outfit-bento.png`
+- Mobile capture: 375 × 812 px at CSS viewport 390 × 844
+- Tablet implementation: `docs/qa/velo-tablet-820-outfit-bento.png`
+- Tablet capture: 820 × 1061 px at CSS viewport 820 × 1180
+- Launch screen: `docs/qa/velo-launch-390-outfit.png`
+- Side-by-side reference comparison: `docs/qa/velo-reference-mobile-comparison.png` (reference left, implementation right)
 - Tested state: seeded local data, 3 of 5 tasks complete, next task and recent note visible
 
 ## Visual comparison
 
-The implementation follows the reference's defining system rather than copying its presentation-board content: warm light-gray canvas, strong black-and-white contrast, rounded modular cards, restrained shadows, dense alignment, and one controlled accent color. Velo purple is limited to progress, active navigation, and primary interactions.
+The implementation preserves the reference's most important visual evidence: a quiet gray-lilac canvas, generous rounded white cards, a prominent progress surface, compact utility buttons, and a floating mobile navigation bar. Velo adapts that system with black Bento contrast, Outfit typography, the breathing-loop mark, restrained purple accents, and small mint, amber, and blue utility accents.
 
-The first review pass included a decorative CSS orb. It did not contribute product meaning and was removed before the final captures. The final desktop layout uses an asymmetric Bento hierarchy; the mobile layout collapses cleanly into one column with a persistent bottom navigation surface.
+All section labels and supporting copy live inside their Bento cards. The mobile layout is a single scrollable column; the tablet layout changes to a persistent navigation rail, a wide progress card, a paired next-task/recent-note row, and a full-width quick-action card.
 
 ## Interaction and responsive review
 
-- Verified widths: 375, 390, 768, 834, 1024, and 1440 px.
-- Verified home, plans, notes, focus, and settings navigation.
-- Verified keyboard-visible labels, reduced-motion behavior, no horizontal overflow, and automated axe checks.
-- Verified installable manifest, activated service worker, and offline reload.
-- Browser console errors during final review: 0.
+- Verified first-session launch screen and automatic transition after approximately 1.8 seconds.
+- Verified the flow ring loops continuously and `prefers-reduced-motion` removes the animation.
+- Verified home-to-plan navigation and back navigation.
+- Verified hover, press, and focus states; touch targets remain at least 44 px.
+- Verified no horizontal overflow at 390 × 844 and 820 × 1180 CSS viewports.
+- Browser console warnings and errors during final review: 0.
+
+## Comparison history
+
+- Initial tablet review: next-task heading wrapped to three lines and the note preview competed for width (P2).
+- Revision: the 700–1023 px layout hides the redundant task arrow and note annotation preview while retaining both on wider screens.
+- Final review: task heading wraps to two balanced lines, the note remains legible, all four Bento cards align, and the floating/navigation surfaces remain clear.
 
 ## Findings
 
 - P0: none.
 - P1: none.
-- P2: none.
-- P3: the milestone intentionally keeps secondary pages as honest preview states; their full workspaces belong to later feature milestones.
+- P2: none after the tablet-density revision.
+- P3: secondary workspaces remain the previously agreed milestone preview states.
 
 Final result: passed

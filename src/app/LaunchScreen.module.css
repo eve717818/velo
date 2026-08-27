@@ -1,0 +1,101 @@
+.screen {
+  align-items: flex-start;
+  animation: launch-screen 1.8s var(--ease-flow) both;
+  background: #f6f5fa;
+  display: flex;
+  inset: 0;
+  justify-content: center;
+  overflow: hidden;
+  padding: max(18vh, 112px) 24px 48px;
+  position: fixed;
+  z-index: 100;
+}
+
+.screen::before {
+  background: rgb(109 93 252 / 12%);
+  border-radius: 50%;
+  content: "";
+  height: 220px;
+  left: 50%;
+  opacity: .7;
+  position: absolute;
+  top: 92px;
+  transform: translateX(-50%);
+  width: 220px;
+}
+
+.brandMoment {
+  align-items: center;
+  animation: launch-rise .5s var(--ease-flow) both;
+  display: flex;
+  flex-direction: column;
+  gap: 54px;
+  position: relative;
+}
+
+.loop {
+  animation: launch-flow 2.8s linear infinite;
+  font-size: 118px;
+  transform: translateZ(0);
+  will-change: transform;
+}
+
+.promise {
+  color: var(--color-text);
+  display: grid;
+  font-family: "Outfit Variable", Outfit, "Segoe UI", sans-serif;
+  font-size: clamp(42px, 11vw, 68px);
+  font-variation-settings: "wght" 540;
+  letter-spacing: -.045em;
+  line-height: .98;
+  text-align: center;
+}
+
+.promise span:last-child {
+  color: var(--color-brand-strong);
+}
+
+@keyframes launch-flow {
+  to {
+    transform: rotate(360deg) translateZ(0);
+  }
+}
+
+@keyframes launch-rise {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+}
+
+@keyframes launch-screen {
+  0%, 82% {
+    opacity: 1;
+  }
+
+  to {
+    opacity: 0;
+  }
+}
+
+@media (min-width: 768px) {
+  .screen {
+    padding-top: max(20vh, 152px);
+  }
+
+  .loop {
+    font-size: 140px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .screen,
+  .brandMoment {
+    animation: none;
+  }
+
+  .loop {
+    animation: none;
+    will-change: auto;
+  }
+}

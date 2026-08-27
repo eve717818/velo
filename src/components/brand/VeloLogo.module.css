@@ -1,0 +1,48 @@
+.logo {
+  align-items: center;
+  color: var(--color-text);
+  display: inline-flex;
+  gap: .46em;
+  line-height: 1;
+  width: fit-content;
+}
+
+.mark {
+  flex: 0 0 auto;
+  height: 1.08em;
+  width: 1.08em;
+}
+
+.wordmark {
+  align-items: baseline;
+  display: inline-flex;
+  font-family: "Outfit Variable", Outfit, "Segoe UI", sans-serif;
+  font-size: 1em;
+  font-variation-settings: "wght" 520;
+  letter-spacing: -.012em;
+}
+
+.letterE {
+  margin-left: -.062em;
+}
+
+.letterL {
+  margin-left: -.012em;
+}
+
+.letterO {
+  margin-left: -.022em;
+}
+
+.compact .mark {
+  height: 1em;
+  width: 1em;
+}
+
+.logo[data-tone="mono"] .mark {
+  filter: grayscale(1);
+}
+
+.logo[data-tone="reverse"] {
+  color: white;
+}

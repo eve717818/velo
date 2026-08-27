@@ -19,8 +19,8 @@ function formatNoteTime(timestamp: number) {
 
 export function RecentNoteRow({ note }: RecentNoteRowProps) {
   return (
-    <section className={styles.noteSection} aria-labelledby="home-note-title">
-      <div className={styles.sectionHeadingRow}>
+    <section className={styles.noteCard} aria-labelledby="home-note-title" data-bento-card="note">
+      <div className={styles.cardHeadingRow}>
         <h2 className={styles.sectionTitle} id="home-note-title">
           最近笔记
         </h2>
@@ -42,7 +42,7 @@ export function RecentNoteRow({ note }: RecentNoteRowProps) {
           </span>
         </Link>
       ) : (
-        <div className={`${styles.noteRow} ${styles.emptyNote}`}>
+        <div className={styles.emptyNote}>
           <span>还没有笔记</span>
           <Link className={styles.emptyLink} to="/notes?new=1">
             新建第一篇笔记

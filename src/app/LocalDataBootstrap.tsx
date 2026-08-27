@@ -84,13 +84,6 @@ export function LocalDataBootstrap({ children, db = veloDb }: LocalDataBootstrap
       </aside>
       <div className={styles.loadingContent}>
         <main className={homeStyles.page}>
-          <header className={homeStyles.header} aria-hidden="true">
-            <div className={styles.loadingGreeting}>
-              <span />
-              <span />
-            </div>
-            <span className={`${homeStyles.notificationButton} ${styles.loadingNotification}`} />
-          </header>
           <HomeLoadingCockpit />
         </main>
       </div>

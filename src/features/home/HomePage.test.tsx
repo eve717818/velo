@@ -29,6 +29,9 @@ describe("HomePage", () => {
     try {
       expect(await screen.findByText("3 / 5")).toBeInTheDocument()
       expect(screen.getByRole("region", { name: "今日学习工作台" })).toHaveAttribute("data-layout", "bento")
+      for (const headingName of ["今日学习进度", "接下来", "最近笔记", "快捷操作"]) {
+        expect(screen.getByRole("heading", { name: headingName }).closest("[data-bento-card]")).not.toBeNull()
+      }
       expect(screen.getByText("高等数学 · 导数复习")).toBeInTheDocument()
       expect(screen.getByText("线性代数：矩阵的秩")).toBeInTheDocument()
       expect(screen.getByRole("link", { name: "新建笔记" })).toHaveAttribute("href", "/notes?new=1")

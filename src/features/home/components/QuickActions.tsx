@@ -28,10 +28,13 @@ const actions = [
 
 export function QuickActions() {
   return (
-    <section className={styles.quickSection} aria-labelledby="home-actions-title">
-      <h2 className={styles.sectionTitle} id="home-actions-title">
-        快捷操作
-      </h2>
+    <section className={styles.quickPanel} aria-labelledby="home-actions-title" data-bento-card="actions">
+      <div className={styles.cardHeadingRow}>
+        <h2 className={styles.sectionTitle} id="home-actions-title">
+          快捷操作
+        </h2>
+        <span className={styles.cardIndex}>03</span>
+      </div>
       <div className={styles.quickActions}>
         {actions.map(({ description, icon: Icon, label, to, tone }) => (
           <Link aria-label={label} className={styles.quickAction} key={label} to={to}>

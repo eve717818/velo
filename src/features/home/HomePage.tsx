@@ -1,4 +1,3 @@
-import { Bell } from "lucide-react"
 import type { VeloDB } from "@/db/velo-db"
 import { NextTaskCard } from "./components/NextTaskCard"
 import { HomeLoadingCockpit } from "./components/HomeLoadingCockpit"
@@ -32,21 +31,16 @@ export function HomePage({ db, now }: HomePageProps) {
 
   return (
     <main aria-busy={isLoading} className={styles.page}>
-      <header className={styles.header}>
-        <div>
-          <h1>{greetingFor(currentDate)}，Alex</h1>
-          <p>{formatDisplayDate(currentDate)}</p>
-        </div>
-        <button aria-label="通知" className={styles.notificationButton} type="button">
-          <Bell aria-hidden="true" size={25} strokeWidth={1.9} />
-        </button>
-      </header>
-
       {isLoading ? (
         <HomeLoadingCockpit />
       ) : (
         <div aria-label="今日学习工作台" className={styles.cockpitGrid} data-layout="bento" role="region">
-          <ProgressPanel completedCount={snapshot.completedCount} totalCount={snapshot.totalCount} />
+          <ProgressPanel
+            completedCount={snapshot.completedCount}
+            dateLabel={formatDisplayDate(currentDate)}
+            greeting={`${greetingFor(currentDate)}，Alex`}
+            totalCount={snapshot.totalCount}
+          />
           <NextTaskCard task={snapshot.nextTask} totalCount={snapshot.totalCount} />
           <RecentNoteRow note={snapshot.recentNote} />
           <QuickActions />

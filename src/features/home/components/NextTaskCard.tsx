@@ -10,12 +10,15 @@ interface NextTaskCardProps {
 
 export function NextTaskCard({ task, totalCount }: NextTaskCardProps) {
   return (
-    <section className={styles.nextSection} aria-labelledby="home-next-title">
-      <h2 className={styles.sectionTitle} id="home-next-title">
-        接下来
-      </h2>
+    <section className={styles.nextCard} aria-labelledby="home-next-title" data-bento-card="next">
+      <div className={styles.cardHeadingRow}>
+        <h2 className={styles.sectionTitle} id="home-next-title">
+          接下来
+        </h2>
+        <span className={styles.cardIndex}>01</span>
+      </div>
       {task ? (
-        <Link aria-label={`查看下一项任务：${task.title}`} className={styles.nextCard} to="/plans">
+        <Link aria-label={`查看下一项任务：${task.title}`} className={styles.taskLink} to="/plans">
           <span className={styles.nextIcon} aria-hidden="true">
             <BookOpen size={30} strokeWidth={1.9} />
           </span>
@@ -29,7 +32,7 @@ export function NextTaskCard({ task, totalCount }: NextTaskCardProps) {
           </span>
         </Link>
       ) : (
-        <div className={`${styles.nextCard} ${styles.emptyCard}`}>
+        <div className={styles.emptyCard}>
           <div>
             <strong>{totalCount === 0 ? "今天还没有计划" : "今天的计划已全部完成"}</strong>
             <p>{totalCount === 0 ? "从一个清晰的小目标开始。" : "做得很好，可以回顾今天的进展。"}</p>

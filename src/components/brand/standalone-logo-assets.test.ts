@@ -3,9 +3,23 @@
 import sharp from "sharp"
 import { describe, expect, it } from "vitest"
 
-const assets = ["public/brand/velo-mark.svg", "public/brand/velo-wordmark.svg"]
-const ink = [17, 19, 26]
-const accent = [87, 79, 230]
+const assets = [
+  {
+    path: "public/brand/velo-mark.svg",
+    ink: [11, 11, 12],
+    accent: [109, 93, 252],
+  },
+  {
+    path: "public/brand/velo-mark-reverse.svg",
+    ink: [255, 255, 255],
+    accent: [156, 144, 255],
+  },
+  {
+    path: "public/brand/velo-wordmark.svg",
+    ink: [17, 19, 26],
+    accent: [87, 79, 230],
+  },
+]
 
 async function containsColor(assetPath: string, color: number[]) {
   const { data } = await sharp(assetPath).ensureAlpha().raw().toBuffer({ resolveWithObject: true })
@@ -21,9 +35,9 @@ async function containsColor(assetPath: string, color: number[]) {
 
 describe("standalone Velo logo assets", () => {
   it("rasterize with their ink and violet accent colors", async () => {
-    for (const assetPath of assets) {
-      await expect(containsColor(assetPath, ink)).resolves.toBe(true)
-      await expect(containsColor(assetPath, accent)).resolves.toBe(true)
+    for (const asset of assets) {
+      await expect(containsColor(asset.path, asset.ink)).resolves.toBe(true)
+      await expect(containsColor(asset.path, asset.accent)).resolves.toBe(true)
     }
   })
 })
