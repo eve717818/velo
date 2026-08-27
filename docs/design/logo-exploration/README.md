@@ -10,6 +10,7 @@
 - `velo-refined-wordmark.svg` — 定制 `Velo` 字标；大写 V 有轻微前行动势，完整 o 保证清晰阅读。
 - `breathing-loop-lockup.svg` — 心流环与字标的标准横向组合，避免“图形 V + 文字 Velo”造成双 V 重复。
 - `index.html` — V2 响应式展示与应用示例；动效只在首次出现时完成一次，不持续旋转或呼吸。
+- `typography.html` — 标准英文字体锁定对照：Manrope、Outfit 与 Inter Display 使用同一心流环和统一比例，仅比较字体气质与光学字距。
 
 这一方向仍是候选品牌系统，用户确认定稿前不替换 `public/brand/` 中的生产 Logo。
 
