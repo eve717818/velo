@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" role="img" aria-labelledby="title description" style="color:#0B0B0C;--velo-accent:#6D5DFC">
+  <title id="title">Velo Breathing Loop combination logo</title>
+  <desc id="description">The Breathing Loop mark paired with the custom Velo wordmark.</desc>
+  <g id="breathing-loop-lockup">
+    <g transform="translate(-2 34) scale(.3)" fill="none" stroke="currentColor" stroke-width="7" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M78 27C63 17 42 18 28 31C13 45 15 68 31 79C46 90 67 86 79 71C90 57 86 40 74 33C62 26 47 29 39 40C32 50 35 63 45 69C54 74 65 71 70 62"/>
+      <g fill="var(--velo-accent, #6D5DFC)" stroke="none">
+        <circle cx="70" cy="62" r="5.2"/>
+      </g>
+    </g>
+    <g transform="translate(36 11) scale(.64)" fill="none" stroke="currentColor" stroke-width="7.2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M7 37L18.5 63C19.5 65.2 21.3 65.2 22.4 62.9L35 37"/>
+      <path d="M41 53H59C59 45.3 55.3 41 50 41C43.6 41 40 45.8 40 52.8C40 60.2 44.8 64.5 51.7 64.5C55 64.5 58 63.3 60.4 61.2"/>
+      <path d="M67 35V58C67 62.3 69 64.5 73 64.5"/>
+      <circle cx="86" cy="53" r="11.5"/>
+    </g>
+  </g>
+</svg>

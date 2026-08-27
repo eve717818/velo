@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" role="img" aria-labelledby="title description" style="color:#0B0B0C">
+  <title id="title">Velo refined wordmark</title>
+  <desc id="description">A custom calm Velo wordmark with a subtly forward V and a complete round o.</desc>
+  <g id="velo-refined-wordmark" transform="translate(2 0)" fill="none" stroke="currentColor" stroke-width="5.4" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M7 37L18.5 63C19.5 65.2 21.3 65.2 22.4 62.9L35 37"/>
+    <path d="M41 53H59C59 45.3 55.3 41 50 41C43.6 41 40 45.8 40 52.8C40 60.2 44.8 64.5 51.7 64.5C55 64.5 58 63.3 60.4 61.2"/>
+    <path d="M67 35V58C67 62.3 69 64.5 73 64.5"/>
+    <circle cx="86" cy="53" r="11.5"/>
+  </g>
+</svg>
