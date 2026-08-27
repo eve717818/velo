@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" role="img" aria-labelledby="title description" style="color:#0B0B0C;--velo-accent:#6D5DFC">
+  <title id="title">Velo Orbit V symbol</title>
+  <desc id="description">An open orbit folds inward to create a V-shaped path and a moving node.</desc>
+  <g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M72 27A34 34 0 1 0 78 66" stroke-width="8"/>
+    <path d="M30 40L48 69C49.2 71 52.1 71 53.4 69L71 40" stroke-width="7"/>
+  </g>
+  <g style="color:var(--velo-accent,currentColor)" fill="currentColor">
+    <circle cx="75.5" cy="29.5" r="5"/>
+  </g>
+</svg>

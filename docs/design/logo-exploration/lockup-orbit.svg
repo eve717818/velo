@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" role="img" aria-labelledby="title description" style="color:#0B0B0C;--velo-accent:#6D5DFC">
+  <title id="title">Velo Orbit combination mark</title>
+  <desc id="description">A compact open orbit and V symbol paired with a forward Velo wordmark.</desc>
+  <g transform="translate(-2 36) scale(.3)" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M72 27A34 34 0 1 0 78 66" stroke-width="9"/>
+    <path d="M30 40L48 69C49.2 71 52.1 71 53.4 69L71 40" stroke-width="8"/>
+    <g style="color:var(--velo-accent,currentColor)" fill="currentColor" stroke="none">
+      <circle cx="75.5" cy="29.5" r="6"/>
+    </g>
+  </g>
+  <g transform="translate(40 10) scale(.72) skewX(-7)" fill="none" stroke="currentColor" stroke-width="6" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M0 40L9 61L19 40"/>
+    <path d="M24 52H38C38 45.5 35 42.5 31 42.5C26.4 42.5 23.5 46.3 23.5 52C23.5 58 27 61.5 32.5 61.5C35 61.5 37.2 60.5 39 59"/>
+    <path d="M44 37V57C44 60 45.5 61.5 48 61.5"/>
+    <circle cx="61" cy="52" r="9.5"/>
+  </g>
+  <g style="color:var(--velo-accent,currentColor)" fill="currentColor">
+    <circle cx="86" cy="40" r="2.8"/>
+  </g>
+</svg>

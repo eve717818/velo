@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" role="img" aria-labelledby="title description" style="color:#0B0B0C;--velo-accent:#6D5DFC">
+  <title id="title">Velo Flowfold combination mark</title>
+  <desc id="description">A compact Flowfold V symbol paired with a custom Velo wordmark.</desc>
+  <g transform="translate(-2 36) scale(.3)" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M22 25C31 41 40 61 48 75C49.4 77.6 53 77.7 54.6 75.2C64 60 72 42 79 25" stroke-width="11"/>
+    <g style="color:var(--velo-accent,currentColor)" fill="currentColor" stroke="none">
+      <circle cx="79" cy="25" r="6.2"/>
+    </g>
+  </g>
+  <g transform="translate(40 9) scale(.72)" fill="none" stroke="currentColor" stroke-width="6" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M0 40L9 61L18 40"/>
+    <path d="M23 52H37C37 45.5 34 42.5 30 42.5C25.4 42.5 22.5 46.3 22.5 52C22.5 58 26 61.5 31.5 61.5C34 61.5 36.2 60.5 38 59"/>
+    <path d="M43 37V57C43 60 44.5 61.5 47 61.5"/>
+    <path d="M61 58A9.5 9.5 0 1 1 61 45"/>
+  </g>
+  <g style="color:var(--velo-accent,currentColor)" fill="currentColor">
+    <circle cx="84" cy="41.5" r="2.8"/>
+  </g>
+</svg>
