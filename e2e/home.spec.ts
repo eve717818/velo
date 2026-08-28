@@ -87,6 +87,32 @@ test("next task uses a readable violet frosted-glass surface", async ({ page }) 
   expect(appearance.color).toBe("rgb(17, 17, 19)")
 })
 
+test("desktop quick actions stay compact when their panel shares a column", async ({ page }) => {
+  await page.setViewportSize({ width: 1081, height: 898 })
+  await page.goto("/")
+
+  const actions = page.locator('[data-bento-card="actions"] a')
+  await expect(actions).toHaveCount(3)
+
+  const layout = await actions.evaluateAll((links) =>
+    links.map((link) => {
+      const label = link.querySelector("strong")!
+      const description = link.querySelector("small")!
+      return {
+        cardHeight: link.getBoundingClientRect().height,
+        descriptionDisplay: window.getComputedStyle(description).display,
+        labelHeight: label.getBoundingClientRect().height,
+      }
+    }),
+  )
+
+  for (const action of layout) {
+    expect(action.cardHeight).toBeLessThanOrEqual(110)
+    expect(action.labelHeight).toBeLessThanOrEqual(20)
+    expect(action.descriptionDisplay).toBe("none")
+  }
+})
+
 test("mobile welcome screen matches the reference proportions", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 })
   await page.addInitScript(() => window.localStorage.clear())

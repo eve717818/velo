@@ -672,6 +672,22 @@
   .noteRow {
     grid-template-columns: auto minmax(0, 1fr) auto;
   }
+
+  .quickAction {
+    flex-direction: column;
+    gap: 8px;
+    min-height: 96px;
+    padding: 12px;
+    text-align: center;
+  }
+
+  .quickAction strong {
+    white-space: nowrap;
+  }
+
+  .quickAction small {
+    display: none;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
