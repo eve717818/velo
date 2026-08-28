@@ -8,8 +8,20 @@ export function parseLocalDate(value: string): Date {
   }
 
   const [, year, month, day] = match
+  const parsedYear = Number(year)
+  const parsedMonth = Number(month)
+  const parsedDay = Number(day)
+  const date = new Date(parsedYear, parsedMonth - 1, parsedDay, 12, 0, 0, 0)
 
-  return new Date(Number(year), Number(month) - 1, Number(day), 12, 0, 0, 0)
+  if (
+    date.getFullYear() !== parsedYear ||
+    date.getMonth() !== parsedMonth - 1 ||
+    date.getDate() !== parsedDay
+  ) {
+    throw new Error("Invalid local date")
+  }
+
+  return date
 }
 
 export function addLocalDays(value: string, days: number): string {

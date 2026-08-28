@@ -85,3 +85,44 @@ Results:
 
 - None in the implementation itself.
 - Running Vitest in this environment required sandbox escalation because Vite writes temporary config files during startup. After allowing that, the expected RED/GREEN flow completed normally.
+
+## Fix Round 1
+
+### Changed code
+
+- Updated `src/features/plans/domain/plan-dates.ts` so `parseLocalDate` round-trips the constructed local-noon `Date` back to the original numeric year, month, and day, and throws `"Invalid local date"` when the calendar values normalize.
+- Updated `src/features/plans/domain/plan-dates.test.ts` with focused rejection coverage for:
+  - `2026-02-31`
+  - `2026-13-01`
+  - `2026-00-10`
+
+### Covering tests
+
+- `rejects invalid local date strings`
+- `rejects calendar-invalid local dates`
+- Existing domain date tests remained green after the parser change.
+
+### Commands
+
+```powershell
+pnpm test:run src/features/plans/domain/plan-dates.test.ts
+pnpm typecheck
+```
+
+### Passing output
+
+```text
+$ vitest run "src/features/plans/domain/plan-dates.test.ts"
+
+ RUN  v4.1.11 D:/workplace/projects/project01-velo/workspace
+
+
+ Test Files  1 passed (1)
+      Tests  13 passed (13)
+   Start at  23:44:34
+   Duration  1.10s (transform 40ms, setup 228ms, import 25ms, tests 4ms, environment 661ms)
+```
+
+```text
+$ tsc -b --pretty false
+```

@@ -25,6 +25,12 @@ describe("plan date rules", () => {
     expect(() => parseLocalDate("2026/08/28")).toThrowError("Invalid local date")
   })
 
+  it("rejects calendar-invalid local dates", () => {
+    expect(() => parseLocalDate("2026-02-31")).toThrowError("Invalid local date")
+    expect(() => parseLocalDate("2026-13-01")).toThrowError("Invalid local date")
+    expect(() => parseLocalDate("2026-00-10")).toThrowError("Invalid local date")
+  })
+
   it("adds local days across month boundaries", () => {
     expect(addLocalDays("2026-08-31", 1)).toBe("2026-09-01")
   })
