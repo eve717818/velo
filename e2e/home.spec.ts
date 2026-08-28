@@ -61,3 +61,48 @@ test("reduced motion keeps navigation immediately readable", async ({ page }) =>
   await page.getByRole("link", { name: "计划" }).click()
   await expect(page.getByRole("heading", { name: "学习计划" })).toBeVisible({ timeout: 100 })
 })
+
+test("next task uses a readable violet frosted-glass surface", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 })
+  await page.goto("/")
+  await expect(page.getByText("高等数学 · 导数复习")).toBeVisible()
+
+  const nextCard = page.locator('[data-bento-card="next"]')
+  const appearance = await nextCard.evaluate((element) => {
+    const styles = window.getComputedStyle(element)
+    return {
+      backdropFilter: styles.backdropFilter,
+      backgroundColor: styles.backgroundColor,
+      color: styles.color,
+    }
+  })
+
+  expect(appearance.backdropFilter).toContain("blur(")
+  expect(appearance.backgroundColor).toMatch(/^rgba\(.+, 0\.[4-8]\d*\)$/)
+  expect(appearance.color).toBe("rgb(17, 17, 19)")
+})
+
+test("tablet launch screen scales the breathing loop before entering the cockpit", async ({ page }) => {
+  await page.setViewportSize({ width: 820, height: 1180 })
+  await page.addInitScript(() => window.sessionStorage.clear())
+  await page.goto("/")
+
+  const launchScreen = page.getByRole("status", { name: "Velo 正在启动" })
+  const breathingLoop = launchScreen.locator('span[aria-hidden="true"]')
+  await expect(launchScreen).toBeVisible()
+  await expect(page.getByText("Catch ideas,")).toBeVisible()
+  await expect(page.getByText("Keep flowing")).toBeVisible()
+
+  const placement = await breathingLoop.evaluate((element) => {
+    const bounds = element.getBoundingClientRect()
+    return {
+      center: bounds.left + bounds.width / 2,
+      width: bounds.width,
+    }
+  })
+
+  expect(Math.abs(placement.center - 410)).toBeLessThanOrEqual(2)
+  expect(placement.width).toBeGreaterThanOrEqual(180)
+  await expect(launchScreen).toBeHidden({ timeout: 2200 })
+  await expect(page.getByRole("heading", { name: "晚上好，Alex" })).toBeVisible()
+})

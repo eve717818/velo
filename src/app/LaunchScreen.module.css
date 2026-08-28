@@ -80,11 +80,26 @@
 
 @media (min-width: 768px) {
   .screen {
-    padding-top: max(20vh, 152px);
+    padding-top: max(18vh, 144px);
+  }
+
+  .screen::before {
+    height: 300px;
+    top: calc(max(18vh, 144px) - 60px);
+    width: 300px;
+  }
+
+  .brandMoment {
+    gap: 64px;
   }
 
   .loop {
-    font-size: 140px;
+    font-size: 180px;
+  }
+
+  .promise {
+    font-size: 68px;
+    max-width: 620px;
   }
 }
 

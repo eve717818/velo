@@ -161,14 +161,62 @@
 }
 
 .nextCard {
-  background: var(--color-surface-strong);
-  color: var(--color-text-inverse);
+  -webkit-backdrop-filter: blur(24px) saturate(135%);
+  backdrop-filter: blur(24px) saturate(135%);
+  background: var(--color-glass-violet);
+  border-color: var(--color-glass-border);
+  box-shadow: var(--shadow-glass);
+  color: var(--color-text);
+  isolation: isolate;
   min-height: 214px;
+  overflow: hidden;
+  position: relative;
+  transition:
+    background var(--motion-fast) var(--ease-flow),
+    box-shadow var(--motion-fast) var(--ease-flow),
+    transform var(--motion-fast) var(--ease-flow);
+}
+
+.nextCard::before,
+.nextCard::after {
+  border-radius: 999px;
+  content: "";
+  filter: blur(42px);
+  pointer-events: none;
+  position: absolute;
+  z-index: 0;
+}
+
+.nextCard::before {
+  background: rgb(109 93 252 / 30%);
+  height: 170px;
+  right: -34px;
+  top: -72px;
+  width: 170px;
+}
+
+.nextCard::after {
+  background: rgb(103 214 190 / 18%);
+  bottom: -78px;
+  height: 150px;
+  left: 14%;
+  width: 180px;
+}
+
+.nextCard:hover {
+  background: rgb(244 242 255 / 78%);
+  box-shadow: 0 1px 1px rgb(255 255 255 / 82%) inset, 0 28px 64px rgb(82 67 152 / 19%);
+  transform: translateY(-2px);
+}
+
+.nextCard > * {
+  position: relative;
+  z-index: 1;
 }
 
 .nextCard .cardIndex,
 .nextCard .sectionTitle {
-  color: rgb(255 255 255 / 62%);
+  color: rgb(57 52 77 / 68%);
 }
 
 .taskLink {
@@ -206,8 +254,9 @@
 }
 
 .nextArrow {
-  background: rgb(255 255 255 / 10%);
-  color: white;
+  background: rgb(255 255 255 / 66%);
+  border: 1px solid rgb(255 255 255 / 82%);
+  color: var(--color-brand-strong);
 }
 
 .nextCopy {
@@ -228,12 +277,12 @@
 }
 
 .taskSubject {
-  color: #b9b2ff;
+  color: var(--color-brand-strong);
   font-weight: 720;
 }
 
 .taskMeta {
-  color: rgb(255 255 255 / 58%);
+  color: var(--color-text-muted);
 }
 
 .emptyCard,
@@ -245,7 +294,7 @@
 }
 
 .emptyCard p {
-  color: rgb(255 255 255 / 58%);
+  color: var(--color-text-muted);
   font-size: 13px;
   margin-top: 6px;
 }

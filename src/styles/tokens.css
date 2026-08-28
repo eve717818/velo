@@ -5,11 +5,13 @@
   --color-surface-strong: #101012;
   --color-text: #111113;
   --color-text-muted: #5d5b66;
-  --color-text-faint: #8d8997;
+  --color-text-faint: #74707e;
   --color-text-inverse: #f8f8f6;
   --color-brand: #6d5dfc;
   --color-brand-strong: #4e3ee8;
   --color-brand-soft: #efedff;
+  --color-glass-violet: rgb(239 236 255 / 68%);
+  --color-glass-border: rgb(255 255 255 / 78%);
   --color-mint-soft: #dcf7ed;
   --color-amber-soft: #fff0c7;
   --color-blue-soft: #e3ebff;
@@ -19,6 +21,7 @@
   --radius-card-large: 32px;
   --shadow-card: 0 1px 1px rgb(50 42 85 / 3%), 0 18px 48px rgb(67 58 112 / 8%);
   --shadow-raised: 0 2px 2px rgb(50 42 85 / 4%), 0 22px 56px rgb(67 58 112 / 12%);
+  --shadow-glass: 0 1px 1px rgb(255 255 255 / 72%) inset, 0 24px 58px rgb(82 67 152 / 15%);
   --motion-fast: 180ms;
   --motion-page: 280ms;
   --ease-flow: cubic-bezier(.2, .8, .2, 1);
