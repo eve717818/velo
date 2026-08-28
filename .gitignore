@@ -7,5 +7,6 @@ build/
 coverage/
 playwright-report/
 test-results/
+.superpowers/
 .DS_Store
 Thumbs.db
