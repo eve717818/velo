@@ -17,8 +17,7 @@ async function withDatabase(run: (db: VeloDB) => Promise<void>) {
 
 function task(overrides: Partial<PlanTask> & Pick<PlanTask, "id" | "title">): PlanTask {
   return {
-    scope: "day",
-    periodKey: "2026-08-25",
+    scheduledDate: "2026-08-25",
     isCompleted: 0,
     order: 1,
     createdAt: 1,
@@ -47,8 +46,7 @@ describe("loadHomeSnapshot", () => {
         task({ id: "done-2", title: "完成二", isCompleted: 1, order: 2 }),
         task({ id: "next-first", title: "下一项", order: 5 }),
         task({ id: "done-3", title: "完成三", isCompleted: 1, order: 3 }),
-        task({ id: "other-day", title: "明天", periodKey: "2026-08-26", isCompleted: 1, order: 1 }),
-        task({ id: "other-scope", title: "本周", scope: "week", periodKey: "2026-08-25", order: 1 }),
+        task({ id: "other-day", title: "明天", scheduledDate: "2026-08-26", isCompleted: 1, order: 1 }),
       ])
       await db.notes.bulkAdd([
         note({ id: "older-note", title: "较早笔记", updatedAt: 10 }),

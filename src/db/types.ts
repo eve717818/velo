@@ -1,13 +1,38 @@
-export type PlanScope = "day" | "week" | "month" | "semester"
+export type LearningPeriodKind = "semester" | "winter-break" | "summer-break" | "custom-break"
 
 export interface PlanTask {
   id: string
-  scope: PlanScope
+  title: string
+  scheduledDate: string
+  startMinutes?: number
+  subject?: string
+  estimatedMinutes?: number
+  notes?: string
+  isCompleted: 0 | 1
+  completedAt?: number
+  order: number
+  createdAt: number
+  updatedAt: number
+}
+
+export interface LearningPeriod {
+  id: string
+  kind: LearningPeriodKind
+  name: string
+  startDate: string
+  endDate: string
+  goal?: string
+  createdAt: number
+  updatedAt: number
+}
+
+export interface LegacyPlanTask {
+  id: string
+  scope: "day" | "week" | "month" | "semester"
   periodKey: string
   title: string
   subject?: string
   estimatedMinutes?: number
-  linkedNodeId?: string
   isCompleted: 0 | 1
   order: number
   createdAt: number
