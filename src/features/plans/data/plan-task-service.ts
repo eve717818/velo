@@ -1,0 +1,240 @@
+import type { LearningPeriod, PlanTask } from "@/db/types"
+import type { VeloDB } from "@/db/velo-db"
+
+import { clampDateToRange, parseLocalDate } from "../domain/plan-dates"
+
+export interface CreatePlanTaskInput {
+  title: string
+  scheduledDate: string
+  startMinutes?: number
+  subject?: string
+  estimatedMinutes?: number
+  notes?: string
+}
+
+export type UpdatePlanTaskInput = CreatePlanTaskInput
+
+export interface MovePlanTaskInput {
+  scheduledDate: string
+  startMinutes?: number
+  order?: number
+}
+
+function normalizeText(value: string | undefined): string | undefined {
+  const normalized = value?.trim()
+  return normalized ? normalized : undefined
+}
+
+function normalizeTaskInput<T extends CreatePlanTaskInput | MovePlanTaskInput>(input: T): T {
+  return {
+    ...input,
+    title: "title" in input ? input.title.trim() : undefined,
+    subject: "subject" in input ? normalizeText(input.subject) : undefined,
+    notes: "notes" in input ? normalizeText(input.notes) : undefined,
+  } as T
+}
+
+function assertValidScheduledDate(value: string) {
+  try {
+    parseLocalDate(value)
+  } catch {
+    throw new Error("任务日期无效")
+  }
+}
+
+function assertValidStartMinutes(value: number | undefined) {
+  if (value === undefined) {
+    return
+  }
+
+  if (!Number.isInteger(value) || value < 0 || value > 1439) {
+    throw new Error("开始时间必须在 0 到 1439 分钟之间")
+  }
+}
+
+function assertValidEstimate(value: number | undefined) {
+  if (value === undefined) {
+    return
+  }
+
+  if (!Number.isFinite(value) || value <= 0) {
+    throw new Error("预计时长必须大于 0")
+  }
+}
+
+function assertValidTaskInput(input: CreatePlanTaskInput) {
+  if (input.title.trim().length === 0) {
+    throw new Error("任务名称不能为空")
+  }
+
+  assertValidScheduledDate(input.scheduledDate)
+  assertValidStartMinutes(input.startMinutes)
+  assertValidEstimate(input.estimatedMinutes)
+}
+
+function assertValidMoveInput(input: MovePlanTaskInput) {
+  assertValidScheduledDate(input.scheduledDate)
+  assertValidStartMinutes(input.startMinutes)
+}
+
+function isSameLane(task: Pick<PlanTask, "startMinutes">, startMinutes: number | undefined) {
+  return (task.startMinutes === undefined) === (startMinutes === undefined)
+}
+
+async function getNextOrder(db: VeloDB, scheduledDate: string, startMinutes: number | undefined): Promise<number> {
+  const tasks = await db.planTasks.where("scheduledDate").equals(scheduledDate).toArray()
+  const maxOrder = tasks
+    .filter((task) => isSameLane(task, startMinutes))
+    .reduce((currentMax, task) => Math.max(currentMax, task.order), 0)
+
+  return maxOrder + 1
+}
+
+export async function createPlanTask(db: VeloDB, input: CreatePlanTaskInput, now: number): Promise<PlanTask> {
+  assertValidTaskInput(input)
+  const normalized = normalizeTaskInput(input)
+
+  return db.transaction("rw", db.planTasks, async () => {
+    const created: PlanTask = {
+      id: crypto.randomUUID(),
+      title: normalized.title,
+      scheduledDate: normalized.scheduledDate,
+      startMinutes: normalized.startMinutes,
+      subject: normalized.subject,
+      estimatedMinutes: normalized.estimatedMinutes,
+      notes: normalized.notes,
+      isCompleted: 0,
+      completedAt: undefined,
+      order: await getNextOrder(db, normalized.scheduledDate, normalized.startMinutes),
+      createdAt: now,
+      updatedAt: now,
+    }
+
+    await db.planTasks.add(created)
+    return created
+  })
+}
+
+export async function updatePlanTask(db: VeloDB, id: string, input: UpdatePlanTaskInput, now: number): Promise<PlanTask> {
+  assertValidTaskInput(input)
+  const normalized = normalizeTaskInput(input)
+
+  return db.transaction("rw", db.planTasks, async () => {
+    const existing = await db.planTasks.get(id)
+    if (!existing) {
+      throw new Error("Plan task not found")
+    }
+
+    const updated: PlanTask = {
+      ...existing,
+      id,
+      title: normalized.title,
+      scheduledDate: normalized.scheduledDate,
+      startMinutes: normalized.startMinutes,
+      subject: normalized.subject,
+      estimatedMinutes: normalized.estimatedMinutes,
+      notes: normalized.notes,
+      updatedAt: now,
+    }
+
+    await db.planTasks.put(updated)
+    return updated
+  })
+}
+
+export async function deletePlanTask(db: VeloDB, id: string): Promise<boolean> {
+  return db.transaction("rw", db.planTasks, async () => {
+    const existing = await db.planTasks.get(id)
+    if (!existing) {
+      return false
+    }
+
+    await db.planTasks.delete(id)
+    return true
+  })
+}
+
+export async function setTaskCompletion(db: VeloDB, id: string, isCompleted: boolean, now: number): Promise<PlanTask> {
+  return db.transaction("rw", db.planTasks, async () => {
+    const existing = await db.planTasks.get(id)
+    if (!existing) {
+      throw new Error("Plan task not found")
+    }
+
+    const updated: PlanTask = {
+      ...existing,
+      isCompleted: isCompleted ? 1 : 0,
+      completedAt: isCompleted ? now : undefined,
+      updatedAt: now,
+    }
+
+    await db.planTasks.put(updated)
+    return updated
+  })
+}
+
+export async function movePlanTask(db: VeloDB, id: string, input: MovePlanTaskInput, now: number): Promise<PlanTask> {
+  assertValidMoveInput(input)
+  const normalized = normalizeTaskInput(input)
+
+  return db.transaction("rw", db.planTasks, async () => {
+    const existing = await db.planTasks.get(id)
+    if (!existing) {
+      throw new Error("Plan task not found")
+    }
+
+    const updated: PlanTask = {
+      ...existing,
+      scheduledDate: normalized.scheduledDate,
+      startMinutes: normalized.startMinutes,
+      order: normalized.order ?? (await getNextOrder(db, normalized.scheduledDate, normalized.startMinutes)),
+      updatedAt: now,
+    }
+
+    await db.planTasks.put(updated)
+    return updated
+  })
+}
+
+export async function copyTasksToPeriod(
+  db: VeloDB,
+  sourceIds: string[],
+  targetPeriod: LearningPeriod,
+  today: string,
+  now: number,
+): Promise<string[]> {
+  const scheduledDate = clampDateToRange(today, targetPeriod.startDate, targetPeriod.endDate)
+  assertValidScheduledDate(scheduledDate)
+
+  return db.transaction("rw", db.planTasks, async () => {
+    const sourceTasks = await db.planTasks.bulkGet(sourceIds)
+    const missingIndex = sourceTasks.findIndex((task) => !task)
+    if (missingIndex >= 0) {
+      throw new Error(`Plan task not found: ${sourceIds[missingIndex]}`)
+    }
+
+    let nextOrder = await getNextOrder(db, scheduledDate, undefined)
+    const copiedTasks = sourceTasks.map((task) => ({
+      id: crypto.randomUUID(),
+      title: task!.title,
+      scheduledDate,
+      startMinutes: undefined,
+      subject: task!.subject,
+      estimatedMinutes: task!.estimatedMinutes,
+      notes: task!.notes,
+      isCompleted: 0 as const,
+      completedAt: undefined,
+      order: nextOrder++,
+      createdAt: now,
+      updatedAt: now,
+    }))
+
+    const newIds: string[] = []
+    for (const copiedTask of copiedTasks) {
+      await db.planTasks.add(copiedTask)
+      newIds.push(copiedTask.id)
+    }
+
+    return newIds
+  })
+}
