@@ -2,47 +2,80 @@
   align-items: center;
   color: var(--color-text);
   display: inline-flex;
-  gap: .46em;
   line-height: 1;
   width: fit-content;
 }
 
-.mark {
-  flex: 0 0 auto;
-  height: 1.08em;
-  width: 1.08em;
+.horizontalAsset,
+.verticalWordmark,
+.markAsset,
+.markLayers img {
+  display: block;
+  height: auto;
+  max-width: none;
 }
 
-.wordmark {
-  align-items: baseline;
-  display: inline-flex;
-  font-family: "Outfit Variable", Outfit, "Segoe UI", sans-serif;
-  font-size: 1em;
-  font-variation-settings: "wght" 520;
-  letter-spacing: -.012em;
+.horizontalAsset {
+  width: 7.05em;
 }
 
-.letterE {
-  margin-left: -.062em;
+.vertical {
+  flex-direction: column;
+  gap: .34em;
 }
 
-.letterL {
-  margin-left: -.012em;
+.markLayers {
+  contain: paint;
+  display: block;
+  height: 2.5em;
+  position: relative;
+  width: 2.5em;
 }
 
-.letterO {
-  margin-left: -.022em;
+.markLayers img {
+  inset: 0;
+  position: absolute;
+  width: 100%;
 }
 
-.compact .mark {
-  height: 1em;
-  width: 1em;
+.verticalWordmark {
+  width: 4.12em;
 }
 
-.logo[data-tone="mono"] .mark {
+.markAsset {
+  width: 2.12em;
+}
+
+.logo[data-tone="mono"] img {
   filter: grayscale(1);
 }
 
-.logo[data-tone="reverse"] {
-  color: white;
+.logo[data-tone="reverse"] img {
+  filter: brightness(0) invert(1);
+}
+
+.logo[data-animated="true"] .markCurve {
+  animation: curve-flow 2.8s var(--ease-flow) infinite;
+  transform-origin: 50% 54%;
+}
+
+@keyframes curve-flow {
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(.975) translateY(1px);
+  }
+
+  50% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .logo[data-animated="true"] .markCurve {
+    animation: none;
+    opacity: 1;
+    transform: none;
+  }
 }

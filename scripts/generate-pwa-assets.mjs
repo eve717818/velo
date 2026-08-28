@@ -1,6 +1,6 @@
 import sharp from "sharp"
 
-const source = "public/brand/velo-mark.svg"
+const source = "public/brand/velow-mark.png"
 
 await Promise.all([
   sharp(source).resize(192, 192).png().toFile("public/pwa-192x192.png"),

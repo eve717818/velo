@@ -1,16 +1,16 @@
-# Velo
+# Velow Notebook
 
 > 捕捉灵感，保持心流。Catch ideas, keep flowing.
 
-Velo 是面向大学生的本地优先学习工作台。本里程碑交付了可运行、可安装、可离线打开的响应式应用基础，以及黑白灰 Bento + Velo 紫灰玻璃点睛的首页学习驾驶舱。
+Velow Notebook 是面向大学生的本地优先学习工作台。本里程碑交付了可运行、可安装、可离线打开的响应式应用基础，以及黑白灰 Bento + Velow 洋红紫玻璃点睛的首页学习驾驶舱。
 
 ## 已实现
 
 - React、TypeScript、Vite 与 Dexie 本地数据层
 - 首页种子数据：当日任务 3/5、下一项“高等数学 · 导数复习”、最近笔记“线性代数：矩阵的秩”
 - 首页、计划、笔记、专注、设置五个可访问路由
-- “抽象心流环 + Outfit Velo”正式品牌组合与同步 PWA 图标
-- 手机与平板首次会话点亮页：无限循环心流环与“Catch ideas, Keep flowing”口号
+- 从参考图提取的 Squircle 心流曲线、`Velow Notebook` 横竖品牌组合与同步 PWA 图标
+- 手机与平板首次安装欢迎页：循环心流曲线、“Catch ideas / Keep flowing”口号与 `Get started` 入口
 - 手机单列 Bento、平板导航轨道与多列工作台布局
 - “接下来”任务卡采用 24px 高斯模糊、紫灰半透明表面与柔和双色光晕
 - 卡片抬升、按压、进度与页面转场微互动，以及 `prefers-reduced-motion` 降级

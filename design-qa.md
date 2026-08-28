@@ -1,50 +1,49 @@
-# Velo responsive cockpit design QA
+# Velow Notebook launch-screen design QA
 
-## Evidence
+## Source truth and render evidence
 
-- Source reference: `D:\新建文件夹 (2)\11.jpg`
-- Source dimensions: 1178 × 2548 px; normalized to 375 × 812 px for direct mobile comparison
-- Mobile implementation: `docs/qa/velo-mobile-390-outfit-bento.png`
-- Mobile capture: 375 × 812 px at CSS viewport 390 × 844
-- Violet-glass mobile revision: `docs/qa/velo-mobile-390-violet-glass.png`
-- Tablet implementation: `docs/qa/velo-tablet-820-outfit-bento.png`
-- Tablet capture: 820 × 1061 px at CSS viewport 820 × 1180
-- Violet-glass tablet revision: `docs/qa/velo-tablet-820-violet-glass.png`
-- Launch screen: `docs/qa/velo-launch-390-outfit.png`
-- Tablet launch screen: `docs/qa/velo-tablet-820-launch.png`
-- Side-by-side reference comparison: `docs/qa/velo-reference-mobile-comparison.png` (reference left, implementation right)
-- Tested state: seeded local data, 3 of 5 tasks complete, next task and recent note visible
+- Approved logo source: `D:\新建文件夹 (2)\2.jpg` (1413 × 2721 px).
+- Approved mobile source: `D:\新建文件夹 (2)\4.jpg` (1413 × 3025 px).
+- Approved tablet source: `D:\新建文件夹 (2)\3.jpg` (4237 × 3071 px).
+- Mobile implementation: `docs/qa/velow-welcome-mobile-390.png`, captured at a 390 × 844 CSS viewport after 2200 ms.
+- Tablet implementation: `docs/qa/velow-welcome-tablet-1180.png`, captured at a 1180 × 820 CSS viewport after 2200 ms.
+- Mobile comparison: `docs/qa/velow-welcome-mobile-comparison.jpg` (source left, implementation right; both normalized to 390 × 844).
+- Tablet comparison: `docs/qa/velow-welcome-tablet-comparison.jpg` (source left, implementation right; source fitted without cropping into 1180 × 820).
+- Tested state: first run, final animation frame, before the user clicks `Get started`.
 
-## Visual comparison
+## Visual match
 
-The implementation preserves the reference's most important visual evidence: a quiet gray-lilac canvas, generous rounded white cards, a prominent progress surface, compact utility buttons, and a floating mobile navigation bar. Velo adapts that system with a violet-gray frosted-glass task card, Outfit typography, the breathing-loop mark, restrained purple accents, and small mint, amber, and blue utility accents.
+- Logo: the shipped mark, curve, vertical wordmark, and horizontal lockup are transparent PNG assets extracted from the approved source rather than reconstructed approximations.
+- Color: the sampled core brand purple is `#901D78`; the welcome canvas remains near-white and the call-to-action uses the reference's pale yellow.
+- Typography: the two-line promise uses Outfit with the approved quiet, lightly weighted treatment; the line breaks, center alignment, and mobile/tablet scale match the source hierarchy.
+- Spacing: mobile and landscape-tablet use separate responsive ratios for logo position, message offset, button width, and bottom safe-area spacing.
+- Image quality: exported mark layers retain transparent padding and contain no opaque black edge pixels.
+- Copy: product naming is consistently `Velow Notebook`; the promise is `Catch ideas` / `Keep flowing`.
 
-All section labels and supporting copy live inside their Bento cards. The mobile layout is a single scrollable column; the tablet layout changes to a persistent navigation rail, a wide progress card, a paired next-task/recent-note row, and a full-width quick-action card.
+## Motion and interaction
 
-## Interaction and responsive review
-
-- Verified first-session launch screen and automatic transition after approximately 1.8 seconds.
-- Verified the tablet launch at 820 × 1180 with a centered 180 px loop and 300 px halo.
-- Verified the task card exposes `blur(24px) saturate(135%)`, a 68% translucent violet surface, and readable dark text.
-- Verified the flow ring loops continuously and `prefers-reduced-motion` removes the animation.
-- Verified home-to-plan navigation and back navigation.
-- Verified hover, press, and focus states; touch targets remain at least 44 px.
-- Verified no horizontal overflow at 390 × 844 and 820 × 1180 CSS viewports.
-- Browser console warnings and errors during final review: 0.
-- Automated axe review: 0 violations after raising faint text contrast from 3.41:1 to 4.81:1.
+- The white inner curve loops indefinitely using compositor-only `transform` animation.
+- The two promise lines flash in sequentially, then rest in a static final frame.
+- The `Get started` control arrives last and remains available until clicked; there is no automatic dismissal.
+- First completion is stored locally. Subsequent launches bypass onboarding and open the home cockpit directly.
+- Body scrolling is locked while the fixed welcome screen is present and restored after it closes.
+- `prefers-reduced-motion: reduce` removes all entrance and looping motion without hiding content.
+- Keyboard focus, hover, and pressed states remain visible, and the button exceeds the 44 px touch-target minimum.
 
 ## Comparison history
 
-- Initial tablet review: next-task heading wrapped to three lines and the note preview competed for width (P2).
-- Revision: the 700–1023 px layout hides the redundant task arrow and note annotation preview while retaining both on wider screens.
-- Glass revision: replaced the heavy black task surface with a translucent violet-gray layer, two clipped blurred color fields, a luminous border, and tinted depth shadow.
-- Final review: task heading wraps to two balanced lines, the note remains legible, all four Bento cards align, and the floating/navigation surfaces remain clear.
+- P1: the first implementation used an approximate inline SVG. Replaced it with assets extracted from the approved logo source.
+- P1: extracted transparent padding initially contained opaque black hairline pixels. Corrected the Sharp padding alpha and added a regression test.
+- P2: the fixed welcome screen initially allowed the underlying page scrollbar to remain active. Added and tested body scroll locking.
+- P2: tablet logo, promise, and button ratios were too large for the landscape source. Added a landscape-tablet layout and proportion assertions.
+- P2: the mobile button was wider than the source. Reduced it to 296 × 54 px and verified its final-frame bottom spacing.
+- P2: the first mobile assertion sampled the button during its delayed entrance transform. The test now waits for the user-approved final static frame before measuring.
 
 ## Findings
 
 - P0: none.
 - P1: none.
-- P2: none after the tablet-density revision.
-- P3: secondary workspaces remain the previously agreed milestone preview states.
+- P2: none after source-asset, scroll-lock, responsive-ratio, and final-frame revisions.
+- P3: the tablet vertical logo renders approximately 5–10% smaller than the raster reference; keeping it avoids displacing the already aligned promise block and does not affect recognition.
 
 Final result: passed

@@ -22,7 +22,7 @@ export function PWAUpdatePrompt({
         {needRefresh ? <Download size={20} /> : <WifiOff size={20} />}
       </span>
       <div className={styles.copy}>
-        <strong>{needRefresh ? "发现 Velo 新版本" : "应用已可离线使用"}</strong>
+        <strong>{needRefresh ? "发现 Velow Notebook 新版本" : "应用已可离线使用"}</strong>
         <span>{needRefresh ? "更新后将自动重新载入。" : "断网时也可以继续查看本地内容。"}</span>
       </div>
       {needRefresh ? (

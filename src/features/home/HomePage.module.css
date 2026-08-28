@@ -69,7 +69,7 @@
 }
 
 .progressPanel::after {
-  background: rgb(109 93 252 / 8%);
+  background: rgb(144 29 120 / 8%);
   border-radius: 50%;
   content: "";
   height: 180px;
@@ -188,7 +188,7 @@
 }
 
 .nextCard::before {
-  background: rgb(109 93 252 / 30%);
+  background: rgb(144 29 120 / 30%);
   height: 170px;
   right: -34px;
   top: -72px;
@@ -204,8 +204,8 @@
 }
 
 .nextCard:hover {
-  background: rgb(244 242 255 / 78%);
-  box-shadow: 0 1px 1px rgb(255 255 255 / 82%) inset, 0 28px 64px rgb(82 67 152 / 19%);
+  background: rgb(251 244 248 / 78%);
+  box-shadow: 0 1px 1px rgb(255 255 255 / 82%) inset, 0 28px 64px rgb(118 40 98 / 18%);
   transform: translateY(-2px);
 }
 
@@ -249,7 +249,7 @@
 
 .nextIcon {
   background: var(--color-brand);
-  box-shadow: 0 12px 26px rgb(109 93 252 / 28%);
+  box-shadow: 0 12px 26px rgb(144 29 120 / 24%);
   color: white;
 }
 
@@ -458,7 +458,7 @@
 
 .noteRow:hover,
 .quickAction:hover {
-  border-color: rgb(109 93 252 / 22%);
+  border-color: rgb(144 29 120 / 22%);
   box-shadow: var(--shadow-raised);
 }
 
@@ -484,7 +484,7 @@
 
 .loadingShape,
 .loadingCircle {
-  background: rgb(109 93 252 / 14%);
+  background: rgb(144 29 120 / 14%);
   display: block;
 }
 
@@ -499,7 +499,7 @@
 }
 
 .progressPanel .loadingShape {
-  background: rgb(109 93 252 / 18%);
+  background: rgb(144 29 120 / 18%);
 }
 
 .loadingProgressTrack {

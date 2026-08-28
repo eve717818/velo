@@ -69,7 +69,7 @@
 
 .updateButton:focus-visible,
 .closeButton:focus-visible {
-  outline: 3px solid #a59cff;
+  outline: 3px solid #d7a6ca;
   outline-offset: 2px;
 }
 

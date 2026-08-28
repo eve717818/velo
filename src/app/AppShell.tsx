@@ -10,7 +10,7 @@ export function AppShell() {
 
   return (
     <div className={styles.shell}>
-      <aside className={styles.rail} aria-label="Velo 侧边栏">
+      <aside className={styles.rail} aria-label="Velow Notebook 侧边栏">
         <VeloLogo className={styles.railLogo} />
         <PrimaryNav variant="rail" />
       </aside>

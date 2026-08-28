@@ -7,6 +7,10 @@ interface WebManifest {
   icons: unknown[]
 }
 
+test.beforeEach(async ({ page }) => {
+  await page.addInitScript(() => window.localStorage.setItem("velow-notebook:onboarding-complete", "1"))
+})
+
 test("ships an installable manifest and activated service worker", async ({ page, request }) => {
   await page.goto("/")
   const manifestHref = await page.locator('link[rel="manifest"]').getAttribute("href")
@@ -15,7 +19,7 @@ test("ships an installable manifest and activated service worker", async ({ page
   const manifestResponse = await request.get(manifestHref!)
   expect(manifestResponse.ok()).toBe(true)
   const manifest = (await manifestResponse.json()) as WebManifest
-  expect(manifest).toMatchObject({ name: "Velo", display: "standalone", start_url: "/" })
+  expect(manifest).toMatchObject({ name: "Velow Notebook", display: "standalone", start_url: "/" })
   expect(manifest.icons).toHaveLength(3)
 
   const state = await page.evaluate(async () => {
@@ -42,6 +46,6 @@ test("reopens the local cockpit while offline", async ({ context, page }) => {
 
   await context.setOffline(true)
   await page.reload()
-  await expect(page.locator('[data-app-name="Velo"]')).toBeVisible()
+  await expect(page.locator('[data-app-name="Velow Notebook"]')).toBeVisible()
   await expect(page.getByText("高等数学 · 导数复习")).toBeVisible()
 })

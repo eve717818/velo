@@ -7,11 +7,11 @@ import { VELO_BUILD_ID } from "@/app/build-id"
 import { RegisterPWA } from "@/pwa/RegisterPWA"
 import { LaunchScreen } from "./LaunchScreen"
 
-const LAUNCH_SESSION_KEY = "velo:launch-seen"
+const ONBOARDING_COMPLETE_KEY = "velow-notebook:onboarding-complete"
 
 function shouldShowLaunchScreen() {
   try {
-    return sessionStorage.getItem(LAUNCH_SESSION_KEY) !== "1"
+    return localStorage.getItem(ONBOARDING_COMPLETE_KEY) !== "1"
   } catch {
     return true
   }
@@ -22,19 +22,24 @@ export function App() {
 
   useEffect(() => {
     if (!showLaunchScreen) return undefined
-
-    try {
-      sessionStorage.setItem(LAUNCH_SESSION_KEY, "1")
-    } catch {
-      // The launch experience remains available when session storage is restricted.
+    const previousOverflow = document.body.style.overflow
+    document.body.style.overflow = "hidden"
+    return () => {
+      document.body.style.overflow = previousOverflow
     }
-
-    const timeout = window.setTimeout(() => setShowLaunchScreen(false), 1800)
-    return () => window.clearTimeout(timeout)
   }, [showLaunchScreen])
 
+  function completeOnboarding() {
+    try {
+      localStorage.setItem(ONBOARDING_COMPLETE_KEY, "1")
+    } catch {
+      // The welcome screen remains available when persistent storage is restricted.
+    }
+    setShowLaunchScreen(false)
+  }
+
   return (
-    <div data-app-name="Velo" data-build-id={VELO_BUILD_ID}>
+    <div data-app-name="Velow Notebook" data-build-id={VELO_BUILD_ID}>
       <MotionProvider>
         <BrowserRouter>
           <LocalDataBootstrap>
@@ -43,7 +48,7 @@ export function App() {
         </BrowserRouter>
       </MotionProvider>
       <RegisterPWA />
-      {showLaunchScreen ? <LaunchScreen /> : null}
+      {showLaunchScreen ? <LaunchScreen onComplete={completeOnboarding} /> : null}
     </div>
   )
 }

@@ -10,13 +10,13 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: "prompt",
-      includeAssets: ["brand/velo-mark.svg"],
+      includeAssets: ["brand/velow-mark.png"],
       manifest: {
-        name: "Velo",
-        short_name: "Velo",
+        name: "Velow Notebook",
+        short_name: "Velow",
         description: "捕捉灵感，保持心流。",
-        theme_color: "#0b0b0c",
-        background_color: "#f3f3f1",
+        theme_color: "#901d78",
+        background_color: "#fdfcfc",
         display: "standalone",
         start_url: "/",
         icons: [

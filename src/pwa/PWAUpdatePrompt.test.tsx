@@ -22,7 +22,7 @@ describe("PWAUpdatePrompt", () => {
     const onReload = vi.fn()
     render(<PWAUpdatePrompt offlineReady={false} needRefresh onClose={vi.fn()} onReload={onReload} />)
 
-    expect(screen.getByText("发现 Velo 新版本")).toBeInTheDocument()
+    expect(screen.getByText("发现 Velow Notebook 新版本")).toBeInTheDocument()
     await userEvent.click(screen.getByRole("button", { name: "立即更新" }))
     expect(onReload).toHaveBeenCalledTimes(1)
   })

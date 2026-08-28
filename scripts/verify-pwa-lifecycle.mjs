@@ -32,7 +32,7 @@ function build(buildId) {
     process.stderr.write(result.stdout ?? "")
     process.stderr.write(result.stderr ?? "")
     if (result.error) process.stderr.write(`${result.error}\n`)
-    throw new Error(`Velo ${buildId} build failed.`)
+    throw new Error(`Velow Notebook ${buildId} build failed.`)
   }
 }
 
@@ -74,6 +74,9 @@ try {
 
   browser = await chromium.launch({ channel: "chrome" })
   const context = await browser.newContext()
+  await context.addInitScript(() => {
+    window.localStorage.setItem("velow-notebook:onboarding-complete", "1")
+  })
   const page = await context.newPage()
   const url = `http://127.0.0.1:${address.port}`
 
@@ -88,7 +91,7 @@ try {
     await registration.update()
   })
 
-  await page.getByText("发现 Velo 新版本").waitFor({ timeout: 30_000 })
+  await page.getByText("发现 Velow Notebook 新版本").waitFor({ timeout: 30_000 })
   await page.getByRole("button", { name: "立即更新" }).click()
   await page.locator('[data-build-id="pwa-v2"]').waitFor({ timeout: 30_000 })
 
