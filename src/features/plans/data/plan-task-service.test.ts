@@ -225,7 +225,7 @@ describe("plan task service", () => {
   })
 
   it("assigns order within each date and timed lane", async () => {
-    await withDatabase(async (db) => {
+      await withDatabase(async (db) => {
       await db.planTasks.bulkAdd([
         task({ id: "untimed-1", scheduledDate: "2026-08-28", order: 1 }),
         task({ id: "untimed-2", scheduledDate: "2026-08-28", order: 2 }),
@@ -273,7 +273,81 @@ describe("plan task service", () => {
     })
   })
 
-  it("copies tasks into the target period using the clamped date and reset completion state", async () => {
+  it("reassigns order on update when the date or timed lane changes", async () => {
+    await withDatabase(async (db) => {
+      await db.planTasks.bulkAdd([
+        task({ id: "same-lane-1", scheduledDate: "2026-08-28", order: 1 }),
+        task({ id: "same-lane-2", scheduledDate: "2026-08-28", order: 2 }),
+        task({ id: "next-day-1", scheduledDate: "2026-08-29", order: 1 }),
+        task({ id: "timed-1", scheduledDate: "2026-08-29", startMinutes: 480, order: 1 }),
+        task({ id: "timed-2", scheduledDate: "2026-08-29", startMinutes: 540, order: 2 }),
+        task({ id: "untimed-target", scheduledDate: "2026-08-29", order: 2 }),
+      ])
+
+      const unchangedLane = await updatePlanTask(
+        db,
+        "same-lane-2",
+        {
+          title: "保留排序",
+          scheduledDate: "2026-08-28",
+        },
+        30,
+      )
+
+      expect(unchangedLane.order).toBe(2)
+
+      const changedDate = await updatePlanTask(
+        db,
+        "same-lane-1",
+        {
+          title: "切到下一天",
+          scheduledDate: "2026-08-29",
+        },
+        31,
+      )
+
+      expect(changedDate).toMatchObject({
+        scheduledDate: "2026-08-29",
+        startMinutes: undefined,
+        order: 3,
+      })
+
+      const toTimed = await updatePlanTask(
+        db,
+        "untimed-target",
+        {
+          title: "改为定时",
+          scheduledDate: "2026-08-29",
+          startMinutes: 600,
+        },
+        32,
+      )
+
+      expect(toTimed).toMatchObject({
+        scheduledDate: "2026-08-29",
+        startMinutes: 600,
+        order: 3,
+      })
+
+      const toUntimed = await updatePlanTask(
+        db,
+        "timed-1",
+        {
+          title: "改为未定时",
+          scheduledDate: "2026-08-29",
+        },
+        33,
+      )
+
+      expect(toUntimed).toMatchObject({
+        scheduledDate: "2026-08-29",
+        startMinutes: undefined,
+        order: 4,
+      })
+    })
+  })
+
+  it("copies tasks into the target period using start date outside the range and today inside the range", async () => {
     await withDatabase(async (db) => {
       await db.planTasks.bulkAdd([
         task({
@@ -301,11 +375,10 @@ describe("plan task service", () => {
 
       const target = period()
 
-      const copiedIds = await copyTasksToPeriod(db, ["source-1", "source-2"], target, "2027-01-10", 100)
-      expect(copiedIds).toHaveLength(2)
+      const beforeStartIds = await copyTasksToPeriod(db, ["source-1", "source-2"], target, "2027-01-10", 100)
+      expect(beforeStartIds).toHaveLength(2)
 
-      const copied = await db.planTasks.bulkGet(copiedIds)
-      expect(copied).toEqual([
+      expect(await db.planTasks.bulkGet(beforeStartIds)).toEqual([
         expect.objectContaining({
           title: "英语阅读",
           scheduledDate: "2027-01-17",
@@ -331,6 +404,28 @@ describe("plan task service", () => {
           updatedAt: 100,
         }),
       ])
+
+      const insideIds = await copyTasksToPeriod(db, ["source-1"], target, "2027-01-20", 101)
+      expect(await db.planTasks.get(insideIds[0])).toMatchObject({
+        title: "英语阅读",
+        scheduledDate: "2027-01-20",
+        startMinutes: undefined,
+        isCompleted: 0,
+        completedAt: undefined,
+        createdAt: 101,
+        updatedAt: 101,
+      })
+
+      const afterEndIds = await copyTasksToPeriod(db, ["source-2"], target, "2027-02-25", 102)
+      expect(await db.planTasks.get(afterEndIds[0])).toMatchObject({
+        title: "数学整理",
+        scheduledDate: "2027-01-17",
+        startMinutes: undefined,
+        isCompleted: 0,
+        completedAt: undefined,
+        createdAt: 102,
+        updatedAt: 102,
+      })
 
       expect(await db.planTasks.get("source-1")).toMatchObject({
         scheduledDate: "2027-01-10",

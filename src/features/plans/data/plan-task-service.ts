@@ -1,7 +1,7 @@
 import type { LearningPeriod, PlanTask } from "@/db/types"
 import type { VeloDB } from "@/db/velo-db"
 
-import { clampDateToRange, parseLocalDate } from "../domain/plan-dates"
+import { parseLocalDate } from "../domain/plan-dates"
 
 export interface CreatePlanTaskInput {
   title: string
@@ -90,6 +90,18 @@ async function getNextOrder(db: VeloDB, scheduledDate: string, startMinutes: num
   return maxOrder + 1
 }
 
+function shouldReassignOrder(task: Pick<PlanTask, "scheduledDate" | "startMinutes">, input: Pick<UpdatePlanTaskInput, "scheduledDate" | "startMinutes">) {
+  return task.scheduledDate !== input.scheduledDate || !isSameLane(task, input.startMinutes)
+}
+
+function resolveCopyScheduledDate(targetPeriod: Pick<LearningPeriod, "startDate" | "endDate">, today: string) {
+  if (today >= targetPeriod.startDate && today <= targetPeriod.endDate) {
+    return today
+  }
+
+  return targetPeriod.startDate
+}
+
 export async function createPlanTask(db: VeloDB, input: CreatePlanTaskInput, now: number): Promise<PlanTask> {
   assertValidTaskInput(input)
   const normalized = normalizeTaskInput(input)
@@ -125,6 +137,10 @@ export async function updatePlanTask(db: VeloDB, id: string, input: UpdatePlanTa
       throw new Error("Plan task not found")
     }
 
+    const order = shouldReassignOrder(existing, normalized)
+      ? await getNextOrder(db, normalized.scheduledDate, normalized.startMinutes)
+      : existing.order
+
     const updated: PlanTask = {
       ...existing,
       id,
@@ -134,6 +150,7 @@ export async function updatePlanTask(db: VeloDB, id: string, input: UpdatePlanTa
       subject: normalized.subject,
       estimatedMinutes: normalized.estimatedMinutes,
       notes: normalized.notes,
+      order,
       updatedAt: now,
     }
 
@@ -203,7 +220,7 @@ export async function copyTasksToPeriod(
   today: string,
   now: number,
 ): Promise<string[]> {
-  const scheduledDate = clampDateToRange(today, targetPeriod.startDate, targetPeriod.endDate)
+  const scheduledDate = resolveCopyScheduledDate(targetPeriod, today)
   assertValidScheduledDate(scheduledDate)
 
   return db.transaction("rw", db.planTasks, async () => {
