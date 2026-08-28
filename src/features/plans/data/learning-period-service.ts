@@ -3,9 +3,20 @@ import type { VeloDB } from "@/db/velo-db"
 
 import {
   type LearningPeriodInput,
+  type PeriodValidation,
   countTasksInPeriod,
   validateLearningPeriod,
 } from "../domain/learning-periods"
+
+export class LearningPeriodValidationError extends Error {
+  field: Exclude<PeriodValidation, { ok: true }>["field"]
+
+  constructor(field: Exclude<PeriodValidation, { ok: true }>["field"], message: string) {
+    super(message)
+    this.name = "LearningPeriodValidationError"
+    this.field = field
+  }
+}
 
 function normalizeLearningPeriodInput(input: LearningPeriodInput): LearningPeriodInput {
   return {
@@ -20,7 +31,7 @@ function normalizeLearningPeriodInput(input: LearningPeriodInput): LearningPerio
 function assertValidLearningPeriod(candidate: LearningPeriodInput & Partial<Pick<LearningPeriod, "id">>, periods: LearningPeriod[]) {
   const validation = validateLearningPeriod(candidate, periods)
   if (!validation.ok) {
-    throw new Error(validation.message)
+    throw new LearningPeriodValidationError(validation.field, validation.message)
   }
 }
 

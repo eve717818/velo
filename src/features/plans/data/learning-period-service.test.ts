@@ -6,6 +6,7 @@ import { VeloDB } from "@/db/velo-db"
 import {
   createLearningPeriod,
   deleteLearningPeriod,
+  LearningPeriodValidationError,
   updateLearningPeriod,
 } from "./learning-period-service"
 
@@ -44,6 +45,17 @@ function task(overrides: Partial<PlanTask> = {}): PlanTask {
   }
 }
 
+async function expectValidationError(
+  promise: Promise<unknown>,
+  expected: Pick<LearningPeriodValidationError, "field" | "message">,
+) {
+  await expect(promise).rejects.toBeInstanceOf(LearningPeriodValidationError)
+  await expect(promise).rejects.toMatchObject({
+    name: "LearningPeriodValidationError",
+    ...expected,
+  })
+}
+
 describe("learning period service", () => {
   it("creates a trimmed learning period inside the database", async () => {
     await withDatabase(async (db) => {
@@ -74,7 +86,7 @@ describe("learning period service", () => {
     await withDatabase(async (db) => {
       await db.learningPeriods.add(period())
 
-      await expect(
+      await expectValidationError(
         createLearningPeriod(
           db,
           {
@@ -85,9 +97,34 @@ describe("learning period service", () => {
           },
           200,
         ),
-      ).rejects.toThrow("Learning period overlaps an existing period")
+        {
+        field: "startDate",
+        message: "Learning period overlaps an existing period",
+        },
+      )
 
       expect(await db.learningPeriods.count()).toBe(1)
+    })
+  })
+
+  it("preserves the name field on create validation failures", async () => {
+    await withDatabase(async (db) => {
+      await expectValidationError(
+        createLearningPeriod(
+          db,
+          {
+            kind: "semester",
+            name: "   ",
+            startDate: "2026-09-01",
+            endDate: "2027-01-16",
+          },
+          210,
+        ),
+        {
+        field: "name",
+        message: "Learning period name is required",
+        },
+      )
     })
   })
 
@@ -134,7 +171,7 @@ describe("learning period service", () => {
         }),
       ])
 
-      await expect(
+      await expectValidationError(
         updateLearningPeriod(
           db,
           "winter",
@@ -146,13 +183,62 @@ describe("learning period service", () => {
           },
           400,
         ),
-      ).rejects.toThrow("Learning period overlaps an existing period")
+        {
+        field: "startDate",
+        message: "Learning period overlaps an existing period",
+        },
+      )
 
       expect(await db.learningPeriods.get("winter")).toMatchObject({
         startDate: "2027-01-17",
         endDate: "2027-02-21",
         updatedAt: 1,
       })
+    })
+  })
+
+  it("preserves the endDate field on update validation failures", async () => {
+    await withDatabase(async (db) => {
+      await db.learningPeriods.add(period())
+
+      await expectValidationError(
+        updateLearningPeriod(
+          db,
+          "semester",
+          {
+            kind: "semester",
+            name: "2026 秋季学期",
+            startDate: "2027-01-20",
+            endDate: "2027-01-10",
+          },
+          410,
+        ),
+        {
+        field: "endDate",
+        message: "End date must be on or after the start date",
+        },
+      )
+    })
+  })
+
+  it("preserves the startDate field on create validation failures for invalid dates", async () => {
+    await withDatabase(async (db) => {
+      await expectValidationError(
+        createLearningPeriod(
+          db,
+          {
+            kind: "summer-break",
+            name: "2027 暑假",
+            startDate: "2027-02-30",
+            endDate: "2027-08-31",
+          },
+          220,
+        ),
+        {
+        field: "startDate",
+        message: "Start date must be a valid local date",
+        },
+      )
     })
   })
 
