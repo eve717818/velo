@@ -4,6 +4,7 @@ import type { VeloDB } from "@/db/velo-db"
 import { createPlanTask, updatePlanTask } from "../data/plan-task-service"
 import styles from "./PlanDialog.module.css"
 import { PlanDialog } from "./PlanDialog"
+import { PlanErrorState } from "./PlanErrorState"
 
 interface TaskEditorDialogProps {
   db: VeloDB
@@ -114,7 +115,7 @@ function TaskEditorForm({ db, initialDate, onClose, task }: Omit<TaskEditorDialo
           <button aria-label="关闭任务编辑" className={styles.iconButton} onClick={onClose} type="button">×</button>
         </div>
 
-        {saveError ? <p className={styles.saveError} role="alert">{saveError}</p> : null}
+        {saveError ? <PlanErrorState error={saveError} onRetry={() => { void onSubmit() }} /> : null}
 
         <label className={styles.field} htmlFor="task-title">
           <span>任务标题 <em>必填</em></span>

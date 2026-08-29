@@ -128,7 +128,24 @@
 .saveError {
   background: #fdebf0;
   border-radius: 12px;
+  display: flex;
+  gap: 10px;
+  justify-content: space-between;
   padding: 10px 12px;
+}
+
+.retryButton {
+  background: var(--color-surface);
+  border: 1px solid #cf7b95;
+  border-radius: 10px;
+  color: #861333;
+  cursor: pointer;
+  flex: 0 0 auto;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 740;
+  min-height: 44px;
+  padding: 0 12px;
 }
 
 .fieldGrid,
@@ -190,6 +207,7 @@
 }
 
 .dialog button:focus-visible,
+.retryButton:focus-visible,
 .field input:focus-visible,
 .field select:focus-visible,
 .field textarea:focus-visible {

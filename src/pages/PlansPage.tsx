@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react"
-import { useSearchParams } from "react-router-dom"
+import { useNavigate, useSearchParams } from "react-router-dom"
 import { useLiveQuery } from "dexie-react-hooks"
 import type { VeloDB } from "@/db/velo-db"
 import { veloDb } from "@/db/velo-db"
@@ -18,6 +18,7 @@ import { LegacyPlanMigrationPanel } from "@/features/plans/components/LegacyPlan
 import { PeriodMigrationPanel } from "@/features/plans/components/PeriodMigrationPanel"
 import { periodMigrationDismissalKey, reopenPeriodMigration } from "@/features/plans/data/period-migration-service"
 import { PlanDialog } from "@/features/plans/components/PlanDialog"
+import { PlanErrorState } from "@/features/plans/components/PlanErrorState"
 import type { PlanTask } from "@/db/types"
 import { parseLocalDate } from "@/features/plans/domain/plan-dates"
 import { countTasksInPeriod } from "@/features/plans/domain/learning-periods"
@@ -57,6 +58,7 @@ function readDate(value: string | null, fallback: string) {
 
 export function PlansPage({ db = veloDb, now }: PlansPageProps) {
   const [searchParams, setSearchParams] = useSearchParams()
+  const navigate = useNavigate()
   const fallbackDate = formatLocalDate(now ?? new Date())
   const rawView = searchParams.get("view")
   const rawDate = searchParams.get("date")
@@ -74,6 +76,7 @@ export function PlansPage({ db = veloDb, now }: PlansPageProps) {
   const [isPeriodDialogOpen, setIsPeriodDialogOpen] = useState(false)
   const [editingPeriod, setEditingPeriod] = useState<LearningPeriod | undefined>()
   const [periodToDelete, setPeriodToDelete] = useState<LearningPeriod | null>(null)
+  const [periodDeleteError, setPeriodDeleteError] = useState("")
   const [isMigrationOpen, setIsMigrationOpen] = useState(false)
   const isCreating = searchParams.get("new") === "1"
   const activePeriod = snapshot?.selectedPeriod ?? snapshot?.periods[0] ?? null
@@ -135,11 +138,16 @@ export function PlansPage({ db = veloDb, now }: PlansPageProps) {
 
   async function deleteSelectedPeriod() {
     if (!periodToDelete) return
-    await deleteLearningPeriod(db, periodToDelete.id)
-    setPeriodToDelete(null)
-    const nextParams = new URLSearchParams(searchParams)
-    nextParams.delete("period")
-    setSearchParams(nextParams)
+    setPeriodDeleteError("")
+    try {
+      await deleteLearningPeriod(db, periodToDelete.id)
+      setPeriodToDelete(null)
+      const nextParams = new URLSearchParams(searchParams)
+      nextParams.delete("period")
+      setSearchParams(nextParams)
+    } catch (error) {
+      setPeriodDeleteError(error instanceof Error ? error.message : "删除周期失败")
+    }
   }
 
   function openTask(openedTask: PlanTask, trigger: HTMLButtonElement) {
@@ -188,7 +196,7 @@ export function PlansPage({ db = veloDb, now }: PlansPageProps) {
                 : view === "month" ? <MonthPlanView db={db} onOpen={openTask} selectedDate={selectedDate} tasks={snapshot.tasks} />
                   : <LearningPeriodView
                     onCreate={() => openPeriodEditor()}
-                    onDelete={setPeriodToDelete}
+                    onDelete={(period) => { setPeriodDeleteError(""); setPeriodToDelete(period) }}
                     onEdit={openPeriodEditor}
                     onEditTask={(task) => setEditorTask(task)}
                     onReopenMigration={(period) => { void reopenMigrationFor(period) }}
@@ -225,7 +233,7 @@ export function PlansPage({ db = veloDb, now }: PlansPageProps) {
           onDelete={() => { setDeleteTask(actionTask); setIsActionDialogOpen(false); setIsDeleteDialogOpen(true) }}
           onEdit={() => { setEditorTask(actionTask); setIsActionDialogOpen(false) }}
           onMove={() => { setActionNotice("移动入口将在后续排程任务中连接。"); setIsActionDialogOpen(false) }}
-          onStartFocus={() => { setActionNotice("开始专注入口将在后续专注任务中连接。"); setIsActionDialogOpen(false) }}
+          onStartFocus={(href) => { setIsActionDialogOpen(false); void navigate(href) }}
           open={isActionDialogOpen}
           task={actionTask}
         />
@@ -244,6 +252,7 @@ export function PlansPage({ db = veloDb, now }: PlansPageProps) {
             <p className={styles.metaLabel}>删除学习周期</p>
             <h2 id="delete-period-heading">删除“{periodToDelete.name}”？</h2>
             <p>{countTasksInPeriod(snapshot?.allTasks ?? [], periodToDelete)} 项任务将变为未归属周期，任务本身不会删除。</p>
+            {periodDeleteError ? <PlanErrorState error={periodDeleteError} onRetry={() => { void deleteSelectedPeriod() }} /> : null}
             <div className={styles.migrationActions}><button className={styles.secondaryPeriodAction} onClick={() => setPeriodToDelete(null)} type="button">取消</button><button className={styles.dangerPeriodAction} onClick={() => { void deleteSelectedPeriod() }} type="button">删除周期</button></div>
           </section>
         </PlanDialog>

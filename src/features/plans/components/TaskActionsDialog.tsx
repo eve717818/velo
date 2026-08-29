@@ -1,4 +1,5 @@
 import type { PlanTask } from "@/db/types"
+import { buildFocusHref } from "../focus-link"
 import styles from "./PlanDialog.module.css"
 import { PlanDialog } from "./PlanDialog"
 
@@ -7,7 +8,7 @@ interface TaskActionsDialogProps {
   onDelete: () => void
   onEdit: () => void
   onMove: () => void
-  onStartFocus: () => void
+  onStartFocus: (href: string) => void
   open: boolean
   task: PlanTask
 }
@@ -27,7 +28,7 @@ export function TaskActionsDialog({ onClose, onDelete, onEdit, onMove, onStartFo
         </div>
         <div className={styles.actionList}>
           <button onClick={onEdit} type="button">编辑</button>
-          <button onClick={onStartFocus} type="button">开始专注</button>
+          <button onClick={() => onStartFocus(buildFocusHref(task))} type="button">开始专注</button>
           <button onClick={onMove} type="button">移动到日期/时间</button>
           <button className={styles.dangerButton} onClick={onDelete} type="button">删除</button>
         </div>

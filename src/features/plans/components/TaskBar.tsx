@@ -9,6 +9,7 @@ import { getSwipeProgress, shouldCompleteSwipe } from "@/features/plans/domain/t
 import { FlowArrowIcon } from "./FlowArrowIcon"
 import { TaskDragLayer } from "./TaskDragLayer"
 import { UndoNotice } from "./UndoNotice"
+import { PlanErrorState } from "./PlanErrorState"
 import styles from "./TaskBar.module.css"
 
 interface TaskBarProps {
@@ -25,6 +26,7 @@ export function TaskBar({ db, onOpen, task }: TaskBarProps) {
   const [dragPosition, setDragPosition] = useState<{ x: number; y: number } | null>(null)
   const [undoMessage, setUndoMessage] = useState("任务已完成")
   const [undoAction, setUndoAction] = useState<(() => void) | null>(null)
+  const [writeError, setWriteError] = useState<{ message: string; retry: () => void } | null>(null)
   const activePointerId = useRef<number | null>(null)
   const dragActive = useRef(false)
   const verticalScrollCancelled = useRef(false)
@@ -69,14 +71,21 @@ export function TaskBar({ db, onOpen, task }: TaskBarProps) {
     if (isSaving || (nextValue && isCompleted)) return
 
     setIsSaving(true)
+    setWriteError(null)
     setCompletionOverride(nextValue)
     try {
       await setTaskCompletion(db, task.id, nextValue, Date.now())
       if (!mounted.current) return
       if (nextValue) showUndoWindow("任务已完成", () => void changeCompletion(false))
       else setShowUndo(false)
-    } catch {
-      if (mounted.current) setCompletionOverride(null)
+    } catch (error) {
+      if (mounted.current) {
+        setCompletionOverride(null)
+        setWriteError({
+          message: error instanceof Error ? error.message : "更新任务失败",
+          retry: () => { void changeCompletion(nextValue) },
+        })
+      }
     } finally {
       if (mounted.current) setIsSaving(false)
     }
@@ -158,12 +167,18 @@ export function TaskBar({ db, onOpen, task }: TaskBarProps) {
     }
 
     setIsSaving(true)
+    setWriteError(null)
     try {
       await movePlanTask(db, task.id, target, Date.now())
       if (!mounted.current) return
       showUndoWindow("已移动到目标位置", () => void restoreTaskPosition(previous))
-    } catch {
-      // A failed local write leaves the task in its original lane.
+    } catch (error) {
+      if (mounted.current) {
+        setWriteError({
+          message: error instanceof Error ? error.message : "移动任务失败",
+          retry: () => { void moveTask(target) },
+        })
+      }
     } finally {
       if (mounted.current) setIsSaving(false)
     }
@@ -172,9 +187,17 @@ export function TaskBar({ db, onOpen, task }: TaskBarProps) {
   async function restoreTaskPosition(previous: { scheduledDate: string; startMinutes: number | undefined; order: number }) {
     if (isSaving) return
     setIsSaving(true)
+    setWriteError(null)
     try {
       await movePlanTask(db, task.id, previous, Date.now())
       if (mounted.current) setShowUndo(false)
+    } catch (error) {
+      if (mounted.current) {
+        setWriteError({
+          message: error instanceof Error ? error.message : "恢复任务位置失败",
+          retry: () => { void restoreTaskPosition(previous) },
+        })
+      }
     } finally {
       if (mounted.current) setIsSaving(false)
     }
@@ -266,6 +289,7 @@ export function TaskBar({ db, onOpen, task }: TaskBarProps) {
       </button>
       {dragPosition ? <TaskDragLayer task={task} x={dragPosition.x} y={dragPosition.y} /> : null}
       {showUndo ? <UndoNotice message={undoMessage} onUndo={() => undoAction?.()} /> : null}
+      {writeError ? <PlanErrorState error={writeError.message} onRetry={writeError.retry} /> : null}
     </div>
   )
 }

@@ -6,6 +6,7 @@ import type { VeloDB } from "@/db/velo-db"
 import { copyTasksToPeriod } from "../data/plan-task-service"
 import { dismissPeriodMigration } from "../data/period-migration-service"
 import styles from "../PlansPage.module.css"
+import { PlanErrorState } from "./PlanErrorState"
 
 interface PeriodMigrationPanelProps {
   db: VeloDB
@@ -56,7 +57,7 @@ function PeriodMigrationPanelSession({ db, onClose, sourcePeriod, targetPeriod, 
       <h3>上一学习周期还有 {tasks.length} 个任务未完成</h3>
       <p>选择需要复制到“{targetPeriod.name}”的任务；原任务会保留不变。</p>
       <p className={styles.migrationSelection}>已选择 {selectedIds.length} 项</p>
-      {error ? <p className={styles.migrationError} role="alert">{error}</p> : null}
+      {error ? <PlanErrorState error={error} onRetry={() => { void copySelected() }} /> : null}
       <ul className={styles.migrationTaskList}>{tasks.map((task) => <li key={task.id}><label><input aria-label={`选择${task.title}`} checked={selectedIds.includes(task.id)} onChange={() => toggle(task.id)} type="checkbox" /> <span>{task.title}</span></label></li>)}</ul>
       <div className={styles.migrationActions}><button className={styles.secondaryPeriodAction} onClick={() => { void dismiss() }} type="button">暂不处理</button><button className={styles.emptyCreateAction} disabled={saving || selectedIds.length === 0} onClick={() => { void copySelected() }} type="button">复制 {selectedIds.length} 项任务</button></div>
     </aside>

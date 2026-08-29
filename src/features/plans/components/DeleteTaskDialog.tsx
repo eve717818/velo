@@ -4,6 +4,7 @@ import type { VeloDB } from "@/db/velo-db"
 import { deletePlanTask } from "../data/plan-task-service"
 import styles from "./PlanDialog.module.css"
 import { PlanDialog } from "./PlanDialog"
+import { PlanErrorState } from "./PlanErrorState"
 
 interface DeleteTaskDialogProps {
   db: VeloDB
@@ -37,7 +38,7 @@ export function DeleteTaskDialog({ db, onClose, open, returnFocusTo, task }: Del
         <p className={styles.eyebrow}>删除任务</p>
         <h2 id={headingId}>确定删除“{task.title}”吗？</h2>
         <p>删除后无法恢复这项任务。</p>
-        {error ? <p className={styles.saveError} role="alert">{error}</p> : null}
+        {error ? <PlanErrorState error={error} onRetry={() => { void confirmDelete() }} /> : null}
         <div className={styles.actions}>
           <button className={styles.secondaryButton} onClick={onClose} type="button">取消</button>
           <button className={styles.dangerButton} disabled={isDeleting} onClick={() => { void confirmDelete() }} type="button">

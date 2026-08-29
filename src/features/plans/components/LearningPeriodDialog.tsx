@@ -7,6 +7,7 @@ import { LearningPeriodValidationError, createLearningPeriod, updateLearningPeri
 import type { LearningPeriodInput } from "../domain/learning-periods"
 import styles from "./PlanDialog.module.css"
 import { PlanDialog } from "./PlanDialog"
+import { PlanErrorState } from "./PlanErrorState"
 
 type FieldName = "name" | "startDate" | "endDate"
 type FieldErrors = Partial<Record<FieldName, string>>
@@ -79,7 +80,7 @@ function LearningPeriodForm({ db, onClose, period, periods }: Omit<LearningPerio
         <div><p className={styles.eyebrow}>学习周期</p><h2 id="learning-period-editor-heading">{period ? "编辑学习周期" : "新建学习周期"}</h2></div>
         <button aria-label="关闭周期编辑" className={styles.iconButton} onClick={onClose} type="button">×</button>
       </div>
-      {saveError ? <p className={styles.saveError} role="alert">{saveError}</p> : null}
+      {saveError ? <PlanErrorState error={saveError} onRetry={() => { void submit() }} /> : null}
       <label className={styles.field} htmlFor="period-kind"><span>周期类型</span><select aria-label="周期类型" id="period-kind" onChange={(event) => setValue("kind", event.target.value as LearningPeriodKind)} value={values.kind}><option value="semester">学期</option><option value="winter-break">寒假</option><option value="summer-break">暑假</option><option value="custom-break">自定义假期</option></select></label>
       <label className={styles.field} htmlFor="period-name"><span>周期名称 <em>必填</em></span><input aria-invalid={Boolean(errors.name)} aria-label="周期名称" id="period-name" onChange={(event) => setValue("name", event.target.value)} value={values.name} />{errors.name ? <small role="alert">{errors.name}</small> : null}</label>
       <div className={styles.fieldGrid}>

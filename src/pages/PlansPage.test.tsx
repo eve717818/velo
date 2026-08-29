@@ -137,4 +137,20 @@ describe("PlansPage", () => {
       await db.delete()
     }
   })
+
+  it("uses the shared focus URL when starting focus from task actions", async () => {
+    const db = createDatabase()
+    const user = userEvent.setup()
+    await db.planTasks.add({ id: "task & focus", title: "复习导数", scheduledDate: "2026-08-29", estimatedMinutes: 45, isCompleted: 0, order: 1, createdAt: 1, updatedAt: 1 })
+    const rendered = renderPlansPage("/plans?view=day&date=2026-08-29", db)
+
+    try {
+      await user.click(await screen.findByRole("button", { name: "打开任务操作：复习导数" }))
+      await user.click(screen.getByRole("button", { name: "开始专注" }))
+      expect(screen.getByLabelText("当前位置")).toHaveTextContent("/focus?task=task+%26+focus&minutes=45")
+    } finally {
+      rendered.unmount()
+      await db.delete()
+    }
+  })
 })

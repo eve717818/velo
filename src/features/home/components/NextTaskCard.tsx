@@ -1,6 +1,7 @@
 import { ArrowRight, BookOpen } from "lucide-react"
 import { Link } from "react-router-dom"
 import type { PlanTask } from "@/db/types"
+import { buildFocusHref } from "@/features/plans/focus-link"
 import styles from "../HomePage.module.css"
 
 interface NextTaskCardProps {
@@ -18,7 +19,7 @@ export function NextTaskCard({ task, totalCount }: NextTaskCardProps) {
         <span className={styles.cardIndex}>01</span>
       </div>
       {task ? (
-        <Link aria-label={`查看下一项任务：${task.title}`} className={styles.taskLink} to="/plans">
+        <Link aria-label={`查看下一项任务：${task.title}`} className={styles.taskLink} to={buildFocusHref(task)}>
           <span className={styles.nextIcon} aria-hidden="true">
             <BookOpen size={30} strokeWidth={1.9} />
           </span>

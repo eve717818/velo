@@ -37,6 +37,7 @@ describe("HomePage", () => {
       expect(screen.getByRole("link", { name: "新建笔记" })).toHaveAttribute("href", "/notes?new=1")
       expect(screen.getByRole("link", { name: "拍照录入" })).toHaveAttribute("href", "/notes?capture=1")
       expect(screen.getByRole("link", { name: "开始专注" })).toHaveAttribute("href", "/focus?start=1")
+      expect(screen.getByRole("link", { name: "查看下一项任务：高等数学 · 导数复习" })).toHaveAttribute("href", expect.stringMatching(/^\/focus\?task=.+&minutes=25$/))
     } finally {
       view.unmount()
       await db.delete()

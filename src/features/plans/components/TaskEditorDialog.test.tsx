@@ -118,6 +118,34 @@ describe("TaskEditorDialog", () => {
     }
   })
 
+  it("keeps the dialog open and retries the last entered values after a failed save", async () => {
+    const db = createDatabase()
+    const user = userEvent.setup()
+    let failWrite = true
+    db.planTasks.hook("creating", () => {
+      if (failWrite) throw new Error("磁盘写入失败")
+    })
+    const rendered = render(<EditorHarness db={db} />)
+
+    try {
+      await user.click(screen.getByRole("button", { name: "新建任务" }))
+      await user.type(screen.getByLabelText("任务标题"), "重试后保存")
+      await user.click(screen.getByRole("button", { name: "保存任务" }))
+
+      expect(await screen.findByRole("alert")).toHaveTextContent("保存失败，请重试")
+      expect(screen.getByLabelText("任务标题")).toHaveValue("重试后保存")
+
+      failWrite = false
+      await user.click(screen.getByRole("button", { name: "重试" }))
+
+      await waitFor(async () => expect(await db.planTasks.toArray()).toMatchObject([{ title: "重试后保存" }]))
+      expect(screen.queryByRole("dialog")).not.toBeInTheDocument()
+    } finally {
+      rendered.unmount()
+      await db.delete()
+    }
+  })
+
   it("edits an existing task without generating a new ID", async () => {
     const db = createDatabase()
     const task = existingTask()
