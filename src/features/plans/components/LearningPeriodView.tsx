@@ -17,16 +17,18 @@ interface LearningPeriodViewProps {
   onDelete?: (period: LearningPeriod) => void
   onReopenMigration?: (period: LearningPeriod) => void
   onSelect?: (period: LearningPeriod) => void
+  onEditTask?: (task: PlanTask) => void
   periods: LearningPeriod[]
   selectedPeriodId?: string
   tasks: PlanTask[]
+  today: string
 }
 
 function sortPeriods(periods: LearningPeriod[]) {
   return [...periods].sort((left, right) => left.startDate.localeCompare(right.startDate) || left.name.localeCompare(right.name))
 }
 
-export function LearningPeriodView({ onCreate, onDelete, onEdit, onReopenMigration, onSelect, periods, selectedPeriodId, tasks }: LearningPeriodViewProps) {
+export function LearningPeriodView({ onCreate, onDelete, onEdit, onEditTask, onReopenMigration, onSelect, periods, selectedPeriodId, tasks, today }: LearningPeriodViewProps) {
   const sortedPeriods = sortPeriods(periods)
   const selectedPeriod = sortedPeriods.find((period) => period.id === selectedPeriodId) ?? sortedPeriods[0]
   const selectedTasks = selectedPeriod
@@ -34,6 +36,7 @@ export function LearningPeriodView({ onCreate, onDelete, onEdit, onReopenMigrati
     : []
   const unassignedTasks = tasks.filter((task) => !findPeriodForDate(sortedPeriods, task.scheduledDate))
   const progress = getProgress(selectedTasks)
+  const isHistorical = Boolean(selectedPeriod && selectedPeriod.endDate < today)
 
   if (sortedPeriods.length === 0) {
     return (
@@ -71,15 +74,15 @@ export function LearningPeriodView({ onCreate, onDelete, onEdit, onReopenMigrati
               <h3 id="period-overview-heading">{selectedPeriod.name}</h3>
               <p>{selectedPeriod.startDate} 至 {selectedPeriod.endDate} · {progress.completed} / {progress.total} 项完成</p>
             </div>
-            <div className={styles.periodActions}>
+            {!isHistorical ? <div className={styles.periodActions}>
               <button className={styles.secondaryPeriodAction} onClick={() => onEdit?.(selectedPeriod)} type="button">编辑周期</button>
               {onDelete ? <button className={styles.dangerPeriodAction} onClick={() => onDelete(selectedPeriod)} type="button">删除周期</button> : null}
               {onReopenMigration ? <button className={styles.secondaryPeriodAction} onClick={() => onReopenMigration(selectedPeriod)} type="button">处理上周期任务</button> : null}
-            </div>
+            </div> : null}
           </div>
           {selectedPeriod.goal ? <p className={styles.periodGoal}>目标：{selectedPeriod.goal}</p> : null}
-          <ul className={styles.periodTaskList}>
-            {selectedTasks.map((task) => <li key={task.id}>{task.title}</li>)}
+          <ul aria-label="周期任务" className={styles.periodTaskList}>
+            {selectedTasks.map((task) => <li key={task.id}><button className={styles.periodTaskAction} onClick={() => onEditTask?.(task)} type="button">编辑任务：{task.title}</button></li>)}
           </ul>
         </section>
       ) : null}

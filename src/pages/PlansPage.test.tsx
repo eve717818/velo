@@ -2,6 +2,7 @@ import { render, screen, waitFor } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { MemoryRouter, useLocation } from "react-router-dom"
 import { describe, expect, it } from "vitest"
+import type { LearningPeriod } from "@/db/types"
 import { VeloDB } from "@/db/velo-db"
 import { PlansPage } from "./PlansPage"
 
@@ -104,6 +105,33 @@ describe("PlansPage", () => {
     try {
       expect(await screen.findByRole("button", { name: "创建第一个学期或假期" })).toBeInTheDocument()
       expect(screen.queryByRole("link", { name: "新建任务" })).not.toBeInTheDocument()
+    } finally {
+      rendered.unmount()
+      await db.delete()
+    }
+  })
+
+  it("opens a historical period task through the existing task editor while keeping period management read-only", async () => {
+    const db = createDatabase()
+    const user = userEvent.setup()
+    const historicalPeriod: LearningPeriod = {
+      id: "history",
+      kind: "semester",
+      name: "2026 秋季学期",
+      startDate: "2026-09-01",
+      endDate: "2027-01-16",
+      createdAt: 1,
+      updatedAt: 1,
+    }
+    await db.learningPeriods.add(historicalPeriod)
+    await db.planTasks.add({ id: "history-task", title: "历史复习", scheduledDate: "2027-01-16", isCompleted: 0, order: 1, createdAt: 1, updatedAt: 1 })
+    const rendered = renderPlansPage("/plans?view=period&period=history&date=2027-01-17", db, new Date(2027, 0, 17, 9, 0))
+
+    try {
+      await user.click(await screen.findByRole("button", { name: "编辑任务：历史复习" }))
+      expect(screen.getByRole("heading", { name: "编辑学习任务" })).toBeInTheDocument()
+      expect(screen.queryByRole("button", { name: "编辑周期" })).not.toBeInTheDocument()
+      expect(screen.queryByRole("button", { name: "删除周期" })).not.toBeInTheDocument()
     } finally {
       rendered.unmount()
       await db.delete()

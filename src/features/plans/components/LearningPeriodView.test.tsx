@@ -1,5 +1,6 @@
 import { render, screen } from "@testing-library/react"
-import { describe, expect, it } from "vitest"
+import userEvent from "@testing-library/user-event"
+import { describe, expect, it, vi } from "vitest"
 
 import type { LearningPeriod, PlanTask } from "@/db/types"
 
@@ -48,6 +49,7 @@ describe("LearningPeriodView", () => {
           task({ id: "winter-task", scheduledDate: "2027-01-17" }),
           task({ id: "outside", scheduledDate: "2027-03-01" }),
         ]}
+        today="2027-02-21"
       />,
     )
 
@@ -65,8 +67,49 @@ describe("LearningPeriodView", () => {
   })
 
   it("has exactly one create action in the empty state", () => {
-    render(<LearningPeriodView periods={[]} tasks={[]} />)
+    render(<LearningPeriodView periods={[]} tasks={[]} today="2027-02-21" />)
 
     expect(screen.getAllByRole("button", { name: "创建第一个学期或假期" })).toHaveLength(1)
+  })
+
+  it("keeps a historical period read-only while retaining an explicit accessible task-edit action", async () => {
+    const user = userEvent.setup()
+    const onDelete = vi.fn()
+    const onEdit = vi.fn()
+    const onEditTask = vi.fn()
+    render(
+      <LearningPeriodView
+        onDelete={onDelete}
+        onEdit={onEdit}
+        onEditTask={onEditTask}
+        periods={[period({ id: "history", endDate: "2027-01-16" })]}
+        selectedPeriodId="history"
+        tasks={[task({ id: "history-task", scheduledDate: "2027-01-16" })]}
+        today="2027-01-17"
+      />,
+    )
+
+    expect(screen.queryByRole("button", { name: "编辑周期" })).not.toBeInTheDocument()
+    expect(screen.queryByRole("button", { name: "删除周期" })).not.toBeInTheDocument()
+    await user.click(screen.getByRole("button", { name: "编辑任务：复习导数" }))
+    expect(onEditTask).toHaveBeenCalledWith(expect.objectContaining({ id: "history-task" }))
+    expect(onEdit).not.toHaveBeenCalled()
+    expect(onDelete).not.toHaveBeenCalled()
+  })
+
+  it("treats a period ending today as current and leaves period management available", () => {
+    render(
+      <LearningPeriodView
+        onDelete={vi.fn()}
+        onEdit={vi.fn()}
+        periods={[period({ id: "today", endDate: "2027-01-16" })]}
+        selectedPeriodId="today"
+        tasks={[]}
+        today="2027-01-16"
+      />,
+    )
+
+    expect(screen.getByRole("button", { name: "编辑周期" })).toBeInTheDocument()
+    expect(screen.getByRole("button", { name: "删除周期" })).toBeInTheDocument()
   })
 })

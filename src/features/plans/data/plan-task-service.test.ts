@@ -461,6 +461,10 @@ describe("plan task service", () => {
 
       const allTasks = await db.planTasks.toArray()
       expect(allTasks.map((item) => item.id).sort()).toEqual(["source-1", "source-2"])
+      expect(await db.planTasks.bulkGet(["source-1", "source-2"])).toEqual([
+        expect.objectContaining({ id: "source-1", title: "英语阅读", scheduledDate: "2027-01-10" }),
+        expect.objectContaining({ id: "source-2", title: "数学整理", scheduledDate: "2027-01-11" }),
+      ])
     })
   })
 })

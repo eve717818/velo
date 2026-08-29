@@ -190,11 +190,13 @@ export function PlansPage({ db = veloDb, now }: PlansPageProps) {
                     onCreate={() => openPeriodEditor()}
                     onDelete={setPeriodToDelete}
                     onEdit={openPeriodEditor}
+                    onEditTask={(task) => setEditorTask(task)}
                     onReopenMigration={(period) => { void reopenMigrationFor(period) }}
                     onSelect={selectPeriod}
                     periods={snapshot.periods}
                     selectedPeriodId={activePeriod?.id}
                     tasks={snapshot.allTasks}
+                    today={fallbackDate}
                   />
           ) : null}
         </section>

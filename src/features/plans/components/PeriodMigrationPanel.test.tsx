@@ -55,4 +55,24 @@ describe("PeriodMigrationPanel", () => {
       await db.delete()
     }
   })
+
+  it("keeps the copy action disabled and leaves the database untouched with zero selections", async () => {
+    const db = new VeloDB(`period-zero-selection-${crypto.randomUUID()}`)
+    const user = userEvent.setup()
+    const onClose = vi.fn()
+    const rows = [task("one")]
+    await db.planTasks.bulkAdd(rows)
+    const rendered = render(<PeriodMigrationPanel db={db} onClose={onClose} open sourcePeriod={source} targetPeriod={target} tasks={rows} today="2027-01-18" />)
+
+    try {
+      const copy = screen.getByRole("button", { name: "复制 0 项任务" })
+      expect(copy).toBeDisabled()
+      await user.click(copy)
+      expect(await db.planTasks.toArray()).toEqual(rows)
+      expect(onClose).not.toHaveBeenCalled()
+    } finally {
+      rendered.unmount()
+      await db.delete()
+    }
+  })
 })

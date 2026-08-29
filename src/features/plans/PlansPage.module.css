@@ -580,6 +580,8 @@
 .periodTaskList li,
 .unassignedPeriodTasks li { font-size: 13px; }
 
+.periodTaskAction { background: var(--color-surface); border: 1px solid var(--color-border); border-radius: 12px; color: var(--color-text); cursor: pointer; font: inherit; font-size: 13px; min-height: 44px; padding: 0 12px; text-align: left; width: 100%; }
+
 .periodEmptyState { align-items: center; display: flex; gap: 18px; justify-content: space-between; margin-top: 20px; }
 .periodEmptyState h3 { font-size: 16px; }
 .periodEmptyState p { color: var(--color-text-muted); font-size: 12px; margin-top: 5px; }
@@ -604,6 +606,7 @@
 .dangerPeriodAction:focus-visible,
 .migrationBanner button:focus-visible,
 .migrationTaskList input:focus-visible { outline: 3px solid var(--color-cool-blue); outline-offset: 3px; }
+.periodTaskAction:focus-visible { outline: 3px solid var(--color-cool-blue); outline-offset: 3px; }
 
 @media (min-width: 768px) {
   .periodMigrationPanel { border-radius: 16px 0 0 16px; bottom: 0; left: auto; max-height: 100dvh; min-height: 100dvh; padding: 28px; right: 0; top: 0; width: min(390px, 46vw); }
