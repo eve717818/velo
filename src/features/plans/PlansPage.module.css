@@ -259,6 +259,228 @@
   padding: 0;
 }
 
+.srOnly {
+  height: 1px;
+  margin: -1px;
+  overflow: hidden;
+  padding: 0;
+  position: absolute;
+  width: 1px;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+}
+
+.dayPlan,
+.weekPlan,
+.monthPlan {
+  display: grid;
+  gap: 18px;
+  margin-top: 20px;
+}
+
+.dayLane,
+.weekMobileList,
+.monthTaskPanel,
+.viewEmptyState {
+  background: var(--color-surface-muted);
+  border: 1px solid var(--color-border);
+  border-radius: 16px;
+  padding: 16px;
+}
+
+.laneHeading,
+.weekListHeading {
+  align-items: baseline;
+  display: flex;
+  gap: 12px;
+  justify-content: space-between;
+}
+
+.laneHeading h3,
+.weekListHeading h3,
+.viewEmptyState h3 {
+  font-size: 16px;
+  font-weight: 760;
+  letter-spacing: -.02em;
+}
+
+.laneHeading span,
+.weekListHeading span,
+.monthCounts,
+.emptyLaneCopy,
+.viewEmptyState p {
+  color: var(--color-text-muted);
+  font-size: 12px;
+  font-weight: 650;
+}
+
+.timedTaskList,
+.untimedTaskList,
+.weekDayColumn ul {
+  display: grid;
+  gap: 10px;
+  list-style: none;
+  margin: 14px 0 0;
+  padding: 0;
+}
+
+.timedTaskList > li {
+  align-items: start;
+  display: grid;
+  gap: 10px;
+  grid-template-columns: 44px minmax(0, 1fr);
+}
+
+.timeLabel {
+  color: #44578e;
+  font-size: 12px;
+  font-weight: 780;
+  line-height: 54px;
+  text-align: right;
+}
+
+.taskBarWithStatus {
+  min-width: 0;
+  position: relative;
+}
+
+.overdueLabel {
+  background: #fce9e4;
+  border-radius: 999px;
+  color: #9a3d2d;
+  font-size: 12px;
+  font-weight: 760;
+  padding: 3px 7px;
+  position: absolute;
+  right: 8px;
+  top: 8px;
+}
+
+.emptyLaneCopy {
+  margin: 14px 0 0;
+}
+
+.viewEmptyState {
+  align-items: flex-start;
+  display: flex;
+  gap: 18px;
+  justify-content: space-between;
+  margin-top: 20px;
+}
+
+.viewEmptyState p {
+  margin-top: 5px;
+}
+
+.emptyCreateAction {
+  background: var(--color-brand);
+  border: 0;
+  border-radius: 12px;
+  color: white;
+  cursor: pointer;
+  flex: 0 0 auto;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 760;
+  min-height: 44px;
+  padding: 0 14px;
+}
+
+.weekDateStrip {
+  display: grid;
+  gap: 6px;
+  grid-template-columns: repeat(7, minmax(44px, 1fr));
+}
+
+.weekDateButton {
+  background: var(--color-cool-blue-soft);
+  border: 1px solid transparent;
+  border-radius: 12px;
+  color: #334377;
+  cursor: pointer;
+  display: grid;
+  font: inherit;
+  justify-items: center;
+  min-height: 52px;
+  padding: 5px 2px;
+}
+
+.weekDateButton > span:first-child { font-size: 16px; font-weight: 790; line-height: 1; }
+.weekDateButton small { font-size: 12px; font-weight: 680; margin-top: 3px; }
+.weekDateButton[aria-pressed="true"] { background: var(--color-brand); color: white; }
+
+.weekGrid { display: none; }
+
+.monthWeekdays,
+.monthGrid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); }
+
+.monthWeekdays { color: var(--color-text-muted); font-size: 12px; font-weight: 720; text-align: center; }
+
+.monthGrid { border-left: 1px solid var(--color-border); border-top: 1px solid var(--color-border); }
+
+.monthDay {
+  background: var(--color-surface);
+  border: 0;
+  border-bottom: 1px solid var(--color-border);
+  border-right: 1px solid var(--color-border);
+  color: var(--color-text);
+  cursor: pointer;
+  display: grid;
+  font: inherit;
+  gap: 4px;
+  min-height: 66px;
+  padding: 8px 5px;
+  text-align: left;
+}
+
+.monthDateNumber { font-size: 14px; font-weight: 780; }
+.monthCounts { font-size: 11px; line-height: 1.25; }
+.monthDay[aria-pressed="true"] { background: var(--color-brand); color: white; }
+.monthDay[aria-pressed="true"] .monthCounts { color: rgb(255 255 255 / 82%); }
+.outsideMonth { background: var(--color-surface-muted); color: var(--color-text-faint); }
+
+.monthTaskPanel {
+  background: var(--color-surface);
+  border-bottom: 0;
+  border-radius: 20px 20px 0 0;
+  bottom: 0;
+  box-shadow: 0 -14px 34px rgb(34 48 68 / 16%);
+  left: 0;
+  max-height: 46vh;
+  overflow: auto;
+  position: fixed;
+  right: 0;
+  z-index: 4;
+}
+
+.emptyCreateAction:focus-visible,
+.weekDateButton:focus-visible,
+.monthDay:focus-visible { outline: 3px solid var(--color-cool-blue); outline-offset: 3px; }
+
+@media (min-width: 768px) {
+  .dayLane,
+  .weekMobileList,
+  .monthTaskPanel,
+  .viewEmptyState { padding: 18px; }
+
+  .weekDateStrip,
+  .weekMobileList { display: none; }
+
+  .weekGrid { display: grid; gap: 8px; grid-template-columns: repeat(7, minmax(0, 1fr)); }
+
+  .weekDayColumn { background: var(--color-surface-muted); border: 1px solid var(--color-border); border-radius: 14px; min-height: 238px; padding: 10px; }
+  .weekDayColumn header { align-items: baseline; color: #44578e; display: flex; justify-content: space-between; }
+  .weekDayColumn header span { font-size: 12px; font-weight: 700; }
+  .weekDayColumn header strong { font-size: 16px; }
+  .weekDayColumn ul { gap: 8px; }
+
+  .monthPlan { grid-template-columns: minmax(0, 1fr) minmax(260px, 320px); }
+  .monthWeekdays,
+  .monthGrid { grid-column: 1; }
+  .monthTaskPanel { border-bottom: 1px solid var(--color-border); border-radius: 16px; box-shadow: none; grid-column: 2; grid-row: 1 / span 2; max-height: none; overflow: visible; position: static; }
+  .monthDay { min-height: 78px; padding: 9px; }
+}
+
 .actionNotice {
   color: var(--color-text-muted);
   font-size: 12px;

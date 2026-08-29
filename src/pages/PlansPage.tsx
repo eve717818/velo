@@ -8,7 +8,10 @@ import { PlanViewSwitcher } from "@/features/plans/components/PlanViewSwitcher"
 import { DeleteTaskDialog } from "@/features/plans/components/DeleteTaskDialog"
 import { TaskActionsDialog } from "@/features/plans/components/TaskActionsDialog"
 import { TaskEditorDialog } from "@/features/plans/components/TaskEditorDialog"
+import { DayPlanView } from "@/features/plans/components/DayPlanView"
+import { MonthPlanView } from "@/features/plans/components/MonthPlanView"
 import { TaskBar } from "@/features/plans/components/TaskBar"
+import { WeekPlanView } from "@/features/plans/components/WeekPlanView"
 import type { PlanTask } from "@/db/types"
 import { parseLocalDate } from "@/features/plans/domain/plan-dates"
 import styles from "@/features/plans/PlansPage.module.css"
@@ -78,6 +81,21 @@ export function PlansPage({ db = veloDb, now }: PlansPageProps) {
     setSearchParams(nextParams)
   }
 
+  function openCreate() {
+    const nextParams = new URLSearchParams(searchParams)
+    nextParams.set("view", view)
+    nextParams.set("date", selectedDate)
+    nextParams.set("new", "1")
+    setSearchParams(nextParams)
+  }
+
+  function openTask(openedTask: PlanTask, trigger: HTMLButtonElement) {
+    setActionNotice("")
+    setTaskTrigger(trigger)
+    setActionTask(openedTask)
+    setIsActionDialogOpen(true)
+  }
+
   function closeEditor() {
     setEditorTask(null)
     if (!isCreating) return
@@ -97,6 +115,7 @@ export function PlansPage({ db = veloDb, now }: PlansPageProps) {
         createHref={`/plans?${createParams.toString()}`}
         onDateChange={(date) => updateParameter("date", date)}
         selectedDate={selectedDate}
+        showCreate={view !== "day" || Boolean(snapshot?.tasks.length)}
       />
       <div className={styles.toolbar}>
         <PlanViewSwitcher onChange={(nextView) => updateParameter("view", nextView)} value={view} />
@@ -110,26 +129,20 @@ export function PlansPage({ db = veloDb, now }: PlansPageProps) {
             </div>
             <span className={styles.rangeCount}>{snapshot?.tasks.length ?? 0} 项任务</span>
           </div>
-          {snapshot?.tasks.length ? (
-            <ul className={styles.taskList} data-drop-date={selectedDate} data-testid="current-plan-drop-zone">
-              {snapshot.tasks.map((task) => (
-                <li key={task.id}>
-                  <TaskBar
-                    db={db}
-                    onOpen={(openedTask, trigger) => { setActionNotice(""); setTaskTrigger(trigger); setActionTask(openedTask); setIsActionDialogOpen(true) }}
-                    task={task}
-                  />
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <div className={styles.emptyState}>
-              <div>
-                <strong>当前范围还没有任务</strong>
-                <p>从一个清晰、可完成的小任务开始安排。</p>
-              </div>
-            </div>
-          )}
+          {snapshot ? (
+            view === "day" ? <DayPlanView db={db} onCreate={openCreate} onOpen={openTask} selectedDate={selectedDate} tasks={snapshot.tasks} today={fallbackDate} />
+              : view === "week" ? <WeekPlanView db={db} onOpen={openTask} selectedDate={selectedDate} tasks={snapshot.tasks} />
+                : view === "month" ? <MonthPlanView db={db} onOpen={openTask} selectedDate={selectedDate} tasks={snapshot.tasks} />
+                  : snapshot.tasks.length ? (
+                    <ul className={styles.taskList} data-drop-date={selectedDate} data-testid="current-plan-drop-zone">
+                      {snapshot.tasks.map((task) => <li key={task.id}><TaskBar db={db} onOpen={openTask} task={task} /></li>)}
+                    </ul>
+                  ) : (
+                    <div className={styles.emptyState}>
+                      <div><strong>当前范围还没有任务</strong><p>从一个清晰、可完成的小任务开始安排。</p></div>
+                    </div>
+                  )
+          ) : null}
         </section>
         <PlanProgress
           completed={snapshot?.progress.completed ?? 0}

@@ -4,11 +4,12 @@ import styles from "../PlansPage.module.css"
 
 interface PlanHeaderProps {
   createHref: string
+  showCreate?: boolean
   selectedDate: string
   onDateChange: (date: string) => void
 }
 
-export function PlanHeader({ createHref, selectedDate, onDateChange }: PlanHeaderProps) {
+export function PlanHeader({ createHref, showCreate = true, selectedDate, onDateChange }: PlanHeaderProps) {
   return (
     <header className={styles.header}>
       <div className={styles.headingCopy}>
@@ -27,10 +28,12 @@ export function PlanHeader({ createHref, selectedDate, onDateChange }: PlanHeade
             value={selectedDate}
           />
         </label>
-        <Link className={styles.primaryAction} to={createHref}>
-          <Plus aria-hidden="true" size={18} strokeWidth={2} />
-          新建任务
-        </Link>
+        {showCreate ? (
+          <Link className={styles.primaryAction} to={createHref}>
+            <Plus aria-hidden="true" size={18} strokeWidth={2} />
+            新建任务
+          </Link>
+        ) : null}
       </div>
     </header>
   )
