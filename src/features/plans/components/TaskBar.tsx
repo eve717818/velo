@@ -20,12 +20,19 @@ export function TaskBar({ db, onOpen, task }: TaskBarProps) {
   const [isSaving, setIsSaving] = useState(false)
   const [showUndo, setShowUndo] = useState(false)
   const [swipeProgress, setSwipeProgress] = useState(0)
+  const activePointerId = useRef<number | null>(null)
+  const mounted = useRef(false)
   const startX = useRef<number | null>(null)
   const suppressClick = useRef(false)
   const undoTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
-  useEffect(() => () => {
-    if (undoTimer.current) clearTimeout(undoTimer.current)
+  useEffect(() => {
+    mounted.current = true
+    return () => {
+      mounted.current = false
+      if (undoTimer.current) clearTimeout(undoTimer.current)
+      undoTimer.current = null
+    }
   }, [])
 
   function clearUndoTimer() {
@@ -35,9 +42,13 @@ export function TaskBar({ db, onOpen, task }: TaskBarProps) {
   }
 
   function showUndoWindow() {
+    if (!mounted.current) return
     clearUndoTimer()
     setShowUndo(true)
-    undoTimer.current = setTimeout(() => setShowUndo(false), 5_000)
+    undoTimer.current = setTimeout(() => {
+      undoTimer.current = null
+      if (mounted.current) setShowUndo(false)
+    }, 5_000)
   }
 
   async function changeCompletion(nextValue: boolean) {
@@ -48,12 +59,13 @@ export function TaskBar({ db, onOpen, task }: TaskBarProps) {
     setCompletionOverride(nextValue)
     try {
       await setTaskCompletion(db, task.id, nextValue, Date.now())
+      if (!mounted.current) return
       if (nextValue) showUndoWindow()
       else setShowUndo(false)
     } catch {
-      setCompletionOverride(null)
+      if (mounted.current) setCompletionOverride(null)
     } finally {
-      setIsSaving(false)
+      if (mounted.current) setIsSaving(false)
     }
   }
 
@@ -61,32 +73,39 @@ export function TaskBar({ db, onOpen, task }: TaskBarProps) {
     return element.offsetWidth || element.getBoundingClientRect().width
   }
 
-  function resetSwipe() {
+  function resetSwipe(pointerId?: number) {
+    if (pointerId !== undefined && pointerId !== activePointerId.current) return
+    activePointerId.current = null
     startX.current = null
     setSwipeProgress(0)
   }
 
   function handlePointerDown(event: PointerEvent<HTMLButtonElement>) {
-    if (isCompleted || isSaving) return
+    if (activePointerId.current !== null || isCompleted || isSaving) return
+    activePointerId.current = event.pointerId
     startX.current = event.clientX
     event.currentTarget.setPointerCapture?.(event.pointerId)
   }
 
   function handlePointerMove(event: PointerEvent<HTMLButtonElement>) {
-    if (startX.current === null) return
+    if (event.pointerId !== activePointerId.current || startX.current === null) return
     const distance = event.clientX - startX.current
     setSwipeProgress(getSwipeProgress(distance, getBarWidth(event.currentTarget)))
   }
 
   function handlePointerRelease(event: PointerEvent<HTMLButtonElement>) {
-    if (startX.current === null) return
+    if (event.pointerId !== activePointerId.current || startX.current === null) return
     const distance = event.clientX - startX.current
     const width = getBarWidth(event.currentTarget)
     suppressClick.current = Math.abs(distance) > 4
-    resetSwipe()
+    resetSwipe(event.pointerId)
     event.currentTarget.releasePointerCapture?.(event.pointerId)
 
     if (shouldCompleteSwipe(distance, width)) void changeCompletion(true)
+  }
+
+  function handlePointerCancel(event: PointerEvent<HTMLButtonElement>) {
+    resetSwipe(event.pointerId)
   }
 
   function handleKeyDown(event: KeyboardEvent<HTMLButtonElement>) {
@@ -119,7 +138,8 @@ export function TaskBar({ db, onOpen, task }: TaskBarProps) {
           onOpen?.(task, event.currentTarget)
         }}
         onKeyDown={handleKeyDown}
-        onPointerCancel={resetSwipe}
+        onLostPointerCapture={handlePointerCancel}
+        onPointerCancel={handlePointerCancel}
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerRelease}

@@ -8,7 +8,7 @@ export function UndoNotice({ onUndo }: UndoNoticeProps) {
   return (
     <div aria-live="polite" className={styles.undoNotice} role="status">
       <span>任务已完成</span>
-      <button onClick={onUndo} type="button">撤销</button>
+      <button onClick={onUndo} style={{ minHeight: 44 }} type="button">撤销</button>
     </div>
   )
 }
