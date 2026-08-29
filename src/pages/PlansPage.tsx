@@ -1,10 +1,14 @@
-import { useEffect } from "react"
+import { useEffect, useState } from "react"
 import { useSearchParams } from "react-router-dom"
 import type { VeloDB } from "@/db/velo-db"
 import { veloDb } from "@/db/velo-db"
 import { PlanHeader } from "@/features/plans/components/PlanHeader"
 import { PlanProgress } from "@/features/plans/components/PlanProgress"
 import { PlanViewSwitcher } from "@/features/plans/components/PlanViewSwitcher"
+import { DeleteTaskDialog } from "@/features/plans/components/DeleteTaskDialog"
+import { TaskActionsDialog } from "@/features/plans/components/TaskActionsDialog"
+import { TaskEditorDialog } from "@/features/plans/components/TaskEditorDialog"
+import type { PlanTask } from "@/db/types"
 import { parseLocalDate } from "@/features/plans/domain/plan-dates"
 import styles from "@/features/plans/PlansPage.module.css"
 import { type PlanView, usePlanWorkspace } from "@/features/plans/usePlanWorkspace"
@@ -47,6 +51,14 @@ export function PlansPage({ db = veloDb, now }: PlansPageProps) {
   const selectedDate = readDate(rawDate, fallbackDate)
   const periodId = searchParams.get("period") ?? undefined
   const snapshot = usePlanWorkspace({ db, view, selectedDate, periodId })
+  const [actionTask, setActionTask] = useState<PlanTask | null>(null)
+  const [editorTask, setEditorTask] = useState<PlanTask | null>(null)
+  const [deleteTask, setDeleteTask] = useState<PlanTask | null>(null)
+  const [isActionDialogOpen, setIsActionDialogOpen] = useState(false)
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
+  const [actionNotice, setActionNotice] = useState("")
+  const [taskTrigger, setTaskTrigger] = useState<HTMLElement | null>(null)
+  const isCreating = searchParams.get("new") === "1"
 
   useEffect(() => {
     if (rawView === view && rawDate === selectedDate) return
@@ -63,6 +75,14 @@ export function PlansPage({ db = veloDb, now }: PlansPageProps) {
     nextParams.set("date", selectedDate)
     nextParams.set(key, value)
     setSearchParams(nextParams)
+  }
+
+  function closeEditor() {
+    setEditorTask(null)
+    if (!isCreating) return
+    const nextParams = new URLSearchParams(searchParams)
+    nextParams.delete("new")
+    setSearchParams(nextParams, { replace: true })
   }
 
   const createParams = new URLSearchParams(searchParams)
@@ -89,7 +109,23 @@ export function PlansPage({ db = veloDb, now }: PlansPageProps) {
             </div>
             <span className={styles.rangeCount}>{snapshot?.tasks.length ?? 0} 项任务</span>
           </div>
-          {snapshot?.tasks.length ? null : (
+          {snapshot?.tasks.length ? (
+            <ul className={styles.taskList}>
+              {snapshot.tasks.map((task) => (
+                <li key={task.id}>
+                  <button
+                    aria-label={`打开任务操作：${task.title}`}
+                    className={styles.taskRow}
+                    onClick={(event) => { setActionNotice(""); setTaskTrigger(event.currentTarget); setActionTask(task); setIsActionDialogOpen(true) }}
+                    type="button"
+                  >
+                    <span>{task.title}</span>
+                    <small>{task.subject ?? "未分类"} · {task.startMinutes === undefined ? "未定时" : `${String(Math.floor(task.startMinutes / 60)).padStart(2, "0")}:${String(task.startMinutes % 60).padStart(2, "0")}`}</small>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          ) : (
             <div className={styles.emptyState}>
               <div>
                 <strong>当前范围还没有任务</strong>
@@ -108,6 +144,27 @@ export function PlansPage({ db = veloDb, now }: PlansPageProps) {
           <p>{snapshot?.periods.length ?? 0} 个周期可用于组织学期与假期。</p>
         </section>
       </div>
+      {actionNotice ? <p className={styles.actionNotice} role="status">{actionNotice}</p> : null}
+      <TaskEditorDialog
+        db={db}
+        initialDate={selectedDate}
+        onClose={closeEditor}
+        open={isCreating || editorTask !== null}
+        returnFocusTo={editorTask ? taskTrigger : null}
+        task={editorTask ?? undefined}
+      />
+      {actionTask ? (
+        <TaskActionsDialog
+          onClose={() => setIsActionDialogOpen(false)}
+          onDelete={() => { setDeleteTask(actionTask); setIsActionDialogOpen(false); setIsDeleteDialogOpen(true) }}
+          onEdit={() => { setEditorTask(actionTask); setIsActionDialogOpen(false) }}
+          onMove={() => { setActionNotice("移动入口将在后续排程任务中连接。"); setIsActionDialogOpen(false) }}
+          onStartFocus={() => { setActionNotice("开始专注入口将在后续专注任务中连接。"); setIsActionDialogOpen(false) }}
+          open={isActionDialogOpen}
+          task={actionTask}
+        />
+      ) : null}
+      {deleteTask ? <DeleteTaskDialog db={db} onClose={() => setIsDeleteDialogOpen(false)} open={isDeleteDialogOpen} returnFocusTo={taskTrigger} task={deleteTask} /> : null}
     </main>
   )
 }

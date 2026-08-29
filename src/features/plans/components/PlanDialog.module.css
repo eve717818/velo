@@ -1,0 +1,222 @@
+.dialog {
+  background: transparent;
+  border: 0;
+  bottom: 0;
+  color: var(--color-text);
+  inset: auto 0 0;
+  margin: auto 0 0;
+  max-height: min(88dvh, 720px);
+  max-width: none;
+  min-width: 0;
+  overflow: visible;
+  padding: 0;
+  position: fixed;
+  width: 100%;
+}
+
+.dialog::backdrop {
+  background: rgb(17 17 19 / 42%);
+}
+
+.form,
+.actionDialog,
+.confirmationDialog {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-card-large) var(--radius-card-large) 0 0;
+  box-shadow: var(--shadow-raised);
+  display: grid;
+  gap: 16px;
+  max-height: min(88dvh, 720px);
+  overflow-y: auto;
+  padding: 24px 20px calc(20px + env(safe-area-inset-bottom));
+}
+
+.dialogHeader {
+  align-items: flex-start;
+  display: flex;
+  gap: 16px;
+  justify-content: space-between;
+}
+
+.eyebrow {
+  color: var(--color-text-muted);
+  font-size: 11px;
+  font-weight: 760;
+  letter-spacing: .1em;
+  margin-bottom: 5px;
+  text-transform: uppercase;
+}
+
+.dialog h2 {
+  font-family: "Outfit Variable", Outfit, sans-serif;
+  font-size: 23px;
+  font-variation-settings: "wght" 650;
+  letter-spacing: -.035em;
+  line-height: 1.15;
+}
+
+.iconButton,
+.primaryButton,
+.secondaryButton,
+.dangerButton,
+.actionList button {
+  align-items: center;
+  border-radius: var(--radius-control);
+  cursor: pointer;
+  display: inline-flex;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 730;
+  justify-content: center;
+  min-height: 44px;
+}
+
+.iconButton {
+  background: var(--color-surface-muted);
+  border: 0;
+  color: var(--color-text);
+  flex: 0 0 44px;
+  font-size: 25px;
+  line-height: 1;
+  padding: 0;
+}
+
+.field {
+  display: grid;
+  gap: 7px;
+}
+
+.field > span {
+  color: var(--color-text);
+  font-size: 13px;
+  font-weight: 720;
+}
+
+.field em {
+  color: var(--color-teal);
+  font-size: 11px;
+  font-style: normal;
+  margin-left: 4px;
+}
+
+.field input,
+.field textarea {
+  background: var(--color-surface-muted);
+  border: 1px solid transparent;
+  border-radius: 13px;
+  color: var(--color-text);
+  min-height: 44px;
+  padding: 10px 12px;
+  resize: vertical;
+  width: 100%;
+}
+
+.field input[aria-invalid="true"] {
+  border-color: #b3264b;
+}
+
+.field small,
+.saveError {
+  color: #9d1e43;
+  font-size: 12px;
+  font-weight: 650;
+}
+
+.saveError {
+  background: #fdebf0;
+  border-radius: 12px;
+  padding: 10px 12px;
+}
+
+.fieldGrid,
+.actions {
+  display: grid;
+  gap: 12px;
+}
+
+.actions {
+  grid-template-columns: 1fr 1fr;
+  padding-top: 4px;
+}
+
+.primaryButton,
+.dangerButton {
+  border: 0;
+  color: white;
+  padding: 0 16px;
+}
+
+.primaryButton {
+  background: var(--color-brand);
+}
+
+.secondaryButton {
+  background: var(--color-surface-muted);
+  border: 1px solid var(--color-border);
+  color: var(--color-text);
+  padding: 0 16px;
+}
+
+.dangerButton {
+  background: #a21d45;
+}
+
+.actionList {
+  display: grid;
+  gap: 9px;
+}
+
+.actionList button {
+  background: var(--color-surface-muted);
+  border: 1px solid var(--color-border);
+  color: var(--color-text);
+  justify-content: flex-start;
+  padding: 0 16px;
+  text-align: left;
+}
+
+.actionList .dangerButton {
+  background: #fdebf0;
+  border-color: #f5c9d5;
+  color: #941b40;
+}
+
+.confirmationDialog > p:not(.eyebrow):not(.saveError) {
+  color: var(--color-text-muted);
+  font-size: 13px;
+}
+
+.dialog button:focus-visible,
+.field input:focus-visible,
+.field textarea:focus-visible {
+  outline: 3px solid var(--color-cool-blue);
+  outline-offset: 3px;
+}
+
+.primaryButton:focus-visible {
+  outline-color: var(--color-brand);
+}
+
+@media (min-width: 768px) {
+  .dialog {
+    bottom: 0;
+    inset: 0 0 0 auto;
+    margin: 0 0 0 auto;
+    max-height: 100dvh;
+    min-height: 100dvh;
+    width: 360px;
+  }
+
+  .form,
+  .actionDialog,
+  .confirmationDialog {
+    border-radius: 0;
+    min-height: 100dvh;
+    padding: 28px;
+  }
+
+  .fieldGrid {
+    grid-template-columns: 1fr 1fr;
+  }
+}

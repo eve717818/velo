@@ -251,6 +251,54 @@
   margin-bottom: 6px;
 }
 
+.taskList {
+  display: grid;
+  gap: 10px;
+  list-style: none;
+  margin: 20px 0 0;
+  padding: 0;
+}
+
+.taskRow {
+  align-items: center;
+  background: var(--color-surface-muted);
+  border: 1px solid var(--color-border);
+  border-radius: 16px;
+  color: var(--color-text);
+  cursor: pointer;
+  display: flex;
+  font: inherit;
+  justify-content: space-between;
+  min-height: 54px;
+  padding: 10px 14px;
+  text-align: left;
+  width: 100%;
+}
+
+.taskRow > span {
+  font-size: 14px;
+  font-weight: 720;
+}
+
+.taskRow small {
+  color: var(--color-teal);
+  font-size: 11px;
+  font-weight: 700;
+  margin-left: 14px;
+  text-align: right;
+}
+
+.taskRow:focus-visible {
+  outline: 3px solid var(--color-cool-blue);
+  outline-offset: 3px;
+}
+
+.actionNotice {
+  color: var(--color-text-muted);
+  font-size: 12px;
+  padding: 0 4px;
+}
+
 .periodContext {
   background: var(--color-period-surface);
 }
