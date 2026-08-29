@@ -51,7 +51,7 @@ export function MonthPlanView({ db, onOpen, selectedDate, tasks }: MonthPlanView
               type="button"
             >
               <span className={styles.monthDateNumber}>{value.getDate()}</span>
-              <span className={styles.monthCounts}>{progress.total} 项 · {progress.completed} 完成</span>
+              <span className={styles.monthCounts}>{progress.total}/{progress.completed}</span>
             </button>
           )
         })}

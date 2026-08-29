@@ -389,7 +389,7 @@
 .weekDateStrip {
   display: grid;
   gap: 6px;
-  grid-template-columns: repeat(7, minmax(44px, 1fr));
+  grid-template-columns: repeat(4, minmax(44px, 1fr));
 }
 
 .weekDateButton {
@@ -401,18 +401,25 @@
   display: grid;
   font: inherit;
   justify-items: center;
-  min-height: 52px;
+  min-height: 44px;
+  min-width: 44px;
   padding: 5px 2px;
 }
 
 .weekDateButton > span:first-child { font-size: 16px; font-weight: 790; line-height: 1; }
-.weekDateButton small { font-size: 12px; font-weight: 680; margin-top: 3px; }
+.weekDateButton small { font-size: 12px; font-weight: 680; margin-top: 3px; white-space: nowrap; }
 .weekDateButton[aria-pressed="true"] { background: var(--color-brand); color: white; }
 
 .weekGrid { display: none; }
 
 .monthWeekdays,
-.monthGrid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); }
+.monthGrid {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(44px, 1fr));
+  margin-left: calc(50% - 50vw + 4px);
+  margin-right: calc(50% - 50vw + 4px);
+  width: calc(100vw - 8px);
+}
 
 .monthWeekdays { color: var(--color-text-muted); font-size: 12px; font-weight: 720; text-align: center; }
 
@@ -428,13 +435,14 @@
   display: grid;
   font: inherit;
   gap: 4px;
-  min-height: 66px;
+  min-height: 44px;
+  min-width: 44px;
   padding: 8px 5px;
   text-align: left;
 }
 
 .monthDateNumber { font-size: 14px; font-weight: 780; }
-.monthCounts { font-size: 11px; line-height: 1.25; }
+.monthCounts { font-size: 12px; line-height: 1.25; }
 .monthDay[aria-pressed="true"] { background: var(--color-brand); color: white; }
 .monthDay[aria-pressed="true"] .monthCounts { color: rgb(255 255 255 / 82%); }
 .outsideMonth { background: var(--color-surface-muted); color: var(--color-text-faint); }
@@ -443,11 +451,13 @@
   background: var(--color-surface);
   border-bottom: 0;
   border-radius: 20px 20px 0 0;
-  bottom: 0;
+  bottom: calc(80px + env(safe-area-inset-bottom));
   box-shadow: 0 -14px 34px rgb(34 48 68 / 16%);
   left: 0;
-  max-height: 46vh;
+  max-height: min(60svh, calc(100svh - 104px - env(safe-area-inset-bottom)));
   overflow: auto;
+  overscroll-behavior: contain;
+  padding-bottom: calc(16px + env(safe-area-inset-bottom));
   position: fixed;
   right: 0;
   z-index: 4;
@@ -456,6 +466,10 @@
 .emptyCreateAction:focus-visible,
 .weekDateButton:focus-visible,
 .monthDay:focus-visible { outline: 3px solid var(--color-cool-blue); outline-offset: 3px; }
+
+@media (min-width: 480px) {
+  .weekDateStrip { grid-template-columns: repeat(7, minmax(44px, 1fr)); }
+}
 
 @media (min-width: 768px) {
   .dayLane,
@@ -476,8 +490,8 @@
 
   .monthPlan { grid-template-columns: minmax(0, 1fr) minmax(260px, 320px); }
   .monthWeekdays,
-  .monthGrid { grid-column: 1; }
-  .monthTaskPanel { border-bottom: 1px solid var(--color-border); border-radius: 16px; box-shadow: none; grid-column: 2; grid-row: 1 / span 2; max-height: none; overflow: visible; position: static; }
+  .monthGrid { grid-column: 1; margin-left: 0; margin-right: 0; width: auto; }
+  .monthTaskPanel { border-bottom: 1px solid var(--color-border); border-radius: 16px; box-shadow: none; grid-column: 2; grid-row: 1 / span 2; max-height: none; overflow: visible; padding-bottom: 18px; position: static; }
   .monthDay { min-height: 78px; padding: 9px; }
 }
 

@@ -29,6 +29,7 @@ describe("MonthPlanView", () => {
     try {
       const leapDay = screen.getByRole("button", { name: "2028年2月29日，2 项任务，1 项完成" })
       expect(leapDay).toBeInTheDocument()
+      expect(leapDay).toHaveTextContent("2/1")
       expect(screen.queryByText("不应塞入单元格的完整标题")).not.toBeInTheDocument()
 
       await user.click(leapDay)

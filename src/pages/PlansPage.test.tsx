@@ -83,4 +83,17 @@ describe("PlansPage", () => {
       await db.delete()
     }
   })
+
+  it("keeps one new-task entry point for an empty day across the complete page", async () => {
+    const db = createDatabase()
+    const rendered = renderPlansPage("/plans?view=day&date=2026-08-29", db)
+
+    try {
+      expect(await screen.findByText("今天还没有安排")).toBeInTheDocument()
+      expect(screen.getAllByRole("button", { name: "新建任务" })).toHaveLength(1)
+    } finally {
+      rendered.unmount()
+      await db.delete()
+    }
+  })
 })
