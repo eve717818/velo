@@ -10,6 +10,12 @@
   --color-brand: #901d78;
   --color-brand-strong: #74135f;
   --color-brand-soft: #f6eaf2;
+  --color-cool-blue: #6176c7;
+  --color-cool-blue-soft: #dce5f6;
+  --color-teal: #2d8f83;
+  --color-teal-soft: #ddf1ec;
+  --color-period-surface: #edf1f8;
+  --color-complete-glass: rgb(235 222 232 / 78%);
   --color-glass-violet: rgb(247 233 243 / 72%);
   --color-glass-border: rgb(255 255 255 / 78%);
   --color-mint-soft: #dcf7ed;

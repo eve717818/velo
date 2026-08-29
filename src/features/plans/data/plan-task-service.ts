@@ -31,7 +31,7 @@ function normalizeTaskInput<T extends CreatePlanTaskInput | MovePlanTaskInput>(i
     title: "title" in input ? input.title.trim() : undefined,
     subject: "subject" in input ? normalizeText(input.subject) : undefined,
     notes: "notes" in input ? normalizeText(input.notes) : undefined,
-  } as T
+  }
 }
 
 function assertValidScheduledDate(value: string) {

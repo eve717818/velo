@@ -1,0 +1,340 @@
+.page {
+  display: grid;
+  gap: 18px;
+  margin: 0 auto;
+  max-width: 1180px;
+}
+
+.header,
+.toolbar,
+.progressPanel,
+.viewSurface,
+.periodContext {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  box-shadow: var(--shadow-card);
+}
+
+.header {
+  border-radius: var(--radius-card-large);
+  display: grid;
+  gap: 24px;
+  padding: 24px;
+}
+
+.headingCopy {
+  min-width: 0;
+}
+
+.eyebrow,
+.metaLabel {
+  font-size: 11px;
+  font-weight: 760;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+}
+
+.eyebrow {
+  color: var(--color-teal);
+  margin-bottom: 8px;
+}
+
+.headingCopy h1 {
+  font-family: "Outfit Variable", Outfit, sans-serif;
+  font-size: clamp(30px, 8vw, 46px);
+  font-variation-settings: "wght" 660;
+  letter-spacing: -.045em;
+  line-height: 1;
+}
+
+.headingCopy > p:last-child {
+  color: var(--color-text-muted);
+  font-size: 13px;
+  margin-top: 10px;
+}
+
+.headerActions {
+  display: grid;
+  gap: 10px;
+}
+
+.dateControl,
+.primaryAction {
+  align-items: center;
+  border-radius: var(--radius-control);
+  display: flex;
+  min-height: 48px;
+}
+
+.dateControl {
+  background: var(--color-cool-blue-soft);
+  color: #334377;
+  gap: 8px;
+  padding: 0 12px;
+}
+
+.dateControl > span {
+  font-size: 12px;
+  font-weight: 720;
+}
+
+.dateControl input {
+  background: transparent;
+  border: 0;
+  color: #29365f;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 680;
+  min-height: 44px;
+  min-width: 0;
+  width: 100%;
+}
+
+.primaryAction {
+  background: var(--color-brand);
+  color: white;
+  font-size: 13px;
+  font-weight: 740;
+  gap: 8px;
+  justify-content: center;
+  padding: 0 18px;
+  text-decoration: none;
+}
+
+.toolbar {
+  border-radius: var(--radius-card);
+  padding: 8px;
+}
+
+.viewSwitcher {
+  display: grid;
+  gap: 6px;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.viewButton {
+  background: transparent;
+  border: 0;
+  border-radius: 13px;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 720;
+  min-height: 44px;
+  padding: 0 8px;
+  transition:
+    background var(--motion-fast) var(--ease-flow),
+    color var(--motion-fast) var(--ease-flow),
+    transform var(--motion-fast) var(--ease-flow);
+}
+
+.viewButton:hover {
+  background: var(--color-surface-muted);
+  color: var(--color-text);
+}
+
+.viewButton[aria-pressed="true"] {
+  background: var(--color-brand);
+  color: white;
+}
+
+.workspaceGrid {
+  display: grid;
+  gap: 18px;
+}
+
+.progressPanel,
+.viewSurface,
+.periodContext {
+  border-radius: var(--radius-card);
+  padding: 22px;
+}
+
+.progressCopy,
+.surfaceHeading {
+  align-items: flex-start;
+  display: flex;
+  gap: 20px;
+  justify-content: space-between;
+}
+
+.metaLabel {
+  color: var(--color-teal);
+  margin-bottom: 6px;
+}
+
+.progressCopy h2,
+.surfaceHeading h2,
+.periodContext h2 {
+  font-size: 15px;
+  font-weight: 740;
+  letter-spacing: -.02em;
+}
+
+.progressCount {
+  color: var(--color-text);
+  font-family: "Outfit Variable", Outfit, sans-serif;
+  font-size: 28px;
+  font-variation-settings: "wght" 600;
+  letter-spacing: -.04em;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.progressPanel progress {
+  accent-color: var(--color-teal);
+  display: block;
+  height: 9px;
+  margin-top: 24px;
+  width: 100%;
+}
+
+.progressPanel progress::-webkit-progress-bar {
+  background: var(--color-teal-soft);
+  border-radius: 999px;
+}
+
+.progressPanel progress::-webkit-progress-value {
+  background: var(--color-teal);
+  border-radius: 999px;
+}
+
+.progressHint,
+.surfaceHeading p,
+.emptyState p,
+.periodContext p {
+  color: var(--color-text-muted);
+  font-size: 12px;
+}
+
+.progressHint {
+  margin-top: 10px;
+}
+
+.viewSurface {
+  min-height: 230px;
+}
+
+.surfaceHeading p {
+  color: var(--color-cool-blue);
+  font-weight: 680;
+  margin-top: 5px;
+}
+
+.rangeCount {
+  align-items: center;
+  background: var(--color-cool-blue-soft);
+  border-radius: 999px;
+  color: #334377;
+  display: inline-flex;
+  flex: 0 0 auto;
+  font-size: 12px;
+  font-weight: 740;
+  min-height: 32px;
+  padding: 6px 11px;
+}
+
+.emptyState {
+  align-items: center;
+  background: var(--color-surface-muted);
+  border-radius: 20px;
+  display: flex;
+  min-height: 132px;
+  padding: 20px;
+  margin-top: 20px;
+}
+
+.emptyState strong {
+  display: block;
+  font-size: 14px;
+  margin-bottom: 6px;
+}
+
+.periodContext {
+  background: var(--color-period-surface);
+}
+
+.periodContext p {
+  margin-top: 8px;
+}
+
+.primaryAction,
+.dateControl input,
+.viewButton {
+  outline-offset: 3px;
+}
+
+.primaryAction:focus-visible,
+.dateControl:focus-within,
+.viewButton:focus-visible {
+  outline: 3px solid var(--color-brand);
+}
+
+.primaryAction:hover {
+  background: var(--color-brand-strong);
+}
+
+.primaryAction:active,
+.viewButton:active {
+  transform: scale(.98);
+}
+
+@media (min-width: 700px) {
+  .page {
+    gap: 20px;
+  }
+
+  .header {
+    align-items: end;
+    grid-template-columns: minmax(0, 1fr) auto;
+    padding: 30px;
+  }
+
+  .headerActions {
+    grid-template-columns: minmax(210px, 1fr) auto;
+  }
+
+  .dateControl input {
+    width: auto;
+  }
+
+  .primaryAction {
+    min-width: 132px;
+  }
+
+  .toolbar {
+    justify-self: start;
+    min-width: 410px;
+  }
+
+  .progressPanel,
+  .viewSurface,
+  .periodContext {
+    padding: 26px;
+  }
+}
+
+@media (min-width: 1040px) {
+  .workspaceGrid {
+    align-items: start;
+    grid-template-columns: minmax(0, 1fr) 300px;
+  }
+
+  .viewSurface {
+    grid-row: span 2;
+    min-height: 360px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .viewButton,
+  .primaryAction {
+    transition: none;
+  }
+
+  .primaryAction:active,
+  .viewButton:active {
+    transform: none;
+  }
+}
