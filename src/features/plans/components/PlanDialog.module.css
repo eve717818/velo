@@ -101,6 +101,7 @@
 }
 
 .field input,
+.field select,
 .field textarea {
   background: var(--color-surface-muted);
   border: 1px solid transparent;
@@ -112,7 +113,8 @@
   width: 100%;
 }
 
-.field input[aria-invalid="true"] {
+.field input[aria-invalid="true"],
+.field select[aria-invalid="true"] {
   border-color: #b3264b;
 }
 
@@ -189,6 +191,7 @@
 
 .dialog button:focus-visible,
 .field input:focus-visible,
+.field select:focus-visible,
 .field textarea:focus-visible {
   outline: 3px solid var(--color-cool-blue);
   outline-offset: 3px;

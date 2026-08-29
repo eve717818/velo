@@ -134,4 +134,34 @@ describe("usePlanWorkspace", () => {
       await db.delete()
     }
   })
+
+  it("returns one winter-break task from the same source in day, week, month, and period queries", async () => {
+    const db = createDatabase()
+    const winterBreak: LearningPeriod = {
+      id: "winter-break",
+      kind: "winter-break",
+      name: "寒假",
+      startDate: "2027-01-17",
+      endDate: "2027-02-21",
+      createdAt: 1,
+      updatedAt: 1,
+    }
+    await db.learningPeriods.add(winterBreak)
+    await db.planTasks.add(task("winter-holiday", "2027-02-21"))
+    const renders = (["day", "week", "month", "period"] as PlanView[]).map((view) => renderHook(() => usePlanWorkspace({
+      db,
+      view,
+      selectedDate: "2027-02-21",
+      periodId: view === "period" ? winterBreak.id : undefined,
+    })))
+
+    try {
+      await Promise.all(renders.map((rendered) => waitFor(() => {
+        expect(rendered.result.current?.tasks.map((row) => row.id)).toEqual(["winter-holiday"])
+      })))
+    } finally {
+      renders.forEach((rendered) => rendered.unmount())
+      await db.delete()
+    }
+  })
 })

@@ -96,4 +96,17 @@ describe("PlansPage", () => {
       await db.delete()
     }
   })
+
+  it("offers only the period-creation action for an empty learning-period workspace", async () => {
+    const db = createDatabase()
+    const rendered = renderPlansPage("/plans?view=period&date=2026-08-29", db)
+
+    try {
+      expect(await screen.findByRole("button", { name: "创建第一个学期或假期" })).toBeInTheDocument()
+      expect(screen.queryByRole("link", { name: "新建任务" })).not.toBeInTheDocument()
+    } finally {
+      rendered.unmount()
+      await db.delete()
+    }
+  })
 })

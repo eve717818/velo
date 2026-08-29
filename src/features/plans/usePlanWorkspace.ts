@@ -6,6 +6,7 @@ import { getMonthRange, getProgress, getWeekDates } from "./domain/plan-dates"
 export type PlanView = "day" | "week" | "month" | "period"
 
 export interface PlanWorkspaceSnapshot {
+  allTasks: PlanTask[]
   tasks: PlanTask[]
   periods: LearningPeriod[]
   selectedPeriod: LearningPeriod | null
@@ -55,14 +56,16 @@ export function usePlanWorkspace({ db, view, selectedDate, periodId }: UsePlanWo
     const periods = await db.learningPeriods.orderBy("startDate").toArray()
     const selectedPeriod = periods.find(({ id }) => id === periodId) ?? null
     const range = getViewRange(view, selectedDate, selectedPeriod)
+    const allTasks = await db.planTasks.toArray()
     const tasks = range
-      ? await db.planTasks.where("scheduledDate").between(range.startDate, range.endDate, true, true).toArray()
+      ? allTasks.filter((task) => task.scheduledDate >= range.startDate && task.scheduledDate <= range.endDate)
       : []
 
     tasks.sort(compareTasks)
 
     return {
       tasks,
+      allTasks,
       periods,
       selectedPeriod,
       progress: getProgress(tasks),

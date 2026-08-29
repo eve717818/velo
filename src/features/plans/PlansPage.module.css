@@ -509,6 +509,106 @@
   margin-top: 8px;
 }
 
+.learningPeriodView,
+.periodCardList,
+.periodOverview,
+.unassignedPeriodTasks,
+.periodMigrationPanel,
+.legacyMigrationPanel {
+  display: grid;
+  gap: 14px;
+  margin-top: 20px;
+}
+
+.periodCardList { grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); }
+
+.periodCard,
+.periodOverview,
+.unassignedPeriodTasks,
+.periodMigrationPanel,
+.legacyMigrationPanel,
+.periodDeleteDialog,
+.periodEmptyState {
+  background: var(--color-surface-muted);
+  border: 1px solid var(--color-border);
+  border-radius: 16px;
+  padding: 16px;
+}
+
+.periodCard { align-items: center; display: flex; gap: 8px; justify-content: space-between; }
+
+.periodSelect {
+  background: transparent;
+  border: 0;
+  color: var(--color-text);
+  cursor: pointer;
+  display: grid;
+  gap: 4px;
+  min-height: 44px;
+  min-width: 0;
+  padding: 0;
+  text-align: left;
+}
+
+.periodSelect strong { font-size: 14px; }
+.periodSelect > span:last-child,
+.periodOverview p,
+.unassignedPeriodTasks li,
+.periodMigrationPanel > p:not(.metaLabel),
+.legacyRow label,
+.periodDeleteDialog > p { color: var(--color-text-muted); font-size: 12px; }
+.periodKind { color: #44578e; font-size: 12px; font-weight: 760; }
+.periodProgress { background: var(--color-teal-soft); border-radius: 999px; color: var(--color-text); font-size: 12px; font-weight: 760; padding: 5px 8px; white-space: nowrap; }
+
+.periodOverview { background: var(--color-period-surface); }
+.periodOverviewHeader { align-items: flex-start; display: flex; gap: 12px; justify-content: space-between; }
+.periodOverview h3,
+.unassignedPeriodTasks h3,
+.periodMigrationPanel h3,
+.legacyMigrationPanel h3 { font-size: 16px; font-weight: 760; }
+.periodActions,
+.migrationActions { display: flex; flex-wrap: wrap; gap: 8px; }
+.secondaryPeriodAction,
+.dangerPeriodAction,
+.migrationBanner button { border-radius: 12px; cursor: pointer; font: inherit; font-size: 12px; font-weight: 740; min-height: 44px; padding: 0 12px; }
+.secondaryPeriodAction { background: var(--color-surface); border: 1px solid var(--color-border); color: var(--color-text); }
+.dangerPeriodAction { background: #fdebf0; border: 1px solid #f5c9d5; color: #941b40; }
+.periodGoal { background: var(--color-teal-soft); border-radius: 12px; color: var(--color-text) !important; padding: 10px 12px; }
+.periodTaskList,
+.unassignedPeriodTasks ul,
+.migrationTaskList { display: grid; gap: 7px; list-style: none; margin: 0; padding: 0; }
+.periodTaskList li,
+.unassignedPeriodTasks li { font-size: 13px; }
+
+.periodEmptyState { align-items: center; display: flex; gap: 18px; justify-content: space-between; margin-top: 20px; }
+.periodEmptyState h3 { font-size: 16px; }
+.periodEmptyState p { color: var(--color-text-muted); font-size: 12px; margin-top: 5px; }
+
+.migrationSelection { color: var(--color-text); font-size: 13px !important; font-weight: 760; }
+.migrationTaskList label { align-items: center; display: flex; gap: 9px; font-size: 13px; min-height: 44px; }
+.migrationTaskList input { accent-color: var(--color-brand); block-size: 20px; inline-size: 20px; }
+.migrationError,
+.legacyRow small { color: #941b40; font-size: 12px; font-weight: 650; }
+
+.migrationBanner { align-items: center; background: var(--color-cool-blue-soft); border: 1px solid rgb(97 118 199 / 24%); border-radius: 14px; color: var(--color-text); display: flex; font-size: 13px; gap: 12px; justify-content: space-between; padding: 10px 12px; }
+.migrationBanner button { background: var(--color-surface); border: 1px solid rgb(97 118 199 / 28%); color: #29365f; }
+
+.periodMigrationPanel { background: var(--color-surface); border-radius: 20px 20px 0 0; bottom: calc(80px + env(safe-area-inset-bottom)); box-shadow: 0 -14px 34px rgb(34 48 68 / 16%); left: 0; max-height: min(68svh, calc(100svh - 104px - env(safe-area-inset-bottom))); overflow: auto; padding-bottom: calc(16px + env(safe-area-inset-bottom)); position: fixed; right: 0; z-index: 4; }
+.legacyMigrationPanel { background: var(--color-surface); }
+.legacyRow { border-top: 1px solid var(--color-border); display: grid; gap: 8px; padding-top: 12px; }
+.legacyRow input { background: var(--color-surface-muted); border: 1px solid var(--color-border); border-radius: 10px; display: block; min-height: 44px; padding: 8px; width: 100%; }
+.periodDeleteDialog { background: var(--color-surface); display: grid; gap: 14px; }
+
+.periodSelect:focus-visible,
+.secondaryPeriodAction:focus-visible,
+.dangerPeriodAction:focus-visible,
+.migrationBanner button:focus-visible,
+.migrationTaskList input:focus-visible { outline: 3px solid var(--color-cool-blue); outline-offset: 3px; }
+
+@media (min-width: 768px) {
+  .periodMigrationPanel { border-radius: 16px 0 0 16px; bottom: 0; left: auto; max-height: 100dvh; min-height: 100dvh; padding: 28px; right: 0; top: 0; width: min(390px, 46vw); }
+}
+
 .primaryAction,
 .dateControl input,
 .viewButton {
