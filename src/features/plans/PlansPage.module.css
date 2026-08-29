@@ -35,7 +35,7 @@
 }
 
 .eyebrow {
-  color: var(--color-teal);
+  color: var(--color-text-muted);
   margin-bottom: 8px;
 }
 
@@ -160,7 +160,7 @@
 }
 
 .metaLabel {
-  color: var(--color-teal);
+  color: var(--color-text-muted);
   margin-bottom: 6px;
 }
 
@@ -217,7 +217,7 @@
 }
 
 .surfaceHeading p {
-  color: var(--color-cool-blue);
+  color: var(--color-text-muted);
   font-weight: 680;
   margin-top: 5px;
 }
@@ -265,9 +265,12 @@
   outline-offset: 3px;
 }
 
-.primaryAction:focus-visible,
 .dateControl:focus-within,
 .viewButton:focus-visible {
+  outline: 3px solid var(--color-cool-blue);
+}
+
+.primaryAction:focus-visible {
   outline: 3px solid var(--color-brand);
 }
 

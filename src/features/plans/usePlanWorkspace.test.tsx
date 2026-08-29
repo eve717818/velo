@@ -30,12 +30,24 @@ const period: LearningPeriod = {
   updatedAt: 1,
 }
 
+const laterPeriod: LearningPeriod = {
+  id: "autumn-review",
+  kind: "custom-break",
+  name: "秋季复习段",
+  startDate: "2026-09-10",
+  endDate: "2026-09-12",
+  createdAt: 2,
+  updatedAt: 2,
+}
+
 async function seedWorkspace(db: VeloDB) {
   await db.learningPeriods.add(period)
   await db.planTasks.bulkAdd([
     task("week-start", "2026-08-24", 1),
     task("selected-day", "2026-08-30"),
     task("next-week", "2026-08-31", 1),
+    task("period-end", "2026-09-02"),
+    task("after-period", "2026-09-03"),
   ])
 }
 
@@ -55,7 +67,7 @@ describe("usePlanWorkspace", () => {
     ["day", undefined, ["selected-day"]],
     ["week", undefined, ["week-start", "selected-day"]],
     ["month", undefined, ["week-start", "selected-day", "next-week"]],
-    ["period", period.id, ["selected-day", "next-week"]],
+    ["period", period.id, ["selected-day", "next-week", "period-end"]],
   ] satisfies Array<[PlanView, string | undefined, string[]]>) (
     "queries the inclusive %s range",
     async (view, periodId, expectedIds) => {
@@ -84,14 +96,20 @@ describe("usePlanWorkspace", () => {
         expect(rendered.result.current).toMatchObject({
           periods: [period],
           selectedPeriod: period,
-          progress: { completed: 1, total: 2, ratio: 0.5 },
+          progress: { completed: 1, total: 3, ratio: 1 / 3 },
         })
+      })
+
+      await db.learningPeriods.add(laterPeriod)
+
+      await waitFor(() => {
+        expect(rendered.result.current?.periods).toEqual([period, laterPeriod])
       })
 
       await db.planTasks.update("selected-day", { isCompleted: 1, completedAt: 2, updatedAt: 2 })
 
       await waitFor(() => {
-        expect(rendered.result.current?.progress).toEqual({ completed: 2, total: 2, ratio: 1 })
+        expect(rendered.result.current?.progress).toEqual({ completed: 2, total: 3, ratio: 2 / 3 })
       })
     } finally {
       rendered.unmount()
