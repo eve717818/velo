@@ -4,6 +4,7 @@ import { describe, expect, it, vi } from "vitest"
 
 import type { PlanTask } from "@/db/types"
 import { VeloDB } from "@/db/velo-db"
+import * as planTaskService from "@/features/plans/data/plan-task-service"
 
 import { TaskBar } from "./TaskBar"
 
@@ -273,6 +274,77 @@ describe("TaskBar", () => {
     }
   })
 
+  it("does not complete after vertical scrolling begins even when the horizontal threshold was reached", async () => {
+    const db = createDatabase()
+    const currentTask = task()
+    const setTaskCompletionSpy = vi.spyOn(planTaskService, "setTaskCompletion")
+    await db.planTasks.add(currentTask)
+    const rendered = render(<TaskBar db={db} task={currentTask} />)
+
+    try {
+      const bar = screen.getByRole("button", { name: "打开任务操作：复习导数" })
+      Object.defineProperty(bar, "offsetWidth", { configurable: true, value: 100 })
+      fireEvent.pointerDown(bar, { pointerId: 1, clientX: 0, clientY: 0 })
+      fireEvent.pointerMove(bar, { pointerId: 1, clientX: 70, clientY: 0 })
+      fireEvent.pointerMove(bar, { pointerId: 1, clientX: 70, clientY: 9 })
+      fireEvent.pointerUp(bar, { pointerId: 1, clientX: 70, clientY: 9 })
+
+      expect(bar).toHaveStyle({ "--swipe-progress": "0" })
+      await new Promise<void>((resolve) => window.setTimeout(resolve, 0))
+      expect(setTaskCompletionSpy).not.toHaveBeenCalled()
+      expect(await db.planTasks.get(currentTask.id)).toMatchObject({ isCompleted: 0 })
+    } finally {
+      setTaskCompletionSpy.mockRestore()
+      rendered.unmount()
+      await db.delete()
+    }
+  })
+
+  it("does not complete when a vertical scroll accompanies the final threshold movement", async () => {
+    const db = createDatabase()
+    const currentTask = task()
+    await db.planTasks.add(currentTask)
+    const rendered = render(<TaskBar db={db} task={currentTask} />)
+
+    try {
+      const bar = screen.getByRole("button", { name: "打开任务操作：复习导数" })
+      Object.defineProperty(bar, "offsetWidth", { configurable: true, value: 100 })
+      fireEvent.pointerDown(bar, { pointerId: 1, clientX: 0, clientY: 0 })
+      fireEvent.pointerMove(bar, { pointerId: 1, clientX: 69, clientY: 0 })
+      fireEvent.pointerUp(bar, { pointerId: 1, clientX: 70, clientY: 9 })
+
+      await new Promise<void>((resolve) => window.setTimeout(resolve, 0))
+      expect(await db.planTasks.get(currentTask.id)).toMatchObject({ isCompleted: 0 })
+    } finally {
+      rendered.unmount()
+      await db.delete()
+    }
+  })
+
+  it("resets a vertical scroll cancellation so the next horizontal swipe can complete", async () => {
+    const db = createDatabase()
+    const currentTask = task()
+    await db.planTasks.add(currentTask)
+    const rendered = render(<TaskBar db={db} task={currentTask} />)
+
+    try {
+      const bar = screen.getByRole("button", { name: "打开任务操作：复习导数" })
+      Object.defineProperty(bar, "offsetWidth", { configurable: true, value: 100 })
+      fireEvent.pointerDown(bar, { pointerId: 1, clientX: 0, clientY: 0 })
+      fireEvent.pointerMove(bar, { pointerId: 1, clientX: 70, clientY: 9 })
+      fireEvent.lostPointerCapture(bar, { pointerId: 1 })
+
+      fireEvent.pointerDown(bar, { pointerId: 2, clientX: 0, clientY: 0 })
+      fireEvent.pointerMove(bar, { pointerId: 2, clientX: 70, clientY: 0 })
+      fireEvent.pointerUp(bar, { pointerId: 2, clientX: 70, clientY: 0 })
+
+      await waitFor(async () => expect(await db.planTasks.get(currentTask.id)).toMatchObject({ isCompleted: 1 }))
+    } finally {
+      rendered.unmount()
+      await db.delete()
+    }
+  })
+
   it("cancels a long press after vertical movement without changing the task", async () => {
     vi.useFakeTimers()
     const db = createDatabase()
@@ -286,6 +358,41 @@ describe("TaskBar", () => {
 
       expect(screen.queryByTestId("task-drag-layer")).not.toBeInTheDocument()
     } finally {
+      rendered.unmount()
+      vi.useRealTimers()
+      await db.delete()
+    }
+  })
+
+  it("does not drop after an active drag turns into vertical scrolling", async () => {
+    const db = createDatabase()
+    const currentTask = task()
+    const movePlanTaskSpy = vi.spyOn(planTaskService, "movePlanTask")
+    await db.planTasks.add(currentTask)
+    vi.useFakeTimers()
+    const dropZone = document.createElement("div")
+    dropZone.dataset.dropDate = "2026-08-29"
+    const originalElementFromPoint = Object.getOwnPropertyDescriptor(document, "elementFromPoint")
+    Object.defineProperty(document, "elementFromPoint", { configurable: true, value: () => dropZone })
+    const rendered = render(<TaskBar db={db} task={currentTask} />)
+
+    try {
+      const bar = screen.getByRole("button", { name: "打开任务操作：复习导数" })
+      fireEvent.pointerDown(bar, { pointerId: 1, clientX: 20, clientY: 30 })
+      void act(() => vi.advanceTimersByTime(350))
+      fireEvent.pointerMove(bar, { pointerId: 1, clientX: 20, clientY: 39 })
+      fireEvent.pointerUp(bar, { pointerId: 1, clientX: 20, clientY: 39 })
+      vi.useRealTimers()
+
+      const savedTask = await db.planTasks.get(currentTask.id)
+      expect(movePlanTaskSpy).not.toHaveBeenCalled()
+      expect(screen.queryByTestId("task-drag-layer")).not.toBeInTheDocument()
+      expect(savedTask).toMatchObject({ scheduledDate: "2026-08-28", order: 1 })
+      expect(savedTask?.startMinutes).toBeUndefined()
+    } finally {
+      movePlanTaskSpy.mockRestore()
+      if (originalElementFromPoint) Object.defineProperty(document, "elementFromPoint", originalElementFromPoint)
+      else Reflect.deleteProperty(document, "elementFromPoint")
       rendered.unmount()
       vi.useRealTimers()
       await db.delete()
@@ -310,8 +417,8 @@ describe("TaskBar", () => {
       const bar = screen.getByRole("button", { name: "打开任务操作：复习导数" })
       fireEvent.pointerDown(bar, { pointerId: 1, clientX: 20, clientY: 30 })
       void act(() => vi.advanceTimersByTime(350))
-      fireEvent.pointerMove(bar, { pointerId: 1, clientX: 40, clientY: 50 })
-      fireEvent.pointerUp(bar, { pointerId: 1, clientX: 40, clientY: 50 })
+      fireEvent.pointerMove(bar, { pointerId: 1, clientX: 40, clientY: 30 })
+      fireEvent.pointerUp(bar, { pointerId: 1, clientX: 40, clientY: 30 })
       vi.useRealTimers()
 
       await new Promise<void>((resolve) => window.setTimeout(resolve, 50))
@@ -319,6 +426,37 @@ describe("TaskBar", () => {
       expect(await screen.findByRole("status")).toHaveTextContent("已移动到目标位置")
       await userEvent.setup().click(screen.getByRole("button", { name: "撤销" }))
       await waitFor(async () => expect(await db.planTasks.get(currentTask.id)).toMatchObject({ scheduledDate: "2026-08-28", startMinutes: undefined, order: 4 }))
+    } finally {
+      if (originalElementFromPoint) Object.defineProperty(document, "elementFromPoint", originalElementFromPoint)
+      else Reflect.deleteProperty(document, "elementFromPoint")
+      rendered.unmount()
+      vi.useRealTimers()
+      await db.delete()
+    }
+  })
+
+  it("moves an untimed task to an untimed lane on a different date", async () => {
+    const db = createDatabase()
+    const currentTask = task({ scheduledDate: "2026-08-28", startMinutes: undefined, order: 4 })
+    await db.planTasks.bulkAdd([
+      currentTask,
+      task({ id: "target-date-task", title: "整理错题", scheduledDate: "2026-08-29", startMinutes: undefined, order: 3 }),
+    ])
+    vi.useFakeTimers()
+    const dropZone = document.createElement("div")
+    dropZone.dataset.dropDate = "2026-08-29"
+    const originalElementFromPoint = Object.getOwnPropertyDescriptor(document, "elementFromPoint")
+    Object.defineProperty(document, "elementFromPoint", { configurable: true, value: () => dropZone })
+    const rendered = render(<TaskBar db={db} task={currentTask} />)
+
+    try {
+      const bar = screen.getByRole("button", { name: "打开任务操作：复习导数" })
+      fireEvent.pointerDown(bar, { pointerId: 1, clientX: 20, clientY: 30 })
+      void act(() => vi.advanceTimersByTime(350))
+      fireEvent.pointerUp(bar, { pointerId: 1, clientX: 20, clientY: 30 })
+      vi.useRealTimers()
+
+      await waitFor(async () => expect(await db.planTasks.get(currentTask.id)).toMatchObject({ scheduledDate: "2026-08-29", startMinutes: undefined, order: 4 }))
     } finally {
       if (originalElementFromPoint) Object.defineProperty(document, "elementFromPoint", originalElementFromPoint)
       else Reflect.deleteProperty(document, "elementFromPoint")
@@ -347,6 +485,35 @@ describe("TaskBar", () => {
       vi.useRealTimers()
 
       await waitFor(async () => expect(await db.planTasks.get(currentTask.id)).toMatchObject({ scheduledDate: "2026-08-28", startMinutes: undefined, order: 6 }))
+    } finally {
+      if (originalElementFromPoint) Object.defineProperty(document, "elementFromPoint", originalElementFromPoint)
+      else Reflect.deleteProperty(document, "elementFromPoint")
+      rendered.unmount()
+      vi.useRealTimers()
+      await db.delete()
+    }
+  })
+
+  it("reorders a timed task when it is dropped back into its current timed lane", async () => {
+    const db = createDatabase()
+    const currentTask = task({ startMinutes: 540, order: 2 })
+    await db.planTasks.bulkAdd([currentTask, task({ id: "later-task", title: "预习积分", startMinutes: 600, order: 5 })])
+    vi.useFakeTimers()
+    const dropZone = document.createElement("div")
+    dropZone.dataset.dropDate = "2026-08-28"
+    dropZone.dataset.startMinutes = "720"
+    const originalElementFromPoint = Object.getOwnPropertyDescriptor(document, "elementFromPoint")
+    Object.defineProperty(document, "elementFromPoint", { configurable: true, value: () => dropZone })
+    const rendered = render(<TaskBar db={db} task={currentTask} />)
+
+    try {
+      const bar = screen.getByRole("button", { name: "打开任务操作：复习导数" })
+      fireEvent.pointerDown(bar, { pointerId: 1, clientX: 20, clientY: 30 })
+      void act(() => vi.advanceTimersByTime(350))
+      fireEvent.pointerUp(bar, { pointerId: 1, clientX: 20, clientY: 30 })
+      vi.useRealTimers()
+
+      await waitFor(async () => expect(await db.planTasks.get(currentTask.id)).toMatchObject({ scheduledDate: "2026-08-28", startMinutes: 720, order: 6 }))
     } finally {
       if (originalElementFromPoint) Object.defineProperty(document, "elementFromPoint", originalElementFromPoint)
       else Reflect.deleteProperty(document, "elementFromPoint")

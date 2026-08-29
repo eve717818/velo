@@ -27,6 +27,7 @@ export function TaskBar({ db, onOpen, task }: TaskBarProps) {
   const [undoAction, setUndoAction] = useState<(() => void) | null>(null)
   const activePointerId = useRef<number | null>(null)
   const dragActive = useRef(false)
+  const verticalScrollCancelled = useRef(false)
   const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const mounted = useRef(false)
   const startX = useRef<number | null>(null)
@@ -98,6 +99,7 @@ export function TaskBar({ db, onOpen, task }: TaskBarProps) {
     startX.current = null
     startY.current = null
     dragActive.current = false
+    verticalScrollCancelled.current = false
     setSwipeProgress(0)
     setDragPosition(null)
   }
@@ -109,6 +111,7 @@ export function TaskBar({ db, onOpen, task }: TaskBarProps) {
   function handlePointerDown(event: PointerEvent<HTMLButtonElement>) {
     if (activePointerId.current !== null || isCompleted || isSaving) return
     activePointerId.current = event.pointerId
+    verticalScrollCancelled.current = false
     startX.current = event.clientX
     startY.current = event.clientY
     event.currentTarget.setPointerCapture?.(event.pointerId)
@@ -125,14 +128,24 @@ export function TaskBar({ db, onOpen, task }: TaskBarProps) {
 
   function handlePointerMove(event: PointerEvent<HTMLButtonElement>) {
     if (event.pointerId !== activePointerId.current || startX.current === null || startY.current === null) return
+    const distance = event.clientX - startX.current
+    const verticalDistance = event.clientY - startY.current
+    if (Math.abs(verticalDistance) > 8) {
+      verticalScrollCancelled.current = true
+      dragActive.current = false
+      clearLongPressTimer()
+      setSwipeProgress(0)
+      setDragPosition(null)
+      return
+    }
+
+    if (verticalScrollCancelled.current) return
     if (dragActive.current) {
       setDragPosition({ x: event.clientX, y: event.clientY })
       return
     }
 
-    const distance = event.clientX - startX.current
-    const verticalDistance = event.clientY - startY.current
-    if (Math.abs(distance) > 8 || Math.abs(verticalDistance) > 8) clearLongPressTimer()
+    if (Math.abs(distance) > 8) clearLongPressTimer()
     setSwipeProgress(getSwipeProgress(distance, getBarWidth(event.currentTarget)))
   }
 
@@ -169,6 +182,20 @@ export function TaskBar({ db, onOpen, task }: TaskBarProps) {
 
   function handlePointerRelease(event: PointerEvent<HTMLButtonElement>) {
     if (event.pointerId !== activePointerId.current || startX.current === null) return
+    if (startY.current !== null && Math.abs(event.clientY - startY.current) > 8) {
+      verticalScrollCancelled.current = true
+      dragActive.current = false
+      clearLongPressTimer()
+      setSwipeProgress(0)
+      setDragPosition(null)
+    }
+    if (verticalScrollCancelled.current) {
+      suppressClick.current = true
+      releasePointerCapture(event.currentTarget, event.pointerId)
+      resetPointer(event.pointerId)
+      return
+    }
+
     if (dragActive.current) {
       const pointedElement = document.elementFromPoint?.(event.clientX, event.clientY)
       const target = pointedElement instanceof HTMLElement ? readTaskDropTarget(pointedElement) : null

@@ -23,6 +23,18 @@ describe("task drop targets", () => {
     expect(readTaskDropTarget(child)).toEqual({ scheduledDate: "2026-08-29", startMinutes: undefined })
   })
 
+  it("accepts the inclusive minute boundaries", () => {
+    const midnight = document.createElement("div")
+    midnight.dataset.dropDate = "2026-08-29"
+    midnight.dataset.startMinutes = "0"
+    const finalMinute = document.createElement("div")
+    finalMinute.dataset.dropDate = "2026-08-29"
+    finalMinute.dataset.startMinutes = "1439"
+
+    expect(readTaskDropTarget(midnight)).toEqual({ scheduledDate: "2026-08-29", startMinutes: 0 })
+    expect(readTaskDropTarget(finalMinute)).toEqual({ scheduledDate: "2026-08-29", startMinutes: 1439 })
+  })
+
   it("rejects invalid date and minute attributes", () => {
     const invalidDate = document.createElement("div")
     invalidDate.dataset.dropDate = "2026-02-31"
@@ -32,9 +44,13 @@ describe("task drop targets", () => {
     const outOfRangeMinutes = document.createElement("div")
     outOfRangeMinutes.dataset.dropDate = "2026-08-29"
     outOfRangeMinutes.dataset.startMinutes = "1440"
+    const fractionalMinutes = document.createElement("div")
+    fractionalMinutes.dataset.dropDate = "2026-08-29"
+    fractionalMinutes.dataset.startMinutes = "840.5"
 
     expect(readTaskDropTarget(invalidDate)).toBeNull()
     expect(readTaskDropTarget(nanMinutes)).toBeNull()
     expect(readTaskDropTarget(outOfRangeMinutes)).toBeNull()
+    expect(readTaskDropTarget(fractionalMinutes)).toBeNull()
   })
 })
