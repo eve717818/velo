@@ -111,7 +111,7 @@ export function PlansPage({ db = veloDb, now }: PlansPageProps) {
             <span className={styles.rangeCount}>{snapshot?.tasks.length ?? 0} 项任务</span>
           </div>
           {snapshot?.tasks.length ? (
-            <ul className={styles.taskList}>
+            <ul className={styles.taskList} data-drop-date={selectedDate} data-testid="current-plan-drop-zone">
               {snapshot.tasks.map((task) => (
                 <li key={task.id}>
                   <TaskBar

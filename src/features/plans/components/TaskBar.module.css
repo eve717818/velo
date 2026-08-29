@@ -131,6 +131,26 @@
   outline-offset: 2px;
 }
 
+.dragLayer {
+  background: var(--color-surface-strong);
+  border: 1px solid var(--color-cool-blue);
+  border-radius: 12px;
+  box-shadow: 0 16px 36px rgb(34 48 68 / 20%);
+  color: var(--color-text-inverse);
+  font-size: 13px;
+  font-weight: 740;
+  left: 12px;
+  max-width: min(280px, calc(100vw - 24px));
+  overflow: hidden;
+  padding: 10px 12px;
+  pointer-events: none;
+  position: fixed;
+  text-overflow: ellipsis;
+  top: 12px;
+  white-space: nowrap;
+  z-index: 20;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .completionFill,
   .copy {

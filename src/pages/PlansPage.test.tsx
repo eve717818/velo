@@ -60,4 +60,27 @@ describe("PlansPage", () => {
       await db.delete()
     }
   })
+
+  it("exposes the current shell task lane as an untimed date drop zone", async () => {
+    const db = createDatabase()
+    await db.planTasks.add({
+      id: "drop-zone-task",
+      title: "复习导数",
+      scheduledDate: "2026-08-29",
+      isCompleted: 0,
+      order: 1,
+      createdAt: 1,
+      updatedAt: 1,
+    })
+    const rendered = renderPlansPage("/plans?view=day&date=2026-08-29", db)
+
+    try {
+      expect(await screen.findByText("复习导数")).toBeInTheDocument()
+      expect(screen.getByTestId("current-plan-drop-zone")).toHaveAttribute("data-drop-date", "2026-08-29")
+      expect(screen.getByTestId("current-plan-drop-zone")).not.toHaveAttribute("data-start-minutes")
+    } finally {
+      rendered.unmount()
+      await db.delete()
+    }
+  })
 })

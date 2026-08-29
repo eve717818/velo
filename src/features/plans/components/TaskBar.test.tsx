@@ -229,4 +229,153 @@ describe("TaskBar", () => {
       await db.delete()
     }
   })
+
+  it("starts dragging only after a 350 millisecond long press", async () => {
+    vi.useFakeTimers()
+    const db = createDatabase()
+    const rendered = render(<TaskBar db={db} task={task()} />)
+
+    try {
+      const bar = screen.getByRole("button", { name: "打开任务操作：复习导数" })
+      fireEvent.pointerDown(bar, { pointerId: 1, clientX: 20, clientY: 30 })
+      void act(() => vi.advanceTimersByTime(349))
+      fireEvent.pointerUp(bar, { pointerId: 1, clientX: 20, clientY: 30 })
+      expect(screen.queryByTestId("task-drag-layer")).not.toBeInTheDocument()
+
+      fireEvent.pointerDown(bar, { pointerId: 2, clientX: 20, clientY: 30 })
+      void act(() => vi.advanceTimersByTime(350))
+      expect(screen.getByTestId("task-drag-layer")).toBeInTheDocument()
+    } finally {
+      rendered.unmount()
+      vi.useRealTimers()
+      await db.delete()
+    }
+  })
+
+  it("keeps a direct horizontal gesture available for swipe completion instead of dragging", async () => {
+    const db = createDatabase()
+    const currentTask = task()
+    await db.planTasks.add(currentTask)
+    const rendered = render(<TaskBar db={db} task={currentTask} />)
+
+    try {
+      const bar = screen.getByRole("button", { name: "打开任务操作：复习导数" })
+      Object.defineProperty(bar, "offsetWidth", { configurable: true, value: 100 })
+      fireEvent.pointerDown(bar, { pointerId: 1, clientX: 0, clientY: 0 })
+      fireEvent.pointerMove(bar, { pointerId: 1, clientX: 70, clientY: 0 })
+      fireEvent.pointerUp(bar, { pointerId: 1, clientX: 70, clientY: 0 })
+
+      await waitFor(async () => expect(await db.planTasks.get(currentTask.id)).toMatchObject({ isCompleted: 1 }))
+      expect(screen.queryByTestId("task-drag-layer")).not.toBeInTheDocument()
+    } finally {
+      rendered.unmount()
+      await db.delete()
+    }
+  })
+
+  it("cancels a long press after vertical movement without changing the task", async () => {
+    vi.useFakeTimers()
+    const db = createDatabase()
+    const rendered = render(<TaskBar db={db} task={task()} />)
+
+    try {
+      const bar = screen.getByRole("button", { name: "打开任务操作：复习导数" })
+      fireEvent.pointerDown(bar, { pointerId: 1, clientX: 10, clientY: 10 })
+      fireEvent.pointerMove(bar, { pointerId: 1, clientX: 10, clientY: 19 })
+      void act(() => vi.advanceTimersByTime(350))
+
+      expect(screen.queryByTestId("task-drag-layer")).not.toBeInTheDocument()
+    } finally {
+      rendered.unmount()
+      vi.useRealTimers()
+      await db.delete()
+    }
+  })
+
+  it("moves to a nested timed drop target and restores the original lane on undo", async () => {
+    const db = createDatabase()
+    const currentTask = task({ scheduledDate: "2026-08-28", startMinutes: undefined, order: 4 })
+    await db.planTasks.add(currentTask)
+    vi.useFakeTimers()
+    const dropZone = document.createElement("div")
+    dropZone.dataset.dropDate = "2026-08-29"
+    dropZone.dataset.startMinutes = "840"
+    const nestedTarget = document.createElement("span")
+    dropZone.append(nestedTarget)
+    const originalElementFromPoint = Object.getOwnPropertyDescriptor(document, "elementFromPoint")
+    Object.defineProperty(document, "elementFromPoint", { configurable: true, value: () => nestedTarget })
+    const rendered = render(<TaskBar db={db} task={currentTask} />)
+
+    try {
+      const bar = screen.getByRole("button", { name: "打开任务操作：复习导数" })
+      fireEvent.pointerDown(bar, { pointerId: 1, clientX: 20, clientY: 30 })
+      void act(() => vi.advanceTimersByTime(350))
+      fireEvent.pointerMove(bar, { pointerId: 1, clientX: 40, clientY: 50 })
+      fireEvent.pointerUp(bar, { pointerId: 1, clientX: 40, clientY: 50 })
+      vi.useRealTimers()
+
+      await new Promise<void>((resolve) => window.setTimeout(resolve, 50))
+      expect(await db.planTasks.get(currentTask.id)).toMatchObject({ scheduledDate: "2026-08-29", startMinutes: 840, order: 1 })
+      expect(await screen.findByRole("status")).toHaveTextContent("已移动到目标位置")
+      await userEvent.setup().click(screen.getByRole("button", { name: "撤销" }))
+      await waitFor(async () => expect(await db.planTasks.get(currentTask.id)).toMatchObject({ scheduledDate: "2026-08-28", startMinutes: undefined, order: 4 }))
+    } finally {
+      if (originalElementFromPoint) Object.defineProperty(document, "elementFromPoint", originalElementFromPoint)
+      else Reflect.deleteProperty(document, "elementFromPoint")
+      rendered.unmount()
+      vi.useRealTimers()
+      await db.delete()
+    }
+  })
+
+  it("reorders an untimed task when it is dropped back into its current lane", async () => {
+    const db = createDatabase()
+    const currentTask = task({ order: 2 })
+    await db.planTasks.bulkAdd([currentTask, task({ id: "later-task", title: "预习积分", order: 5 })])
+    vi.useFakeTimers()
+    const dropZone = document.createElement("div")
+    dropZone.dataset.dropDate = "2026-08-28"
+    const originalElementFromPoint = Object.getOwnPropertyDescriptor(document, "elementFromPoint")
+    Object.defineProperty(document, "elementFromPoint", { configurable: true, value: () => dropZone })
+    const rendered = render(<TaskBar db={db} task={currentTask} />)
+
+    try {
+      const bar = screen.getByRole("button", { name: "打开任务操作：复习导数" })
+      fireEvent.pointerDown(bar, { pointerId: 1, clientX: 20, clientY: 30 })
+      void act(() => vi.advanceTimersByTime(350))
+      fireEvent.pointerUp(bar, { pointerId: 1, clientX: 20, clientY: 30 })
+      vi.useRealTimers()
+
+      await waitFor(async () => expect(await db.planTasks.get(currentTask.id)).toMatchObject({ scheduledDate: "2026-08-28", startMinutes: undefined, order: 6 }))
+    } finally {
+      if (originalElementFromPoint) Object.defineProperty(document, "elementFromPoint", originalElementFromPoint)
+      else Reflect.deleteProperty(document, "elementFromPoint")
+      rendered.unmount()
+      vi.useRealTimers()
+      await db.delete()
+    }
+  })
+
+  it("cancels an active drag without moving the task", async () => {
+    const db = createDatabase()
+    const currentTask = task()
+    await db.planTasks.add(currentTask)
+    vi.useFakeTimers()
+    const rendered = render(<TaskBar db={db} task={currentTask} />)
+
+    try {
+      const bar = screen.getByRole("button", { name: "打开任务操作：复习导数" })
+      fireEvent.pointerDown(bar, { pointerId: 1, clientX: 20, clientY: 30 })
+      void act(() => vi.advanceTimersByTime(350))
+      fireEvent.pointerCancel(bar, { pointerId: 1 })
+
+      expect(screen.queryByTestId("task-drag-layer")).not.toBeInTheDocument()
+      vi.useRealTimers()
+      expect(await db.planTasks.get(currentTask.id)).toMatchObject({ scheduledDate: "2026-08-28", order: 1 })
+    } finally {
+      rendered.unmount()
+      vi.useRealTimers()
+      await db.delete()
+    }
+  })
 })

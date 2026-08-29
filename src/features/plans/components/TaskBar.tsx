@@ -2,10 +2,12 @@ import { useEffect, useRef, useState, type CSSProperties, type KeyboardEvent, ty
 
 import type { PlanTask } from "@/db/types"
 import type { VeloDB } from "@/db/velo-db"
-import { setTaskCompletion } from "@/features/plans/data/plan-task-service"
+import { movePlanTask, setTaskCompletion } from "@/features/plans/data/plan-task-service"
+import { readTaskDropTarget, type TaskDropTarget } from "@/features/plans/domain/task-drop"
 import { getSwipeProgress, shouldCompleteSwipe } from "@/features/plans/domain/task-gesture"
 
 import { FlowArrowIcon } from "./FlowArrowIcon"
+import { TaskDragLayer } from "./TaskDragLayer"
 import { UndoNotice } from "./UndoNotice"
 import styles from "./TaskBar.module.css"
 
@@ -20,9 +22,15 @@ export function TaskBar({ db, onOpen, task }: TaskBarProps) {
   const [isSaving, setIsSaving] = useState(false)
   const [showUndo, setShowUndo] = useState(false)
   const [swipeProgress, setSwipeProgress] = useState(0)
+  const [dragPosition, setDragPosition] = useState<{ x: number; y: number } | null>(null)
+  const [undoMessage, setUndoMessage] = useState("任务已完成")
+  const [undoAction, setUndoAction] = useState<(() => void) | null>(null)
   const activePointerId = useRef<number | null>(null)
+  const dragActive = useRef(false)
+  const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const mounted = useRef(false)
   const startX = useRef<number | null>(null)
+  const startY = useRef<number | null>(null)
   const suppressClick = useRef(false)
   const undoTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
@@ -31,7 +39,9 @@ export function TaskBar({ db, onOpen, task }: TaskBarProps) {
     return () => {
       mounted.current = false
       if (undoTimer.current) clearTimeout(undoTimer.current)
+      if (longPressTimer.current) clearTimeout(longPressTimer.current)
       undoTimer.current = null
+      longPressTimer.current = null
     }
   }, [])
 
@@ -41,9 +51,11 @@ export function TaskBar({ db, onOpen, task }: TaskBarProps) {
     undoTimer.current = null
   }
 
-  function showUndoWindow() {
+  function showUndoWindow(message: string, onUndo: () => void) {
     if (!mounted.current) return
     clearUndoTimer()
+    setUndoMessage(message)
+    setUndoAction(() => onUndo)
     setShowUndo(true)
     undoTimer.current = setTimeout(() => {
       undoTimer.current = null
@@ -60,7 +72,7 @@ export function TaskBar({ db, onOpen, task }: TaskBarProps) {
     try {
       await setTaskCompletion(db, task.id, nextValue, Date.now())
       if (!mounted.current) return
-      if (nextValue) showUndoWindow()
+      if (nextValue) showUndoWindow("任务已完成", () => void changeCompletion(false))
       else setShowUndo(false)
     } catch {
       if (mounted.current) setCompletionOverride(null)
@@ -73,39 +85,110 @@ export function TaskBar({ db, onOpen, task }: TaskBarProps) {
     return element.offsetWidth || element.getBoundingClientRect().width
   }
 
-  function resetSwipe(pointerId?: number) {
+  function clearLongPressTimer() {
+    if (!longPressTimer.current) return
+    clearTimeout(longPressTimer.current)
+    longPressTimer.current = null
+  }
+
+  function resetPointer(pointerId?: number) {
     if (pointerId !== undefined && pointerId !== activePointerId.current) return
+    clearLongPressTimer()
     activePointerId.current = null
     startX.current = null
+    startY.current = null
+    dragActive.current = false
     setSwipeProgress(0)
+    setDragPosition(null)
+  }
+
+  function releasePointerCapture(element: HTMLButtonElement, pointerId: number) {
+    element.releasePointerCapture?.(pointerId)
   }
 
   function handlePointerDown(event: PointerEvent<HTMLButtonElement>) {
     if (activePointerId.current !== null || isCompleted || isSaving) return
     activePointerId.current = event.pointerId
     startX.current = event.clientX
+    startY.current = event.clientY
     event.currentTarget.setPointerCapture?.(event.pointerId)
+    const { clientX, clientY, pointerId } = event
+    longPressTimer.current = setTimeout(() => {
+      longPressTimer.current = null
+      if (!mounted.current || activePointerId.current !== pointerId || startX.current === null || startY.current === null) return
+      dragActive.current = true
+      suppressClick.current = true
+      setSwipeProgress(0)
+      setDragPosition({ x: clientX, y: clientY })
+    }, 350)
   }
 
   function handlePointerMove(event: PointerEvent<HTMLButtonElement>) {
-    if (event.pointerId !== activePointerId.current || startX.current === null) return
+    if (event.pointerId !== activePointerId.current || startX.current === null || startY.current === null) return
+    if (dragActive.current) {
+      setDragPosition({ x: event.clientX, y: event.clientY })
+      return
+    }
+
     const distance = event.clientX - startX.current
+    const verticalDistance = event.clientY - startY.current
+    if (Math.abs(distance) > 8 || Math.abs(verticalDistance) > 8) clearLongPressTimer()
     setSwipeProgress(getSwipeProgress(distance, getBarWidth(event.currentTarget)))
+  }
+
+  async function moveTask(target: TaskDropTarget) {
+    if (isSaving) return
+    const previous = {
+      scheduledDate: task.scheduledDate,
+      startMinutes: task.startMinutes,
+      order: task.order,
+    }
+
+    setIsSaving(true)
+    try {
+      await movePlanTask(db, task.id, target, Date.now())
+      if (!mounted.current) return
+      showUndoWindow("已移动到目标位置", () => void restoreTaskPosition(previous))
+    } catch {
+      // A failed local write leaves the task in its original lane.
+    } finally {
+      if (mounted.current) setIsSaving(false)
+    }
+  }
+
+  async function restoreTaskPosition(previous: { scheduledDate: string; startMinutes: number | undefined; order: number }) {
+    if (isSaving) return
+    setIsSaving(true)
+    try {
+      await movePlanTask(db, task.id, previous, Date.now())
+      if (mounted.current) setShowUndo(false)
+    } finally {
+      if (mounted.current) setIsSaving(false)
+    }
   }
 
   function handlePointerRelease(event: PointerEvent<HTMLButtonElement>) {
     if (event.pointerId !== activePointerId.current || startX.current === null) return
+    if (dragActive.current) {
+      const pointedElement = document.elementFromPoint?.(event.clientX, event.clientY)
+      const target = pointedElement instanceof HTMLElement ? readTaskDropTarget(pointedElement) : null
+      releasePointerCapture(event.currentTarget, event.pointerId)
+      resetPointer(event.pointerId)
+      if (target) void moveTask(target)
+      return
+    }
+
     const distance = event.clientX - startX.current
     const width = getBarWidth(event.currentTarget)
     suppressClick.current = Math.abs(distance) > 4
-    resetSwipe(event.pointerId)
-    event.currentTarget.releasePointerCapture?.(event.pointerId)
+    resetPointer(event.pointerId)
+    releasePointerCapture(event.currentTarget, event.pointerId)
 
     if (shouldCompleteSwipe(distance, width)) void changeCompletion(true)
   }
 
   function handlePointerCancel(event: PointerEvent<HTMLButtonElement>) {
-    resetSwipe(event.pointerId)
+    resetPointer(event.pointerId)
   }
 
   function handleKeyDown(event: KeyboardEvent<HTMLButtonElement>) {
@@ -154,7 +237,8 @@ export function TaskBar({ db, onOpen, task }: TaskBarProps) {
         </span>
         <span className={styles.trailing}>{isCompleted ? "已完成" : task.startMinutes === undefined ? "未定时" : `${String(Math.floor(task.startMinutes / 60)).padStart(2, "0")}:${String(task.startMinutes % 60).padStart(2, "0")}`}</span>
       </button>
-      {showUndo ? <UndoNotice onUndo={() => void changeCompletion(false)} /> : null}
+      {dragPosition ? <TaskDragLayer task={task} x={dragPosition.x} y={dragPosition.y} /> : null}
+      {showUndo ? <UndoNotice message={undoMessage} onUndo={() => undoAction?.()} /> : null}
     </div>
   )
 }
