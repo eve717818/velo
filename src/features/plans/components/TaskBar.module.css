@@ -1,0 +1,143 @@
+.taskBarGroup {
+  width: 100%;
+}
+
+.taskBar {
+  align-items: center;
+  background: var(--color-surface-muted);
+  border: 1px solid var(--color-border);
+  border-radius: 16px;
+  color: var(--color-text);
+  cursor: pointer;
+  display: grid;
+  gap: 12px;
+  grid-template-columns: minmax(0, 1fr) auto;
+  isolation: isolate;
+  min-height: 54px;
+  overflow: hidden;
+  padding: 10px 14px;
+  position: relative;
+  text-align: left;
+  width: 100%;
+}
+
+.completionFill {
+  background: var(--color-brand);
+  inset: 0;
+  position: absolute;
+  transform: scaleX(var(--swipe-progress));
+  transform-origin: left center;
+  transition: transform var(--motion-fast) var(--ease-flow);
+  z-index: -1;
+}
+
+.taskBar > svg {
+  color: white;
+  height: 28px;
+  left: 14px;
+  position: absolute;
+  top: calc(50% - 14px);
+  width: 28px;
+}
+
+.copy {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+  transform: translateX(var(--swipe-offset));
+  transition: transform var(--motion-fast) var(--ease-flow);
+}
+
+.taskTitle {
+  font-size: 14px;
+  font-weight: 740;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.taskMeta,
+.trailing {
+  color: var(--color-text-muted);
+  font-size: 12px;
+  font-weight: 680;
+}
+
+.taskMeta {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.trailing {
+  flex: 0 0 auto;
+  text-align: right;
+}
+
+.swiping {
+  color: white;
+}
+
+.swiping .taskMeta,
+.swiping .trailing {
+  color: rgb(255 255 255 / 84%);
+}
+
+.completed {
+  background: var(--color-complete-glass);
+  border-color: rgb(144 29 120 / 26%);
+  box-shadow: 0 1px 0 rgb(255 255 255 / 86%) inset, 0 14px 34px rgb(116 19 95 / 10%);
+  -webkit-backdrop-filter: blur(18px) saturate(115%);
+  backdrop-filter: blur(18px) saturate(115%);
+}
+
+.completed .trailing {
+  color: var(--color-brand-strong);
+  font-weight: 820;
+}
+
+.taskBar:focus-visible {
+  outline: 3px solid var(--color-cool-blue);
+  outline-offset: 3px;
+}
+
+.undoNotice {
+  align-items: center;
+  background: var(--color-surface-strong);
+  border-radius: 12px;
+  color: var(--color-text-inverse);
+  display: flex;
+  font-size: 13px;
+  gap: 12px;
+  justify-content: space-between;
+  margin-top: 8px;
+  min-height: 44px;
+  padding: 6px 8px 6px 12px;
+}
+
+.undoNotice button {
+  background: var(--color-surface);
+  border: 0;
+  border-radius: 8px;
+  color: var(--color-text);
+  font: inherit;
+  font-weight: 780;
+  min-height: 32px;
+  padding: 0 10px;
+}
+
+.undoNotice button:focus-visible {
+  outline: 3px solid var(--color-cool-blue);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .completionFill,
+  .copy {
+    transition: none;
+  }
+
+  .copy {
+    transform: none;
+  }
+}

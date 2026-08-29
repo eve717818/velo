@@ -8,6 +8,7 @@ import { PlanViewSwitcher } from "@/features/plans/components/PlanViewSwitcher"
 import { DeleteTaskDialog } from "@/features/plans/components/DeleteTaskDialog"
 import { TaskActionsDialog } from "@/features/plans/components/TaskActionsDialog"
 import { TaskEditorDialog } from "@/features/plans/components/TaskEditorDialog"
+import { TaskBar } from "@/features/plans/components/TaskBar"
 import type { PlanTask } from "@/db/types"
 import { parseLocalDate } from "@/features/plans/domain/plan-dates"
 import styles from "@/features/plans/PlansPage.module.css"
@@ -113,15 +114,11 @@ export function PlansPage({ db = veloDb, now }: PlansPageProps) {
             <ul className={styles.taskList}>
               {snapshot.tasks.map((task) => (
                 <li key={task.id}>
-                  <button
-                    aria-label={`打开任务操作：${task.title}`}
-                    className={styles.taskRow}
-                    onClick={(event) => { setActionNotice(""); setTaskTrigger(event.currentTarget); setActionTask(task); setIsActionDialogOpen(true) }}
-                    type="button"
-                  >
-                    <span>{task.title}</span>
-                    <small>{task.subject ?? "未分类"} · {task.startMinutes === undefined ? "未定时" : `${String(Math.floor(task.startMinutes / 60)).padStart(2, "0")}:${String(task.startMinutes % 60).padStart(2, "0")}`}</small>
-                  </button>
+                  <TaskBar
+                    db={db}
+                    onOpen={(openedTask, trigger) => { setActionNotice(""); setTaskTrigger(trigger); setActionTask(openedTask); setIsActionDialogOpen(true) }}
+                    task={task}
+                  />
                 </li>
               ))}
             </ul>
