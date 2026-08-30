@@ -18,6 +18,11 @@ export interface MovePlanTaskInput {
   scheduledDate: string
   startMinutes?: number
   order?: number
+  expectedPosition?: {
+    scheduledDate: string
+    startMinutes: number | undefined
+    order: number
+  }
 }
 
 function normalizeText(value: string | undefined): string | undefined {
@@ -82,6 +87,13 @@ function assertValidMoveInput(input: MovePlanTaskInput) {
 
 function isSameLane(task: Pick<PlanTask, "startMinutes">, startMinutes: number | undefined) {
   return (task.startMinutes === undefined) === (startMinutes === undefined)
+}
+
+function isSamePosition(
+  task: Pick<PlanTask, "scheduledDate" | "startMinutes" | "order">,
+  expected: NonNullable<MovePlanTaskInput["expectedPosition"]>,
+) {
+  return task.scheduledDate === expected.scheduledDate && task.startMinutes === expected.startMinutes && task.order === expected.order
 }
 
 async function getNextOrder(db: VeloDB, scheduledDate: string, startMinutes: number | undefined): Promise<number> {
@@ -201,6 +213,9 @@ export async function movePlanTask(db: VeloDB, id: string, input: MovePlanTaskIn
     const existing = await db.planTasks.get(id)
     if (!existing) {
       throw new Error("Plan task not found")
+    }
+    if (normalized.expectedPosition && !isSamePosition(existing, normalized.expectedPosition)) {
+      throw new Error("任务位置已变化，请重试")
     }
 
     const updated: PlanTask = {

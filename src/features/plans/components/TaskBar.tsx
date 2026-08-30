@@ -187,11 +187,15 @@ function TaskBarSession({ db, onMoved, onOpen, task }: TaskBarProps) {
     setIsSaving(true)
     setWriteError(null)
     try {
-      await movePlanTask(db, task.id, target, Date.now())
+      const moved = await movePlanTask(db, task.id, target, Date.now())
       if (onMoved && (requestSession.isCurrent(requestToken) || !mounted.current)) {
-        onMoved(task, previous)
+        onMoved(moved, previous)
       } else if (!onMoved && mounted.current && requestSession.isCurrent(requestToken)) {
-        showUndoWindow("已移动到目标位置", () => void restoreTaskPosition(previous))
+        showUndoWindow("已移动到目标位置", () => void restoreTaskPosition(previous, {
+          scheduledDate: moved.scheduledDate,
+          startMinutes: moved.startMinutes,
+          order: moved.order,
+        }))
       }
     } catch (error) {
       if (mounted.current && requestSession.isCurrent(requestToken)) {
@@ -205,19 +209,22 @@ function TaskBarSession({ db, onMoved, onOpen, task }: TaskBarProps) {
     }
   }
 
-  async function restoreTaskPosition(previous: { scheduledDate: string; startMinutes: number | undefined; order: number }) {
+  async function restoreTaskPosition(
+    previous: { scheduledDate: string; startMinutes: number | undefined; order: number },
+    expectedPosition?: { scheduledDate: string; startMinutes: number | undefined; order: number },
+  ) {
     if (isSaving) return
     const requestToken = requestSession.beginRequest()
     setIsSaving(true)
     setWriteError(null)
     try {
-      await movePlanTask(db, task.id, previous, Date.now())
+      await movePlanTask(db, task.id, { ...previous, expectedPosition }, Date.now())
       if (mounted.current && requestSession.isCurrent(requestToken)) setShowUndo(false)
     } catch (error) {
       if (mounted.current && requestSession.isCurrent(requestToken)) {
         setWriteError({
           message: error instanceof Error ? error.message : "恢复任务位置失败",
-          retry: () => { void restoreTaskPosition(previous) },
+          retry: () => { void restoreTaskPosition(previous, expectedPosition) },
         })
       }
     } finally {

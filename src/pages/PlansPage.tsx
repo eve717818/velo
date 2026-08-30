@@ -134,7 +134,7 @@ export function PlansPage({ db = veloDb, now }: PlansPageProps) {
   const [editingPeriod, setEditingPeriod] = useState<LearningPeriod | undefined>()
   const [periodToDelete, setPeriodToDelete] = useState<LearningPeriod | null>(null)
   const [isMigrationOpen, setIsMigrationOpen] = useState(false)
-  const [moveUndo, setMoveUndo] = useState<{ taskId: string; previous: TaskPosition } | null>(null)
+  const [moveUndo, setMoveUndo] = useState<{ taskId: string; previous: TaskPosition; expected: TaskPosition } | null>(null)
   const [moveUndoError, setMoveUndoError] = useState("")
   const [moveUndoSaving, setMoveUndoSaving] = useState(false)
   const moveUndoTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -158,7 +158,15 @@ export function PlansPage({ db = veloDb, now }: PlansPageProps) {
   function handleTaskMoved(task: PlanTask, previous: TaskPosition) {
     const generation = ++moveUndoGeneration.current
     if (moveUndoTimer.current) clearTimeout(moveUndoTimer.current)
-    setMoveUndo({ taskId: task.id, previous })
+    setMoveUndo({
+      taskId: task.id,
+      previous,
+      expected: {
+        scheduledDate: task.scheduledDate,
+        startMinutes: task.startMinutes,
+        order: task.order,
+      },
+    })
     setMoveUndoError("")
     setMoveUndoSaving(false)
     moveUndoTimer.current = setTimeout(() => {
@@ -178,7 +186,7 @@ export function PlansPage({ db = veloDb, now }: PlansPageProps) {
     setMoveUndoSaving(true)
     setMoveUndoError("")
     try {
-      await movePlanTask(db, pendingUndo.taskId, pendingUndo.previous, Date.now())
+      await movePlanTask(db, pendingUndo.taskId, { ...pendingUndo.previous, expectedPosition: pendingUndo.expected }, Date.now())
       if (moveUndoGeneration.current === generation) setMoveUndo(null)
     } catch (error) {
       if (moveUndoGeneration.current === generation) {

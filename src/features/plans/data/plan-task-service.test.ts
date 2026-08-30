@@ -371,6 +371,41 @@ describe("plan task service", () => {
     })
   })
 
+  it("rejects an undo based on an outdated position without overwriting a newer move", async () => {
+    await withDatabase(async (db) => {
+      const current = task({ id: "stale-position", scheduledDate: "2026-08-28", startMinutes: 480, order: 2 })
+      await db.planTasks.add(current)
+
+      const movedA = await movePlanTask(
+        db,
+        current.id,
+        { scheduledDate: "2026-08-29", startMinutes: 600, order: 3 },
+        40,
+      )
+      const movedB = await movePlanTask(
+        db,
+        current.id,
+        { scheduledDate: "2026-08-30", startMinutes: 720, order: 4 },
+        41,
+      )
+
+      await expect(
+        movePlanTask(
+          db,
+          current.id,
+          { scheduledDate: current.scheduledDate, startMinutes: current.startMinutes, order: current.order, expectedPosition: { scheduledDate: movedA.scheduledDate, startMinutes: movedA.startMinutes, order: movedA.order } },
+          42,
+        ),
+      ).rejects.toThrow("任务位置已变化")
+      expect(await db.planTasks.get(current.id)).toMatchObject({
+        scheduledDate: movedB.scheduledDate,
+        startMinutes: movedB.startMinutes,
+        order: movedB.order,
+        updatedAt: 41,
+      })
+    })
+  })
+
   it("copies tasks into the target period using start date outside the range and today inside the range", async () => {
     await withDatabase(async (db) => {
       await db.planTasks.bulkAdd([

@@ -231,9 +231,13 @@ describe("PlansPage", () => {
 
       vi.useFakeTimers()
       fireEvent.pointerDown(taskButton, { pointerId: 1, clientX: 20, clientY: 30 })
-      void act(() => vi.advanceTimersByTime(350))
-      fireEvent.pointerUp(taskButton, { pointerId: 1, clientX: 42, clientY: 30 })
+      await act(async () => {
+        vi.runOnlyPendingTimers()
+        await Promise.resolve()
+      })
       vi.useRealTimers()
+      await waitFor(() => expect(screen.getByTestId("task-drag-layer")).toBeInTheDocument())
+      fireEvent.pointerUp(taskButton, { pointerId: 1, clientX: 42, clientY: 30 })
 
       await waitFor(async () => expect(await db.planTasks.get("cross-date-task")).toMatchObject({ scheduledDate: "2026-08-31", startMinutes: undefined, order: 1 }))
       expect(screen.getByText("已移动到目标位置")).toBeInTheDocument()
@@ -268,9 +272,13 @@ describe("PlansPage", () => {
 
       vi.useFakeTimers()
       fireEvent.pointerDown(taskButton, { pointerId: 1, clientX: 20, clientY: 30 })
-      void act(() => vi.advanceTimersByTime(350))
-      fireEvent.pointerUp(taskButton, { pointerId: 1, clientX: 42, clientY: 30 })
+      await act(async () => {
+        vi.runOnlyPendingTimers()
+        await Promise.resolve()
+      })
       vi.useRealTimers()
+      await waitFor(() => expect(screen.getByTestId("task-drag-layer")).toBeInTheDocument())
+      fireEvent.pointerUp(taskButton, { pointerId: 1, clientX: 42, clientY: 30 })
       await waitFor(() => expect(moveSpy).toHaveBeenCalledTimes(1))
 
       await user.click(screen.getByRole("button", { name: "日" }))
@@ -310,10 +318,15 @@ describe("PlansPage", () => {
 
       vi.useFakeTimers()
       fireEvent.pointerDown(taskButton, { pointerId: 1, clientX: 20, clientY: 30 })
-      void act(() => vi.advanceTimersByTime(350))
-      fireEvent.pointerUp(taskButton, { pointerId: 1, clientX: 42, clientY: 30 })
+      await act(async () => {
+        vi.runOnlyPendingTimers()
+        await Promise.resolve()
+      })
       vi.useRealTimers()
+      await waitFor(() => expect(screen.getByTestId("task-drag-layer")).toBeInTheDocument())
+      fireEvent.pointerUp(taskButton, { pointerId: 1, clientX: 42, clientY: 30 })
 
+      await waitFor(() => expect(moveSpy).toHaveBeenCalledTimes(1))
       await waitFor(async () => expect(await db.planTasks.get(originalTask.id)).toMatchObject({ scheduledDate: "2026-08-31" }))
       await user.click(screen.getByRole("button", { name: "撤销" }))
       expect(await screen.findByRole("alert")).toHaveTextContent("保存失败，请重试")
@@ -347,7 +360,10 @@ describe("PlansPage", () => {
         await firstMove.promise
         return realMove(...args)
       })
-      .mockImplementationOnce(() => staleUndo.promise)
+      .mockImplementationOnce(async (...args) => {
+        await staleUndo.promise
+        return realMove(...args)
+      })
       .mockImplementationOnce(async (...args) => {
         await secondMove.promise
         return realMove(...args)
@@ -365,11 +381,14 @@ describe("PlansPage", () => {
       Object.defineProperty(document, "elementFromPoint", { configurable: true, value: () => targetDays[0] })
       vi.useFakeTimers()
       fireEvent.pointerDown(taskButton, { pointerId, clientX: 20, clientY: 30 })
-      act(() => { vi.advanceTimersByTime(350) })
-      expect(screen.getByTestId("task-drag-layer")).toBeInTheDocument()
+      await act(async () => {
+        vi.runOnlyPendingTimers()
+        await Promise.resolve()
+      })
+      vi.useRealTimers()
+      await waitFor(() => expect(screen.getByTestId("task-drag-layer")).toBeInTheDocument())
       fireEvent.pointerMove(taskButton, { pointerId, clientX: 42, clientY: 30 })
       fireEvent.pointerUp(taskButton, { pointerId, clientX: 42, clientY: 30 })
-      vi.useRealTimers()
     }
 
     try {
@@ -392,12 +411,14 @@ describe("PlansPage", () => {
       secondMove.resolve({ id: originalTask.id, title: originalTask.title, scheduledDate: "2026-08-30", isCompleted: 0, order: 1, createdAt: 1, updatedAt: 3 })
       await act(async () => { await secondMoveRequest })
       await waitFor(() => expect(screen.getByRole("button", { name: "撤销" })).toBeInTheDocument())
+      await waitFor(async () => expect(await db.planTasks.get(originalTask.id)).toMatchObject({ scheduledDate: "2026-08-30", startMinutes: undefined, order: 1 }))
 
       await act(async () => {
         settleStaleUndo(staleUndo)
         await staleUndo.promise.catch(() => undefined)
       })
       expect(screen.queryByRole("alert")).not.toBeInTheDocument()
+      expect(await db.planTasks.get(originalTask.id)).toMatchObject({ scheduledDate: "2026-08-30", startMinutes: undefined, order: 1 })
       await user.click(screen.getByRole("button", { name: "撤销" }))
       await waitFor(() => expect(moveSpy).toHaveBeenCalledTimes(4))
       expect(moveSpy.mock.calls[3]?.[2]).toMatchObject({ scheduledDate: "2026-08-31", startMinutes: undefined, order: 1 })
