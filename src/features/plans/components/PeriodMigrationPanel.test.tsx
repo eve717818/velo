@@ -24,7 +24,7 @@ describe("PeriodMigrationPanel", () => {
     const onClose = vi.fn()
     const rows = [task("one"), task("two"), task("three"), task("four")]
     await db.planTasks.bulkAdd(rows)
-    const rendered = render(<PeriodMigrationPanel db={db} onClose={onClose} open sourcePeriod={source} targetPeriod={target} tasks={rows} today="2027-02-25" />)
+    const rendered = render(<PeriodMigrationPanel db={db} onClose={onClose} open sourcePeriod={source} targetPeriod={target} tasks={rows} today="2027-01-18" />)
 
     try {
       expect(screen.queryByRole("dialog")).not.toBeInTheDocument()
@@ -32,7 +32,7 @@ describe("PeriodMigrationPanel", () => {
       for (const id of ["one", "two", "three"]) await user.click(screen.getByLabelText(`选择任务 ${id}`))
       await user.click(screen.getByRole("button", { name: "复制 3 项任务" }))
 
-      await waitFor(async () => expect((await db.planTasks.toArray()).filter((row) => row.scheduledDate === target.startDate)).toHaveLength(3))
+      await waitFor(async () => expect((await db.planTasks.toArray()).filter((row) => row.scheduledDate === "2027-01-18")).toHaveLength(3))
       expect(await db.planTasks.bulkGet(["one", "two", "three", "four"])).toEqual(rows)
       expect(onClose).toHaveBeenCalled()
     } finally {
@@ -83,8 +83,8 @@ describe("PeriodMigrationPanel", () => {
     const user = userEvent.setup()
     const onClose = vi.fn()
     const rows = [task("one"), task("two")]
-    const realCopy = planTaskService.copyTasksToPeriod
-    const copySpy = vi.spyOn(planTaskService, "copyTasksToPeriod")
+    const realCopy = planTaskService.copyTasksToPeriodAndDismiss
+    const copySpy = vi.spyOn(planTaskService, "copyTasksToPeriodAndDismiss")
       .mockRejectedValueOnce(new Error("磁盘写入失败"))
       .mockImplementationOnce(realCopy)
     await db.planTasks.bulkAdd(rows)
@@ -115,8 +115,8 @@ describe("PeriodMigrationPanel", () => {
     const user = userEvent.setup()
     const onClose = vi.fn()
     const rows = [task("one"), task("two")]
-    const realCopy = planTaskService.copyTasksToPeriod
-    const copySpy = vi.spyOn(planTaskService, "copyTasksToPeriod")
+    const realCopy = planTaskService.copyTasksToPeriodAndDismiss
+    const copySpy = vi.spyOn(planTaskService, "copyTasksToPeriodAndDismiss")
       .mockRejectedValueOnce(new Error("磁盘写入失败"))
       .mockImplementationOnce(realCopy)
     await db.planTasks.bulkAdd(rows)
@@ -145,8 +145,8 @@ describe("PeriodMigrationPanel", () => {
 
       await waitFor(async () => expect((await db.planTasks.toArray()).filter((row) => row.scheduledDate === "2027-01-18")).toHaveLength(2))
       expect((await db.planTasks.toArray()).filter((row) => row.scheduledDate === "2027-03-05")).toHaveLength(0)
-      expect(copySpy).toHaveBeenNthCalledWith(1, db, ["one", "two"], target, "2027-01-18", expect.any(Number))
-      expect(copySpy).toHaveBeenNthCalledWith(2, db, ["one", "two"], target, "2027-01-18", expect.any(Number))
+      expect(copySpy).toHaveBeenNthCalledWith(1, db, ["one", "two"], target, source.id, "2027-01-18", expect.any(Number))
+      expect(copySpy).toHaveBeenNthCalledWith(2, db, ["one", "two"], target, source.id, "2027-01-18", expect.any(Number))
     } finally {
       copySpy.mockRestore()
       rendered.unmount()

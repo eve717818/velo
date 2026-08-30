@@ -273,7 +273,7 @@ function TaskBarSession({ db, onMoved, onOpen, task }: TaskBarProps) {
   function handleKeyDown(event: KeyboardEvent<HTMLButtonElement>) {
     if (event.key !== "Enter" && event.key !== " ") return
     event.preventDefault()
-    void changeCompletion(true)
+    void changeCompletion(!isCompleted)
   }
 
   const isCompleted = completionOverride ?? task.isCompleted === 1

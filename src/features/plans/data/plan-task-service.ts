@@ -65,6 +65,9 @@ function assertValidEstimate(value: number | undefined) {
   if (!Number.isFinite(value) || value <= 0) {
     throw new Error("预计时长必须大于 0")
   }
+  if (!Number.isInteger(value)) {
+    throw new Error("预计时长必须是正整数")
+  }
 }
 
 function assertValidTaskInput(input: CreatePlanTaskInput) {
@@ -238,38 +241,65 @@ export async function copyTasksToPeriod(
   today: string,
   now: number,
 ): Promise<string[]> {
+  if (targetPeriod.endDate < today) {
+    throw new Error("不能复制到已结束的学习周期")
+  }
   const scheduledDate = resolveCopyScheduledDate(targetPeriod, today)
   assertValidScheduledDate(scheduledDate)
 
-  return db.transaction("rw", db.planTasks, async () => {
-    const sourceTasks = await db.planTasks.bulkGet(sourceIds)
-    const missingIndex = sourceTasks.findIndex((task) => !task)
-    if (missingIndex >= 0) {
-      throw new Error(`Plan task not found: ${sourceIds[missingIndex]}`)
-    }
+  return db.transaction("rw", db.planTasks, async () => copyTasksToPeriodInTransaction(db, sourceIds, scheduledDate, now))
+}
 
-    let nextOrder = await getNextOrder(db, scheduledDate, undefined)
-    const copiedTasks = sourceTasks.map((task) => ({
-      id: crypto.randomUUID(),
-      title: task!.title,
-      scheduledDate,
-      startMinutes: undefined,
-      subject: task!.subject,
-      estimatedMinutes: task!.estimatedMinutes,
-      notes: task!.notes,
-      isCompleted: 0 as const,
-      completedAt: undefined,
-      order: nextOrder++,
-      createdAt: now,
-      updatedAt: now,
-    }))
+async function copyTasksToPeriodInTransaction(db: VeloDB, sourceIds: string[], scheduledDate: string, now: number): Promise<string[]> {
+  const sourceTasks = await db.planTasks.bulkGet(sourceIds)
+  const missingIndex = sourceTasks.findIndex((task) => !task)
+  if (missingIndex >= 0) {
+    throw new Error(`Plan task not found: ${sourceIds[missingIndex]}`)
+  }
 
-    const newIds: string[] = []
-    for (const copiedTask of copiedTasks) {
-      await db.planTasks.add(copiedTask)
-      newIds.push(copiedTask.id)
-    }
+  let nextOrder = await getNextOrder(db, scheduledDate, undefined)
+  const copiedTasks = sourceTasks.map((task) => ({
+    id: crypto.randomUUID(),
+    title: task!.title,
+    scheduledDate,
+    startMinutes: undefined,
+    subject: task!.subject,
+    estimatedMinutes: task!.estimatedMinutes,
+    notes: task!.notes,
+    isCompleted: 0 as const,
+    completedAt: undefined,
+    order: nextOrder++,
+    createdAt: now,
+    updatedAt: now,
+  }))
 
-    return newIds
+  const newIds: string[] = []
+  for (const copiedTask of copiedTasks) {
+    await db.planTasks.add(copiedTask)
+    newIds.push(copiedTask.id)
+  }
+
+  return newIds
+}
+
+export async function copyTasksToPeriodAndDismiss(
+  db: VeloDB,
+  sourceIds: string[],
+  targetPeriod: LearningPeriod,
+  sourcePeriodId: string,
+  today: string,
+  now: number,
+): Promise<string[]> {
+  if (targetPeriod.endDate < today) {
+    throw new Error("不能复制到已结束的学习周期")
+  }
+  const scheduledDate = resolveCopyScheduledDate(targetPeriod, today)
+  assertValidScheduledDate(scheduledDate)
+  const dismissalKey = `periodMigrationDismissed:${sourcePeriodId}:${targetPeriod.id}`
+
+  return db.transaction("rw", db.planTasks, db.appMeta, async () => {
+    const copiedIds = await copyTasksToPeriodInTransaction(db, sourceIds, scheduledDate, now)
+    await db.appMeta.put({ key: dismissalKey, value: "1", updatedAt: now })
+    return copiedIds
   })
 }

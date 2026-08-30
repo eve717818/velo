@@ -25,7 +25,7 @@ interface TaskFormValues {
   notes: string
 }
 
-type FieldErrors = Partial<Record<"title" | "scheduledDate", string>>
+type FieldErrors = Partial<Record<"title" | "scheduledDate" | "estimatedMinutes", string>>
 
 function toTimeValue(startMinutes: number | undefined) {
   if (startMinutes === undefined) return ""
@@ -79,7 +79,7 @@ function TaskEditorForm({ db, initialDate, onClose, requestSession, task }: Task
 
   function updateValue<K extends keyof TaskFormValues>(key: K, value: TaskFormValues[K]) {
     setValues((current) => ({ ...current, [key]: value }))
-    if (key === "title" || key === "scheduledDate") {
+    if (key === "title" || key === "scheduledDate" || key === "estimatedMinutes") {
       setErrors((current) => ({ ...current, [key]: undefined }))
     }
   }
@@ -96,6 +96,11 @@ function TaskEditorForm({ db, initialDate, onClose, requestSession, task }: Task
     const nextErrors: FieldErrors = {}
     if (!input.title.trim()) nextErrors.title = "请填写任务标题"
     if (!input.scheduledDate) nextErrors.scheduledDate = "请选择日期"
+    if (input.estimatedMinutes !== undefined && (!Number.isFinite(input.estimatedMinutes) || input.estimatedMinutes <= 0)) {
+      nextErrors.estimatedMinutes = "预计时长必须大于 0"
+    } else if (input.estimatedMinutes !== undefined && !Number.isInteger(input.estimatedMinutes)) {
+      nextErrors.estimatedMinutes = "预计时长必须是正整数"
+    }
     setErrors(nextErrors)
     if (Object.keys(nextErrors).length > 0) return
 
@@ -172,7 +177,8 @@ function TaskEditorForm({ db, initialDate, onClose, requestSession, task }: Task
         </label>
         <label className={styles.field} htmlFor="task-estimate">
           <span>预计时长（分钟）</span>
-          <input id="task-estimate" min="1" onChange={(event) => updateValue("estimatedMinutes", event.target.value)} type="number" value={values.estimatedMinutes} />
+          <input aria-describedby={errors.estimatedMinutes ? "task-estimate-error" : undefined} aria-invalid={Boolean(errors.estimatedMinutes)} id="task-estimate" min="1" onChange={(event) => updateValue("estimatedMinutes", event.target.value)} step="1" type="number" value={values.estimatedMinutes} />
+          {errors.estimatedMinutes ? <small id="task-estimate-error" role="alert">{errors.estimatedMinutes}</small> : null}
         </label>
         <label className={styles.field} htmlFor="task-notes">
           <span>备注</span>

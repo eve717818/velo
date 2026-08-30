@@ -60,6 +60,21 @@ describe("TaskBar", () => {
     }
   })
 
+  it("keeps a long title on one ellipsized line", async () => {
+    const db = createDatabase()
+    const rendered = render(<TaskBar db={db} task={task({ title: "这是一个需要保持单行省略显示的超长学习任务标题" })} />)
+
+    try {
+      const bar = screen.getByRole("button", { name: "打开任务操作：这是一个需要保持单行省略显示的超长学习任务标题" })
+      const title = bar.querySelector("span[class*='taskTitle']")
+      expect(title).toBeInTheDocument()
+      expect(title).toHaveTextContent("这是一个需要保持单行省略显示的超长学习任务标题")
+    } finally {
+      rendered.unmount()
+      await db.delete()
+    }
+  })
+
   it("completes with Space and lets the user undo within five seconds", async () => {
     const db = createDatabase()
     const currentTask = task()
@@ -103,6 +118,25 @@ describe("TaskBar", () => {
 
       await waitFor(async () => expect(await db.planTasks.get(currentTask.id)).toMatchObject({ isCompleted: 0 }))
       expect(screen.queryByRole("status")).not.toBeInTheDocument()
+    } finally {
+      rendered.unmount()
+      await db.delete()
+    }
+  })
+
+  it("restores a completed task from the keyboard", async () => {
+    const db = createDatabase()
+    const currentTask = task({ isCompleted: 1, completedAt: 2, updatedAt: 2 })
+    const user = userEvent.setup()
+    await db.planTasks.add(currentTask)
+    const rendered = render(<TaskBar db={db} task={currentTask} />)
+
+    try {
+      const bar = screen.getByRole("button", { name: "已完成：复习导数" })
+      bar.focus()
+      await user.keyboard("{Enter}")
+
+      await waitFor(async () => expect(await db.planTasks.get(currentTask.id)).toMatchObject({ isCompleted: 0, completedAt: undefined }))
     } finally {
       rendered.unmount()
       await db.delete()

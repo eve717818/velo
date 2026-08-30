@@ -28,7 +28,7 @@ import { deleteLearningPeriod } from "@/features/plans/data/learning-period-serv
 import type { LearningPeriod } from "@/db/types"
 import styles from "@/features/plans/PlansPage.module.css"
 import { type PlanView, usePlanWorkspace } from "@/features/plans/usePlanWorkspace"
-import { movePlanTask } from "@/features/plans/data/plan-task-service"
+import { movePlanTask, setTaskCompletion } from "@/features/plans/data/plan-task-service"
 import type { TaskPosition } from "@/features/plans/components/TaskBar"
 import { formatLocalDate } from "@/lib/local-date"
 
@@ -134,6 +134,14 @@ export function PlansPage({ db = veloDb, now }: PlansPageProps) {
   const [editingPeriod, setEditingPeriod] = useState<LearningPeriod | undefined>()
   const [periodToDelete, setPeriodToDelete] = useState<LearningPeriod | null>(null)
   const [isMigrationOpen, setIsMigrationOpen] = useState(false)
+  const [migrationReopenError, setMigrationReopenError] = useState("")
+  const [migrationReopenSaving, setMigrationReopenSaving] = useState(false)
+  const migrationReopenIntent = useRef<{ source: LearningPeriod; target: LearningPeriod } | null>(null)
+  const migrationReopenSession = useRequestSession()
+  const [completionError, setCompletionError] = useState("")
+  const [completionSaving, setCompletionSaving] = useState(false)
+  const completionIntent = useRef<{ taskId: string; nextValue: boolean } | null>(null)
+  const completionSession = useRequestSession()
   const [moveUndo, setMoveUndo] = useState<{ taskId: string; previous: TaskPosition; expected: TaskPosition } | null>(null)
   const [moveUndoError, setMoveUndoError] = useState("")
   const [moveUndoSaving, setMoveUndoSaving] = useState(false)
@@ -141,7 +149,7 @@ export function PlansPage({ db = veloDb, now }: PlansPageProps) {
   const moveUndoGeneration = useRef(0)
   const isCreating = searchParams.get("new") === "1"
   const activePeriod = snapshot?.selectedPeriod ?? snapshot?.periods[0] ?? null
-  const migrationSource = activePeriod
+  const migrationSource = activePeriod && activePeriod.endDate >= fallbackDate
     ? snapshot?.periods.filter((period) => period.endDate < activePeriod.startDate).sort((left, right) => right.endDate.localeCompare(left.endDate))[0] ?? null
     : null
   const migrationTasks = migrationSource && snapshot
@@ -223,6 +231,11 @@ export function PlansPage({ db = veloDb, now }: PlansPageProps) {
   }
 
   function selectPeriod(period: LearningPeriod) {
+    if (period.id !== periodId) {
+      migrationReopenSession.invalidate()
+      setMigrationReopenError("")
+      setMigrationReopenSaving(false)
+    }
     const nextParams = new URLSearchParams(searchParams)
     nextParams.set("view", "period")
     nextParams.set("date", selectedDate)
@@ -235,12 +248,29 @@ export function PlansPage({ db = veloDb, now }: PlansPageProps) {
     setIsPeriodDialogOpen(true)
   }
 
-  async function reopenMigrationFor(period: LearningPeriod) {
-    const source = snapshot?.periods.filter((candidate) => candidate.endDate < period.startDate).sort((left, right) => right.endDate.localeCompare(left.endDate))[0]
+  async function reopenMigrationFor(period: LearningPeriod, retryIntent?: { source: LearningPeriod; target: LearningPeriod }) {
+    const target = retryIntent?.target ?? { ...period }
+    if (target.endDate < fallbackDate) return
+    const source = retryIntent?.source ?? snapshot?.periods.filter((candidate) => candidate.endDate < target.startDate).sort((left, right) => right.endDate.localeCompare(left.endDate))[0]
     if (!source) return
-    await reopenPeriodMigration(db, source.id, period.id)
-    selectPeriod(period)
-    setIsMigrationOpen(true)
+    const intent = { source: { ...source }, target: { ...target } }
+    migrationReopenIntent.current = intent
+    const requestToken = migrationReopenSession.beginRequest()
+    setMigrationReopenSaving(true)
+    setMigrationReopenError("")
+    try {
+      await reopenPeriodMigration(db, intent.source.id, intent.target.id)
+      if (!migrationReopenSession.isCurrent(requestToken)) return
+      setMigrationReopenError("")
+      setMigrationReopenSaving(false)
+      selectPeriod(intent.target)
+      setIsMigrationOpen(true)
+    } catch (error) {
+      if (!migrationReopenSession.isCurrent(requestToken)) return
+      setMigrationReopenError(error instanceof Error ? error.message : "重新打开周期衔接失败")
+    } finally {
+      if (migrationReopenSession.isCurrent(requestToken)) setMigrationReopenSaving(false)
+    }
   }
 
   function handlePeriodDeleted(deletedPeriodId: string) {
@@ -250,10 +280,40 @@ export function PlansPage({ db = veloDb, now }: PlansPageProps) {
   }
 
   function openTask(openedTask: PlanTask, trigger: HTMLButtonElement) {
+    completionSession.invalidate()
+    setCompletionSaving(false)
+    setCompletionError("")
     setActionNotice("")
     setTaskTrigger(trigger)
     setActionTask(openedTask)
     setIsActionDialogOpen(true)
+  }
+
+  function closeTaskActions() {
+    completionSession.invalidate()
+    setCompletionSaving(false)
+    setCompletionError("")
+    setIsActionDialogOpen(false)
+  }
+
+  async function toggleTaskCompletion(nextValue: boolean, retryTaskId?: string) {
+    const taskId = retryTaskId ?? actionTask?.id
+    if (!taskId || completionSaving) return
+    const intent = { taskId, nextValue }
+    completionIntent.current = intent
+    const requestToken = completionSession.beginRequest()
+    setCompletionSaving(true)
+    setCompletionError("")
+    try {
+      await setTaskCompletion(db, intent.taskId, intent.nextValue, Date.now())
+      if (!completionSession.isCurrent(requestToken)) return
+      closeTaskActions()
+    } catch (error) {
+      if (!completionSession.isCurrent(requestToken)) return
+      setCompletionError(error instanceof Error ? error.message : "更新任务状态失败")
+    } finally {
+      if (completionSession.isCurrent(requestToken)) setCompletionSaving(false)
+    }
   }
 
   function closeEditor() {
@@ -330,11 +390,15 @@ export function PlansPage({ db = veloDb, now }: PlansPageProps) {
       />
       {actionTask ? (
         <TaskActionsDialog
-          onClose={() => setIsActionDialogOpen(false)}
+          completionError={completionError}
+          completionSaving={completionSaving}
+          onClose={closeTaskActions}
           onDelete={() => { setDeleteTask(actionTask); setIsActionDialogOpen(false); setIsDeleteDialogOpen(true) }}
           onEdit={() => { setEditorTask(actionTask); setIsActionDialogOpen(false) }}
           onMove={() => { setEditorTask(actionTask); setIsActionDialogOpen(false) }}
+          onRetryCompletion={() => { if (completionIntent.current) void toggleTaskCompletion(completionIntent.current.nextValue, completionIntent.current.taskId) }}
           onStartFocus={(href) => { setIsActionDialogOpen(false); void navigate(href) }}
+          onToggleCompletion={(nextValue) => { void toggleTaskCompletion(nextValue) }}
           open={isActionDialogOpen}
           task={actionTask}
         />
@@ -348,7 +412,8 @@ export function PlansPage({ db = veloDb, now }: PlansPageProps) {
         periods={snapshot?.periods ?? []}
       />
       {periodToDelete ? <DeletePeriodDialog db={db} key={`${periodToDelete.id}-${periodToDelete.updatedAt}`} onClose={() => setPeriodToDelete(null)} onDeleted={handlePeriodDeleted} period={periodToDelete} taskCount={countTasksInPeriod(snapshot?.allTasks ?? [], periodToDelete)} /> : null}
-      {migrationSource && activePeriod && migrationTasks.length > 0 && !migrationDismissal ? <div className={styles.migrationBanner}><span>上一学习周期还有 {migrationTasks.length} 个任务未完成</span><button onClick={() => setIsMigrationOpen(true)} type="button">查看并复制</button></div> : null}
+      {migrationReopenError ? <PlanErrorState error={migrationReopenError} onRetry={() => { if (migrationReopenIntent.current) void reopenMigrationFor(migrationReopenIntent.current.target, migrationReopenIntent.current) }} /> : null}
+      {migrationSource && activePeriod && migrationTasks.length > 0 && !migrationDismissal ? <div className={styles.migrationBanner}><span>上一学习周期还有 {migrationTasks.length} 个任务未完成</span><button disabled={migrationReopenSaving} onClick={() => setIsMigrationOpen(true)} type="button">查看并复制</button></div> : null}
       {migrationSource && activePeriod ? <PeriodMigrationPanel db={db} onClose={() => setIsMigrationOpen(false)} open={isMigrationOpen} sourcePeriod={migrationSource} targetPeriod={activePeriod} tasks={migrationTasks} today={fallbackDate} /> : null}
       {legacyTasks ? <LegacyPlanMigrationPanel db={db} legacyTasks={legacyTasks} open={legacyTasks.length > 0} /> : null}
     </main>

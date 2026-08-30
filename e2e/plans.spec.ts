@@ -475,6 +475,38 @@ test("plans stay responsive across milestone widths with semantic colors and unc
   }
 })
 
+test("long task titles stay on one ellipsized line without clipping", async ({ page }) => {
+  await page.setViewportSize({ width: 1024, height: 900 })
+  await waitForPlanSeed(page)
+  const title = "这是一个需要保持单行省略显示的超长学习任务标题，不能撑破任务条"
+  await createTask(page, { title, scheduledDate: fixedToday })
+
+  const taskBar = page.getByRole("button", { name: `打开任务操作：${title}` })
+  await expect(taskBar).toHaveCount(1)
+  const barBox = await readBox(taskBar)
+  expect(barBox.height).toBeLessThanOrEqual(56)
+  const textState = await taskBar.evaluate((element) => {
+    const titleElement = element.querySelector<HTMLElement>("span[class*='taskTitle']")
+    const trailing = element.querySelector<HTMLElement>("span[class*='trailing']")
+    if (!titleElement || !trailing) throw new Error("Task title or trailing metadata missing")
+    const style = getComputedStyle(titleElement)
+    return {
+      display: style.display,
+      overflow: style.overflow,
+      textOverflow: style.textOverflow,
+      whiteSpace: style.whiteSpace,
+      clipped: titleElement.scrollWidth > titleElement.clientWidth + 1,
+      overlaps: titleElement.getBoundingClientRect().right > trailing.getBoundingClientRect().left,
+    }
+  })
+  expect(textState.display).toBe("block")
+  expect(textState.overflow).toBe("hidden")
+  expect(textState.textOverflow).toBe("ellipsis")
+  expect(textState.whiteSpace).toBe("nowrap")
+  expect(textState.clipped).toBe(false)
+  expect(textState.overlaps).toBe(false)
+})
+
 test("plans remain accessible through day, month, editor, delete, migration, keyboard, focus, reduced motion, and backdrop flows", async ({ page }) => {
   await page.setViewportSize({ width: 834, height: 1112 })
   await waitForPlanSeed(page)

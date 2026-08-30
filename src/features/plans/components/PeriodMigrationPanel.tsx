@@ -3,7 +3,7 @@ import { useRef, useState } from "react"
 import type { LearningPeriod, PlanTask } from "@/db/types"
 import type { VeloDB } from "@/db/velo-db"
 
-import { copyTasksToPeriod } from "../data/plan-task-service"
+import { copyTasksToPeriodAndDismiss } from "../data/plan-task-service"
 import { dismissPeriodMigration } from "../data/period-migration-service"
 import styles from "../PlansPage.module.css"
 import { PlanErrorState } from "./PlanErrorState"
@@ -60,7 +60,7 @@ function PeriodMigrationPanelSession({ db, onClose, sourcePeriod, targetPeriod, 
     setSaving(true)
     setError(null)
     try {
-      await copyTasksToPeriod(db, intent.sourceIds, intent.targetPeriod, intent.today, Date.now())
+      await copyTasksToPeriodAndDismiss(db, intent.sourceIds, intent.targetPeriod, sourcePeriod.id, intent.today, Date.now())
       if (!requestSession.isCurrent(requestToken)) return
       requestClose()
     } catch (error) {

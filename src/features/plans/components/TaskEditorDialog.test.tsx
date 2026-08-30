@@ -126,6 +126,27 @@ describe("TaskEditorDialog", () => {
     }
   })
 
+  it("shows a field error and does not submit a fractional estimate", async () => {
+    const db = createDatabase()
+    const user = userEvent.setup()
+    const rendered = render(<EditorHarness db={db} />)
+
+    try {
+      await user.click(screen.getByRole("button", { name: "新建任务" }))
+      expect(screen.getByLabelText("预计时长（分钟）")).toHaveAttribute("step", "1")
+      await user.type(screen.getByLabelText("任务标题"), "小数时长")
+      await user.type(screen.getByLabelText("预计时长（分钟）"), "12.5")
+      await user.click(screen.getByRole("button", { name: "保存任务" }))
+
+      expect(await screen.findByText("预计时长必须是正整数")).toBeInTheDocument()
+      expect(screen.getByRole("spinbutton", { name: /预计时长（分钟）/ })).toHaveAttribute("aria-invalid", "true")
+      expect(await db.planTasks.toArray()).toHaveLength(0)
+    } finally {
+      rendered.unmount()
+      await db.delete()
+    }
+  })
+
   it("keeps the dialog open and retries the last entered values after a failed save", async () => {
     const db = createDatabase()
     const user = userEvent.setup()
@@ -318,6 +339,7 @@ describe("task actions and deletion", () => {
         onEdit={vi.fn()}
         onMove={vi.fn()}
         onStartFocus={vi.fn()}
+        onToggleCompletion={vi.fn()}
         open
         task={task}
       />,
@@ -327,6 +349,39 @@ describe("task actions and deletion", () => {
     expect(screen.getByRole("button", { name: "开始专注" })).toBeInTheDocument()
     expect(screen.getByRole("button", { name: "移动到日期/时间" })).toBeInTheDocument()
     expect(screen.getByRole("button", { name: "删除" })).toBeInTheDocument()
+  })
+
+  it("offers completion and restore actions based on task state", () => {
+    const onToggleCompletion = vi.fn()
+    const { rerender } = render(
+      <TaskActionsDialog
+        onClose={vi.fn()}
+        onDelete={vi.fn()}
+        onEdit={vi.fn()}
+        onMove={vi.fn()}
+        onStartFocus={vi.fn()}
+        onToggleCompletion={onToggleCompletion}
+        open
+        task={existingTask()}
+      />,
+    )
+
+    expect(screen.getByRole("button", { name: "标记为完成" })).toBeInTheDocument()
+    expect(screen.queryByRole("button", { name: "恢复为未完成" })).not.toBeInTheDocument()
+    rerender(
+      <TaskActionsDialog
+        onClose={vi.fn()}
+        onDelete={vi.fn()}
+        onEdit={vi.fn()}
+        onMove={vi.fn()}
+        onStartFocus={vi.fn()}
+        onToggleCompletion={onToggleCompletion}
+        open
+        task={existingTask({ isCompleted: 1, completedAt: 2 })}
+      />,
+    )
+    expect(screen.getByRole("button", { name: "恢复为未完成" })).toBeInTheDocument()
+    expect(screen.queryByRole("button", { name: "标记为完成" })).not.toBeInTheDocument()
   })
 
   it("cancels or confirms deletion in a separate dialog that names the task", async () => {

@@ -6,6 +6,7 @@ import type { LearningPeriod, PlanTask } from "@/db/types"
 import { VeloDB } from "@/db/velo-db"
 import * as learningPeriodService from "@/features/plans/data/learning-period-service"
 import * as planTaskService from "@/features/plans/data/plan-task-service"
+import * as periodMigrationService from "@/features/plans/data/period-migration-service"
 import { PlansPage } from "./PlansPage"
 
 function LocationProbe() {
@@ -172,7 +173,73 @@ describe("PlansPage", () => {
       expect(screen.getByRole("heading", { name: "编辑学习任务" })).toBeInTheDocument()
       expect(screen.queryByRole("button", { name: "编辑周期" })).not.toBeInTheDocument()
       expect(screen.queryByRole("button", { name: "删除周期" })).not.toBeInTheDocument()
+      expect(screen.queryByText(/上一学习周期还有/)).not.toBeInTheDocument()
+      expect(screen.queryByRole("button", { name: "处理上周期任务" })).not.toBeInTheDocument()
     } finally {
+      rendered.unmount()
+      await db.delete()
+    }
+  })
+
+  it("shows a reopen error and retries the same period migration intent", async () => {
+    const db = createDatabase()
+    const user = userEvent.setup()
+    const source = period({ id: "source", name: "秋季学期", startDate: "2026-09-01", endDate: "2027-01-16" })
+    const target = period({ id: "spring", name: "寒假", startDate: "2027-01-17", endDate: "2027-02-21" })
+    const realReopen = periodMigrationService.reopenPeriodMigration
+    const reopenSpy = vi.spyOn(periodMigrationService, "reopenPeriodMigration")
+      .mockRejectedValueOnce(new Error("磁盘写入失败"))
+      .mockImplementationOnce(realReopen)
+    await db.learningPeriods.bulkAdd([source, target])
+    await db.planTasks.add({ id: "migration-task", title: "迁移任务", scheduledDate: "2027-01-16", isCompleted: 0, order: 1, createdAt: 1, updatedAt: 1 })
+    await db.appMeta.put({ key: "periodMigrationDismissed:source:spring", value: "1", updatedAt: 1 })
+    const rendered = renderPlansPage("/plans?view=period&period=spring&date=2027-01-18", db, new Date(2027, 0, 18, 9, 0))
+
+    try {
+      await user.click(await screen.findByRole("button", { name: "处理上周期任务" }))
+      expect(await screen.findByRole("alert")).toHaveTextContent("保存失败，请重试")
+      await user.click(screen.getByRole("button", { name: "重试" }))
+
+      await waitFor(async () => expect(await db.appMeta.get("periodMigrationDismissed:source:spring")).toBeUndefined())
+      expect(await screen.findByRole("complementary", { name: "上周期任务迁移" })).toBeInTheDocument()
+      expect(reopenSpy).toHaveBeenNthCalledWith(1, db, "source", "spring")
+      expect(reopenSpy).toHaveBeenNthCalledWith(2, db, "source", "spring")
+    } finally {
+      reopenSpy.mockRestore()
+      rendered.unmount()
+      await db.delete()
+    }
+  })
+
+  it("does not let a stale reopen request open or error a newer period session", async () => {
+    const db = createDatabase()
+    const user = userEvent.setup()
+    const pendingReopen = deferred<void>()
+    const reopenSpy = vi.spyOn(periodMigrationService, "reopenPeriodMigration").mockImplementationOnce(() => pendingReopen.promise)
+    const source = period({ id: "source", name: "秋季学期", startDate: "2026-09-01", endDate: "2027-01-16" })
+    const firstTarget = period({ id: "first-target", name: "寒假", startDate: "2027-01-17", endDate: "2027-02-21" })
+    const secondTarget = period({ id: "second-target", name: "春季学期", startDate: "2027-02-22", endDate: "2027-06-30" })
+    await db.learningPeriods.bulkAdd([source, firstTarget, secondTarget])
+    await db.planTasks.add({ id: "migration-task", title: "迁移任务", scheduledDate: "2027-01-16", isCompleted: 0, order: 1, createdAt: 1, updatedAt: 1 })
+    await db.appMeta.bulkPut([
+      { key: "periodMigrationDismissed:source:first-target", value: "1", updatedAt: 1 },
+      { key: "periodMigrationDismissed:first-target:second-target", value: "1", updatedAt: 1 },
+    ])
+    const rendered = renderPlansPage("/plans?view=period&period=first-target&date=2027-01-18", db, new Date(2027, 0, 18, 9, 0))
+
+    try {
+      await user.click(await screen.findByRole("button", { name: "处理上周期任务" }))
+      await user.click(screen.getByRole("button", { name: /春季学期.*2027-02-22/ }))
+      await act(async () => {
+        pendingReopen.resolve()
+        await pendingReopen.promise
+      })
+
+      expect(screen.getByRole("heading", { name: "春季学期", level: 3 })).toBeInTheDocument()
+      expect(screen.queryByRole("alert")).not.toBeInTheDocument()
+      expect(screen.queryByRole("complementary", { name: "上周期任务迁移" })).not.toBeInTheDocument()
+    } finally {
+      reopenSpy.mockRestore()
       rendered.unmount()
       await db.delete()
     }
@@ -188,6 +255,28 @@ describe("PlansPage", () => {
       await user.click(await screen.findByRole("button", { name: "打开任务操作：复习导数" }))
       await user.click(screen.getByRole("button", { name: "开始专注" }))
       expect(screen.getByLabelText("当前位置")).toHaveTextContent("/focus?task=task+%26+focus&minutes=45")
+    } finally {
+      rendered.unmount()
+      await db.delete()
+    }
+  })
+
+  it("completes then restores a task through the action menu and live query", async () => {
+    const db = createDatabase()
+    const user = userEvent.setup()
+    const currentTask: PlanTask = { id: "menu-completion", title: "复习导数", scheduledDate: "2026-08-29", isCompleted: 0, order: 1, createdAt: 1, updatedAt: 1 }
+    await db.planTasks.add(currentTask)
+    const rendered = renderPlansPage("/plans?view=day&date=2026-08-29", db)
+
+    try {
+      await user.click(await screen.findByRole("button", { name: "打开任务操作：复习导数" }))
+      await user.click(screen.getByRole("button", { name: "标记为完成" }))
+      await waitFor(async () => expect(await db.planTasks.get(currentTask.id)).toMatchObject({ isCompleted: 1 }))
+
+      await user.click(await screen.findByRole("button", { name: "已完成：复习导数" }))
+      await user.click(screen.getByRole("button", { name: "恢复为未完成" }))
+      await waitFor(async () => expect(await db.planTasks.get(currentTask.id)).toMatchObject({ isCompleted: 0, completedAt: undefined }))
+      expect(await screen.findByRole("button", { name: "打开任务操作：复习导数" })).toBeInTheDocument()
     } finally {
       rendered.unmount()
       await db.delete()

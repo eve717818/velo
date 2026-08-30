@@ -5,6 +5,7 @@ import { VeloDB } from "@/db/velo-db"
 
 import {
   copyTasksToPeriod,
+  copyTasksToPeriodAndDismiss,
   createPlanTask,
   deletePlanTask,
   movePlanTask,
@@ -188,6 +189,19 @@ describe("plan task service", () => {
           12,
         ),
       ).rejects.toThrow("预计时长必须大于 0")
+
+      await expect(
+        createPlanTask(
+          db,
+          {
+            title: "小数时长",
+            scheduledDate: "2026-08-28",
+            estimatedMinutes: 12.5,
+          },
+          12,
+        ),
+      ).rejects.toThrow("预计时长必须是正整数")
+      expect((await db.planTasks.toArray()).some((task) => task.title === "小数时长")).toBe(false)
 
       const existing = await createPlanTask(
         db,
@@ -475,17 +489,6 @@ describe("plan task service", () => {
         updatedAt: 101,
       })
 
-      const afterEndIds = await copyTasksToPeriod(db, ["source-2"], target, "2027-02-25", 102)
-      expect(await db.planTasks.get(afterEndIds[0])).toMatchObject({
-        title: "数学整理",
-        scheduledDate: "2027-01-17",
-        startMinutes: undefined,
-        isCompleted: 0,
-        completedAt: undefined,
-        createdAt: 102,
-        updatedAt: 102,
-      })
-
       expect(await db.planTasks.get("source-1")).toMatchObject({
         scheduledDate: "2027-01-10",
         startMinutes: 480,
@@ -496,6 +499,33 @@ describe("plan task service", () => {
         scheduledDate: "2027-01-11",
         isCompleted: 0,
       })
+    })
+  })
+
+  it("rejects copying tasks into a historical target period", async () => {
+    await withDatabase(async (db) => {
+      const historicalTarget: LearningPeriod = { ...period(), id: "historical-target", endDate: "2027-01-16" }
+      await db.planTasks.add(task({ id: "historical-source", scheduledDate: "2027-01-10" }))
+
+      await expect(copyTasksToPeriod(db, ["historical-source"], historicalTarget, "2027-02-01", 300)).rejects.toThrow("不能复制到已结束的学习周期")
+      expect(await db.planTasks.count()).toBe(1)
+    })
+  })
+
+  it("commits copied tasks and migration dismissal as one transaction", async () => {
+    await withDatabase(async (db) => {
+      await db.planTasks.add(task({ id: "atomic-source", scheduledDate: "2027-01-10" }))
+      const target = period()
+
+      await copyTasksToPeriodAndDismiss(db, ["atomic-source"], target, "source", "2027-01-18", 301)
+      expect(await db.appMeta.get("periodMigrationDismissed:source:winter-break")).toMatchObject({ value: "1" })
+      expect(await db.planTasks.count()).toBe(2)
+
+      await db.appMeta.delete("periodMigrationDismissed:source:winter-break")
+      db.appMeta.hook("creating", () => { throw new Error("forced dismissal error") })
+      await expect(copyTasksToPeriodAndDismiss(db, ["atomic-source"], target, "source", "2027-01-18", 302)).rejects.toThrow("forced dismissal error")
+      expect(await db.appMeta.get("periodMigrationDismissed:source:winter-break")).toBeUndefined()
+      expect(await db.planTasks.count()).toBe(2)
     })
   })
 
