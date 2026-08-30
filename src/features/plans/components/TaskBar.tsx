@@ -188,9 +188,11 @@ function TaskBarSession({ db, onMoved, onOpen, task }: TaskBarProps) {
     setWriteError(null)
     try {
       await movePlanTask(db, task.id, target, Date.now())
-      if (!mounted.current || !requestSession.isCurrent(requestToken)) return
-      if (onMoved) onMoved(task, previous)
-      else showUndoWindow("已移动到目标位置", () => void restoreTaskPosition(previous))
+      if (onMoved && (requestSession.isCurrent(requestToken) || !mounted.current)) {
+        onMoved(task, previous)
+      } else if (!onMoved && mounted.current && requestSession.isCurrent(requestToken)) {
+        showUndoWindow("已移动到目标位置", () => void restoreTaskPosition(previous))
+      }
     } catch (error) {
       if (mounted.current && requestSession.isCurrent(requestToken)) {
         setWriteError({

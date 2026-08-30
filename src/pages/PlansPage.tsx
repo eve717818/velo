@@ -135,6 +135,8 @@ export function PlansPage({ db = veloDb, now }: PlansPageProps) {
   const [periodToDelete, setPeriodToDelete] = useState<LearningPeriod | null>(null)
   const [isMigrationOpen, setIsMigrationOpen] = useState(false)
   const [moveUndo, setMoveUndo] = useState<{ taskId: string; previous: TaskPosition } | null>(null)
+  const [moveUndoError, setMoveUndoError] = useState("")
+  const [moveUndoSaving, setMoveUndoSaving] = useState(false)
   const moveUndoTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const isCreating = searchParams.get("new") === "1"
   const activePeriod = snapshot?.selectedPeriod ?? snapshot?.periods[0] ?? null
@@ -155,19 +157,30 @@ export function PlansPage({ db = veloDb, now }: PlansPageProps) {
   function handleTaskMoved(task: PlanTask, previous: TaskPosition) {
     if (moveUndoTimer.current) clearTimeout(moveUndoTimer.current)
     setMoveUndo({ taskId: task.id, previous })
+    setMoveUndoError("")
+    setMoveUndoSaving(false)
     moveUndoTimer.current = setTimeout(() => {
       moveUndoTimer.current = null
       setMoveUndo(null)
+      setMoveUndoError("")
     }, 5_000)
   }
 
   async function undoTaskMove() {
-    if (!moveUndo) return
+    if (!moveUndo || moveUndoSaving) return
     const pendingUndo = moveUndo
     if (moveUndoTimer.current) clearTimeout(moveUndoTimer.current)
     moveUndoTimer.current = null
-    setMoveUndo(null)
-    await movePlanTask(db, pendingUndo.taskId, pendingUndo.previous, Date.now())
+    setMoveUndoSaving(true)
+    setMoveUndoError("")
+    try {
+      await movePlanTask(db, pendingUndo.taskId, pendingUndo.previous, Date.now())
+      setMoveUndo(null)
+    } catch (error) {
+      setMoveUndoError(error instanceof Error ? error.message : "恢复任务位置失败")
+    } finally {
+      setMoveUndoSaving(false)
+    }
   }
 
   useEffect(() => {
@@ -291,6 +304,7 @@ export function PlansPage({ db = veloDb, now }: PlansPageProps) {
         </section>
       </div>
       {moveUndo ? <UndoNotice message="已移动到目标位置" onUndo={() => { void undoTaskMove() }} /> : null}
+      {moveUndoError ? <PlanErrorState error={moveUndoError} onRetry={() => { void undoTaskMove() }} /> : null}
       {actionNotice ? <p className={styles.actionNotice} role="status">{actionNotice}</p> : null}
       <TaskEditorDialog
         db={db}

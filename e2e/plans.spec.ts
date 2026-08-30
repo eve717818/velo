@@ -371,8 +371,12 @@ test("plans stay responsive across milestone widths with semantic colors and unc
       const fieldLabel = element.querySelector<HTMLElement>("label span")
       const primaryButton = element.querySelector<HTMLElement>("button[type='submit']")
       return {
+        eyebrowFontSize: element.querySelector<HTMLElement>("p[class*='eyebrow']") ? Number.parseFloat(getComputedStyle(element.querySelector<HTMLElement>("p[class*='eyebrow']")!).fontSize) : 0,
         headingFontSize: heading ? Number.parseFloat(getComputedStyle(heading).fontSize) : 0,
         fieldLabelFontSize: fieldLabel ? Number.parseFloat(getComputedStyle(fieldLabel).fontSize) : 0,
+        titleInputFontSize: element.querySelector<HTMLElement>("#task-title") ? Number.parseFloat(getComputedStyle(element.querySelector<HTMLElement>("#task-title")!).fontSize) : 0,
+        dateInputFontSize: element.querySelector<HTMLElement>("#task-date") ? Number.parseFloat(getComputedStyle(element.querySelector<HTMLElement>("#task-date")!).fontSize) : 0,
+        notesInputFontSize: element.querySelector<HTMLElement>("#task-notes") ? Number.parseFloat(getComputedStyle(element.querySelector<HTMLElement>("#task-notes")!).fontSize) : 0,
         primaryButtonFontSize: primaryButton ? Number.parseFloat(getComputedStyle(primaryButton).fontSize) : 0,
       }
     })
@@ -417,16 +421,28 @@ test("plans stay responsive across milestone widths with semantic colors and unc
       const fieldLabel = element.querySelector<HTMLElement>("label span")
       const primaryButton = element.querySelector<HTMLElement>("button[type='submit']")
       return {
+        eyebrowFontSize: element.querySelector<HTMLElement>("p[class*='eyebrow']") ? Number.parseFloat(getComputedStyle(element.querySelector<HTMLElement>("p[class*='eyebrow']")!).fontSize) : 0,
         headingFontSize: heading ? Number.parseFloat(getComputedStyle(heading).fontSize) : 0,
         fieldLabelFontSize: fieldLabel ? Number.parseFloat(getComputedStyle(fieldLabel).fontSize) : 0,
+        titleInputFontSize: element.querySelector<HTMLElement>("#task-title") ? Number.parseFloat(getComputedStyle(element.querySelector<HTMLElement>("#task-title")!).fontSize) : 0,
+        dateInputFontSize: element.querySelector<HTMLElement>("#task-date") ? Number.parseFloat(getComputedStyle(element.querySelector<HTMLElement>("#task-date")!).fontSize) : 0,
+        notesInputFontSize: element.querySelector<HTMLElement>("#task-notes") ? Number.parseFloat(getComputedStyle(element.querySelector<HTMLElement>("#task-notes")!).fontSize) : 0,
         primaryButtonFontSize: primaryButton ? Number.parseFloat(getComputedStyle(primaryButton).fontSize) : 0,
         hasHorizontalClip: element.scrollWidth > element.clientWidth + 1,
       }
     })
     expect(zoomedDialogTypography.headingFontSize).toBeGreaterThanOrEqual(baselineDialogTypography.headingFontSize * 1.95)
     expect(zoomedDialogTypography.headingFontSize).toBeLessThanOrEqual(baselineDialogTypography.headingFontSize * 2.05)
+    expect(zoomedDialogTypography.eyebrowFontSize).toBeGreaterThanOrEqual(baselineDialogTypography.eyebrowFontSize * 1.95)
+    expect(zoomedDialogTypography.eyebrowFontSize).toBeLessThanOrEqual(baselineDialogTypography.eyebrowFontSize * 2.05)
     expect(zoomedDialogTypography.fieldLabelFontSize).toBeGreaterThanOrEqual(baselineDialogTypography.fieldLabelFontSize * 1.95)
     expect(zoomedDialogTypography.fieldLabelFontSize).toBeLessThanOrEqual(baselineDialogTypography.fieldLabelFontSize * 2.05)
+    expect(zoomedDialogTypography.titleInputFontSize).toBeGreaterThanOrEqual(baselineDialogTypography.titleInputFontSize * 1.95)
+    expect(zoomedDialogTypography.titleInputFontSize).toBeLessThanOrEqual(baselineDialogTypography.titleInputFontSize * 2.05)
+    expect(zoomedDialogTypography.dateInputFontSize).toBeGreaterThanOrEqual(baselineDialogTypography.dateInputFontSize * 1.95)
+    expect(zoomedDialogTypography.dateInputFontSize).toBeLessThanOrEqual(baselineDialogTypography.dateInputFontSize * 2.05)
+    expect(zoomedDialogTypography.notesInputFontSize).toBeGreaterThanOrEqual(baselineDialogTypography.notesInputFontSize * 1.95)
+    expect(zoomedDialogTypography.notesInputFontSize).toBeLessThanOrEqual(baselineDialogTypography.notesInputFontSize * 2.05)
     expect(zoomedDialogTypography.primaryButtonFontSize).toBeGreaterThanOrEqual(baselineDialogTypography.primaryButtonFontSize * 1.95)
     expect(zoomedDialogTypography.primaryButtonFontSize).toBeLessThanOrEqual(baselineDialogTypography.primaryButtonFontSize * 2.05)
     expect(zoomedDialogTypography.hasHorizontalClip).toBe(false)

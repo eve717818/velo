@@ -2,9 +2,10 @@ import { act, fireEvent, render, screen, waitFor, within } from "@testing-librar
 import userEvent from "@testing-library/user-event"
 import { MemoryRouter, useLocation } from "react-router-dom"
 import { describe, expect, it, vi } from "vitest"
-import type { LearningPeriod } from "@/db/types"
+import type { LearningPeriod, PlanTask } from "@/db/types"
 import { VeloDB } from "@/db/velo-db"
 import * as learningPeriodService from "@/features/plans/data/learning-period-service"
+import * as planTaskService from "@/features/plans/data/plan-task-service"
 import { PlansPage } from "./PlansPage"
 
 function LocationProbe() {
@@ -239,6 +240,86 @@ describe("PlansPage", () => {
       await waitFor(async () => expect(await db.planTasks.get("cross-date-task")).toMatchObject({ scheduledDate: "2026-08-30", startMinutes: undefined, order: 1 }))
       expect(await screen.findByRole("button", { name: "打开任务操作：复习导数" })).toBeInTheDocument()
     } finally {
+      if (originalElementFromPoint) Object.defineProperty(document, "elementFromPoint", originalElementFromPoint)
+      else Reflect.deleteProperty(document, "elementFromPoint")
+      rendered.unmount()
+      vi.useRealTimers()
+      await db.delete()
+    }
+  })
+
+  it("shows the page-level move undo notice when the task view unmounts before the move finishes", async () => {
+    const db = createDatabase()
+    const user = userEvent.setup()
+    const pendingMove = deferred<PlanTask>()
+    const moveSpy = vi.spyOn(planTaskService, "movePlanTask").mockImplementationOnce(() => pendingMove.promise)
+    await db.planTasks.add({ id: "pending-move", title: "复习导数", scheduledDate: "2026-08-30", isCompleted: 0, order: 1, createdAt: 1, updatedAt: 1 })
+    const rendered = renderPlansPage("/plans?view=month&date=2026-08-30", db, new Date(2026, 7, 30, 9, 0))
+    const originalElementFromPoint = Object.getOwnPropertyDescriptor(document, "elementFromPoint")
+
+    try {
+      const taskButton = await screen.findByRole("button", { name: "打开任务操作：复习导数" })
+      const targetDay = screen.getByRole("button", { name: "2026年8月31日，0 项任务，0 项完成" })
+      Object.defineProperty(document, "elementFromPoint", { configurable: true, value: () => targetDay })
+
+      vi.useFakeTimers()
+      fireEvent.pointerDown(taskButton, { pointerId: 1, clientX: 20, clientY: 30 })
+      void act(() => vi.advanceTimersByTime(350))
+      fireEvent.pointerUp(taskButton, { pointerId: 1, clientX: 42, clientY: 30 })
+      vi.useRealTimers()
+      await waitFor(() => expect(moveSpy).toHaveBeenCalledTimes(1))
+
+      await user.click(screen.getByRole("button", { name: "日" }))
+      await act(async () => {
+        pendingMove.resolve({ id: "pending-move", title: "复习导数", scheduledDate: "2026-08-31", isCompleted: 0, order: 1, createdAt: 1, updatedAt: 2 })
+        await pendingMove.promise
+      })
+
+      expect(screen.getByText("已移动到目标位置")).toBeInTheDocument()
+    } finally {
+      moveSpy.mockRestore()
+      if (originalElementFromPoint) Object.defineProperty(document, "elementFromPoint", originalElementFromPoint)
+      else Reflect.deleteProperty(document, "elementFromPoint")
+      rendered.unmount()
+      vi.useRealTimers()
+      await db.delete()
+    }
+  })
+
+  it("keeps the move undo intent visible and retries when restoring the original position fails", async () => {
+    const db = createDatabase()
+    const user = userEvent.setup()
+    const realMove = planTaskService.movePlanTask
+    const moveSpy = vi.spyOn(planTaskService, "movePlanTask")
+      .mockImplementationOnce(realMove)
+      .mockRejectedValueOnce(new Error("磁盘写入失败"))
+      .mockImplementationOnce(realMove)
+    const originalTask: PlanTask = { id: "retry-move", title: "复习导数", scheduledDate: "2026-08-30", isCompleted: 0, order: 1, createdAt: 1, updatedAt: 1 }
+    await db.planTasks.add(originalTask)
+    const rendered = renderPlansPage("/plans?view=month&date=2026-08-30", db, new Date(2026, 7, 30, 9, 0))
+    const originalElementFromPoint = Object.getOwnPropertyDescriptor(document, "elementFromPoint")
+
+    try {
+      const taskButton = await screen.findByRole("button", { name: "打开任务操作：复习导数" })
+      const targetDay = screen.getByRole("button", { name: "2026年8月31日，0 项任务，0 项完成" })
+      Object.defineProperty(document, "elementFromPoint", { configurable: true, value: () => targetDay })
+
+      vi.useFakeTimers()
+      fireEvent.pointerDown(taskButton, { pointerId: 1, clientX: 20, clientY: 30 })
+      void act(() => vi.advanceTimersByTime(350))
+      fireEvent.pointerUp(taskButton, { pointerId: 1, clientX: 42, clientY: 30 })
+      vi.useRealTimers()
+
+      await waitFor(async () => expect(await db.planTasks.get(originalTask.id)).toMatchObject({ scheduledDate: "2026-08-31" }))
+      await user.click(screen.getByRole("button", { name: "撤销" }))
+      expect(await screen.findByRole("alert")).toHaveTextContent("保存失败，请重试")
+      await user.click(screen.getByRole("button", { name: "重试" }))
+
+      await waitFor(async () => expect(await db.planTasks.get(originalTask.id)).toMatchObject({ scheduledDate: "2026-08-30", startMinutes: undefined, order: 1 }))
+      expect(moveSpy).toHaveBeenCalledTimes(3)
+      expect(screen.queryByRole("alert")).not.toBeInTheDocument()
+    } finally {
+      moveSpy.mockRestore()
       if (originalElementFromPoint) Object.defineProperty(document, "elementFromPoint", originalElementFromPoint)
       else Reflect.deleteProperty(document, "elementFromPoint")
       rendered.unmount()
