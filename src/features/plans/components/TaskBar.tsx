@@ -16,16 +16,23 @@ import { useRequestSession } from "./useRequestSession"
 interface TaskBarProps {
   db: VeloDB
   onOpen?: (task: PlanTask, trigger: HTMLButtonElement) => void
+  onMoved?: (task: PlanTask, previous: TaskPosition) => void
   task: PlanTask
 }
 
-export function TaskBar({ db, onOpen, task }: TaskBarProps) {
-  const sessionKey = task.id
-
-  return <TaskBarSession db={db} key={sessionKey} onOpen={onOpen} task={task} />
+export interface TaskPosition {
+  scheduledDate: string
+  startMinutes: number | undefined
+  order: number
 }
 
-function TaskBarSession({ db, onOpen, task }: TaskBarProps) {
+export function TaskBar({ db, onMoved, onOpen, task }: TaskBarProps) {
+  const sessionKey = task.id
+
+  return <TaskBarSession db={db} key={sessionKey} onMoved={onMoved} onOpen={onOpen} task={task} />
+}
+
+function TaskBarSession({ db, onMoved, onOpen, task }: TaskBarProps) {
   const [completionOverride, setCompletionOverride] = useState<boolean | null>(null)
   const [isSaving, setIsSaving] = useState(false)
   const [showUndo, setShowUndo] = useState(false)
@@ -170,7 +177,7 @@ function TaskBarSession({ db, onOpen, task }: TaskBarProps) {
 
   async function moveTask(target: TaskDropTarget) {
     if (isSaving) return
-    const previous = {
+    const previous: TaskPosition = {
       scheduledDate: task.scheduledDate,
       startMinutes: task.startMinutes,
       order: task.order,
@@ -182,7 +189,8 @@ function TaskBarSession({ db, onOpen, task }: TaskBarProps) {
     try {
       await movePlanTask(db, task.id, target, Date.now())
       if (!mounted.current || !requestSession.isCurrent(requestToken)) return
-      showUndoWindow("已移动到目标位置", () => void restoreTaskPosition(previous))
+      if (onMoved) onMoved(task, previous)
+      else showUndoWindow("已移动到目标位置", () => void restoreTaskPosition(previous))
     } catch (error) {
       if (mounted.current && requestSession.isCurrent(requestToken)) {
         setWriteError({

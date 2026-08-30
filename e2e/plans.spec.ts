@@ -99,6 +99,15 @@ function statusByText(page: Page, text: string) {
   return page.getByRole("status").filter({ hasText: text })
 }
 
+function calendarDayLabel(date: string) {
+  const [year, month, day] = date.split("-").map(Number)
+  return `${year}年${month}月${day}日`
+}
+
+function monthDropTarget(page: Page, targetDate: string) {
+  return page.getByRole("button", { name: new RegExp(`^${calendarDayLabel(targetDate)}，`) })
+}
+
 async function createTask(page: Page, input: {
   title: string
   scheduledDate: string
@@ -155,12 +164,13 @@ async function swipeToComplete(page: Page, taskTitle: string) {
   await page.mouse.up()
 }
 
-async function longPressDragToDate(page: Page, taskTitle: string, targetDate: string) {
+async function longPressDragToDate(page: Page, taskTitle: string, dropTarget: Locator, targetDate: string) {
   const task = page.getByRole("button", { name: `打开任务操作：${taskTitle}` })
   const taskBox = await task.boundingBox()
   if (!taskBox) throw new Error(`Task bar bounds missing for ${taskTitle}`)
 
-  const dropTarget = page.locator(`[data-drop-date="${targetDate}"]`).first()
+  await expect(dropTarget).toHaveCount(1)
+  await expect(dropTarget).toHaveAttribute("data-drop-date", targetDate)
   await expect(dropTarget).toBeVisible()
   const targetBox = await dropTarget.boundingBox()
   if (!targetBox) throw new Error(`Drop target bounds missing for ${targetDate}`)
@@ -216,7 +226,16 @@ test("plans happy path supports day week month, swipe undo, drag to tomorrow, an
 
   await page.setViewportSize({ width: 1024, height: 900 })
   await page.goto(`/plans?view=month&date=${fixedToday}`)
-  await longPressDragToDate(page, "复习导数", fixedTomorrow)
+  const tomorrowMonthCell = monthDropTarget(page, fixedTomorrow)
+  await longPressDragToDate(page, "复习导数", tomorrowMonthCell, fixedTomorrow)
+  await expect(statusByText(page, "已移动到目标位置")).toBeVisible()
+  await expect(page.getByRole("button", { name: "2026年8月31日，1 项任务，0 项完成" })).toBeVisible()
+  await page.getByRole("button", { name: "撤销" }).click()
+  await expect(page.getByRole("button", { name: "2026年8月31日，0 项任务，0 项完成" })).toBeVisible()
+  await expect(page.getByRole("button", { name: "打开任务操作：复习导数" })).toBeVisible()
+
+  await longPressDragToDate(page, "复习导数", tomorrowMonthCell, fixedTomorrow)
+  await expect(statusByText(page, "已移动到目标位置")).toBeVisible()
   await expect(page.getByRole("button", { name: "2026年8月31日，1 项任务，0 项完成" })).toBeVisible()
 
   await page.setViewportSize({ width: 390, height: 844 })
@@ -338,6 +357,28 @@ test("plans stay responsive across milestone widths with semantic colors and unc
     await dialog.getByRole("button", { name: "关闭任务编辑" }).click()
     await expect(dialog).toBeHidden()
 
+    const baselineTaskTypography = await taskBar.evaluate((element) => {
+      const title = element.querySelector<HTMLElement>("span[class*='taskTitle']")
+      const meta = element.querySelector<HTMLElement>("span[class*='taskMeta']")
+      return {
+        titleFontSize: title ? Number.parseFloat(getComputedStyle(title).fontSize) : 0,
+        metaFontSize: meta ? Number.parseFloat(getComputedStyle(meta).fontSize) : 0,
+      }
+    })
+    await page.getByRole("link", { name: "新建任务" }).click()
+    const baselineDialogTypography = await dialog.evaluate((element) => {
+      const heading = element.querySelector<HTMLElement>("h2")
+      const fieldLabel = element.querySelector<HTMLElement>("label span")
+      const primaryButton = element.querySelector<HTMLElement>("button[type='submit']")
+      return {
+        headingFontSize: heading ? Number.parseFloat(getComputedStyle(heading).fontSize) : 0,
+        fieldLabelFontSize: fieldLabel ? Number.parseFloat(getComputedStyle(fieldLabel).fontSize) : 0,
+        primaryButtonFontSize: primaryButton ? Number.parseFloat(getComputedStyle(primaryButton).fontSize) : 0,
+      }
+    })
+    await dialog.getByRole("button", { name: "关闭任务编辑" }).click()
+    await expect(dialog).toBeHidden()
+
     await page.evaluate(() => {
       document.documentElement.style.fontSize = "200%"
     })
@@ -355,6 +396,42 @@ test("plans stay responsive across milestone widths with semantic colors and unc
     })
     expect(textState.hasVerticalClip).toBe(false)
     expect(textState.overlap).toBe(false)
+    expect(textState.titleClipped).toBe(false)
+
+    const zoomedTaskTypography = await taskBar.evaluate((element) => {
+      const title = element.querySelector<HTMLElement>("span[class*='taskTitle']")
+      const meta = element.querySelector<HTMLElement>("span[class*='taskMeta']")
+      return {
+        titleFontSize: title ? Number.parseFloat(getComputedStyle(title).fontSize) : 0,
+        metaFontSize: meta ? Number.parseFloat(getComputedStyle(meta).fontSize) : 0,
+      }
+    })
+    expect(zoomedTaskTypography.titleFontSize).toBeGreaterThanOrEqual(baselineTaskTypography.titleFontSize * 1.95)
+    expect(zoomedTaskTypography.titleFontSize).toBeLessThanOrEqual(baselineTaskTypography.titleFontSize * 2.05)
+    expect(zoomedTaskTypography.metaFontSize).toBeGreaterThanOrEqual(baselineTaskTypography.metaFontSize * 1.95)
+    expect(zoomedTaskTypography.metaFontSize).toBeLessThanOrEqual(baselineTaskTypography.metaFontSize * 2.05)
+
+    await page.getByRole("link", { name: "新建任务" }).click()
+    const zoomedDialogTypography = await dialog.evaluate((element) => {
+      const heading = element.querySelector<HTMLElement>("h2")
+      const fieldLabel = element.querySelector<HTMLElement>("label span")
+      const primaryButton = element.querySelector<HTMLElement>("button[type='submit']")
+      return {
+        headingFontSize: heading ? Number.parseFloat(getComputedStyle(heading).fontSize) : 0,
+        fieldLabelFontSize: fieldLabel ? Number.parseFloat(getComputedStyle(fieldLabel).fontSize) : 0,
+        primaryButtonFontSize: primaryButton ? Number.parseFloat(getComputedStyle(primaryButton).fontSize) : 0,
+        hasHorizontalClip: element.scrollWidth > element.clientWidth + 1,
+      }
+    })
+    expect(zoomedDialogTypography.headingFontSize).toBeGreaterThanOrEqual(baselineDialogTypography.headingFontSize * 1.95)
+    expect(zoomedDialogTypography.headingFontSize).toBeLessThanOrEqual(baselineDialogTypography.headingFontSize * 2.05)
+    expect(zoomedDialogTypography.fieldLabelFontSize).toBeGreaterThanOrEqual(baselineDialogTypography.fieldLabelFontSize * 1.95)
+    expect(zoomedDialogTypography.fieldLabelFontSize).toBeLessThanOrEqual(baselineDialogTypography.fieldLabelFontSize * 2.05)
+    expect(zoomedDialogTypography.primaryButtonFontSize).toBeGreaterThanOrEqual(baselineDialogTypography.primaryButtonFontSize * 1.95)
+    expect(zoomedDialogTypography.primaryButtonFontSize).toBeLessThanOrEqual(baselineDialogTypography.primaryButtonFontSize * 2.05)
+    expect(zoomedDialogTypography.hasHorizontalClip).toBe(false)
+    await dialog.getByRole("button", { name: "关闭任务编辑" }).click()
+    await expect(dialog).toBeHidden()
 
     const colors = await page.evaluate(() => {
       const root = getComputedStyle(document.documentElement)

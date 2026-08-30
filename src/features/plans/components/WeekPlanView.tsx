@@ -4,12 +4,13 @@ import type { PlanTask } from "@/db/types"
 import type { VeloDB } from "@/db/velo-db"
 import { getWeekDates, parseLocalDate } from "@/features/plans/domain/plan-dates"
 
-import { TaskBar } from "./TaskBar"
+import { TaskBar, type TaskPosition } from "./TaskBar"
 import styles from "../PlansPage.module.css"
 
 interface WeekPlanViewProps {
   db: VeloDB
   onOpen?: (task: PlanTask, trigger: HTMLButtonElement) => void
+  onMoved?: (task: PlanTask, previous: TaskPosition) => void
   selectedDate: string
   tasks: PlanTask[]
 }
@@ -25,7 +26,7 @@ function sortTasks(tasks: PlanTask[]) {
   return [...tasks].sort((left, right) => (left.startMinutes ?? Number.MAX_SAFE_INTEGER) - (right.startMinutes ?? Number.MAX_SAFE_INTEGER) || left.order - right.order)
 }
 
-export function WeekPlanView({ db, onOpen, selectedDate, tasks }: WeekPlanViewProps) {
+export function WeekPlanView({ db, onMoved, onOpen, selectedDate, tasks }: WeekPlanViewProps) {
   const dates = getWeekDates(selectedDate)
   const [selection, setSelection] = useState({ date: selectedDate, sourceDate: selectedDate })
   const activeDate = selection.sourceDate === selectedDate ? selection.date : selectedDate
@@ -56,7 +57,7 @@ export function WeekPlanView({ db, onOpen, selectedDate, tasks }: WeekPlanViewPr
         </div>
         {tasksForDate(activeDate).length ? (
           <ul className={styles.untimedTaskList}>
-            {tasksForDate(activeDate).map((task) => <li key={task.id}><TaskBar db={db} onOpen={onOpen} task={task} /></li>)}
+            {tasksForDate(activeDate).map((task) => <li key={task.id}><TaskBar db={db} onMoved={onMoved} onOpen={onOpen} task={task} /></li>)}
           </ul>
         ) : <p className={styles.emptyLaneCopy}>当天还没有任务。</p>}
       </section>
@@ -68,7 +69,7 @@ export function WeekPlanView({ db, onOpen, selectedDate, tasks }: WeekPlanViewPr
               <strong>{parseLocalDate(date).getDate()}</strong>
             </header>
             <ul>
-              {tasksForDate(date).map((task) => <li key={task.id}><TaskBar db={db} onOpen={onOpen} task={task} /></li>)}
+              {tasksForDate(date).map((task) => <li key={task.id}><TaskBar db={db} onMoved={onMoved} onOpen={onOpen} task={task} /></li>)}
             </ul>
           </section>
         ))}

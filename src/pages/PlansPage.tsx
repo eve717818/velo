@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { useNavigate, useSearchParams } from "react-router-dom"
 import { useLiveQuery } from "dexie-react-hooks"
 import type { VeloDB } from "@/db/velo-db"
@@ -9,6 +9,7 @@ import { PlanViewSwitcher } from "@/features/plans/components/PlanViewSwitcher"
 import { DeleteTaskDialog } from "@/features/plans/components/DeleteTaskDialog"
 import { TaskActionsDialog } from "@/features/plans/components/TaskActionsDialog"
 import { TaskEditorDialog } from "@/features/plans/components/TaskEditorDialog"
+import { UndoNotice } from "@/features/plans/components/UndoNotice"
 import { DayPlanView } from "@/features/plans/components/DayPlanView"
 import { MonthPlanView } from "@/features/plans/components/MonthPlanView"
 import { WeekPlanView } from "@/features/plans/components/WeekPlanView"
@@ -27,6 +28,8 @@ import { deleteLearningPeriod } from "@/features/plans/data/learning-period-serv
 import type { LearningPeriod } from "@/db/types"
 import styles from "@/features/plans/PlansPage.module.css"
 import { type PlanView, usePlanWorkspace } from "@/features/plans/usePlanWorkspace"
+import { movePlanTask } from "@/features/plans/data/plan-task-service"
+import type { TaskPosition } from "@/features/plans/components/TaskBar"
 import { formatLocalDate } from "@/lib/local-date"
 
 interface PlansPageProps {
@@ -131,6 +134,8 @@ export function PlansPage({ db = veloDb, now }: PlansPageProps) {
   const [editingPeriod, setEditingPeriod] = useState<LearningPeriod | undefined>()
   const [periodToDelete, setPeriodToDelete] = useState<LearningPeriod | null>(null)
   const [isMigrationOpen, setIsMigrationOpen] = useState(false)
+  const [moveUndo, setMoveUndo] = useState<{ taskId: string; previous: TaskPosition } | null>(null)
+  const moveUndoTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const isCreating = searchParams.get("new") === "1"
   const activePeriod = snapshot?.selectedPeriod ?? snapshot?.periods[0] ?? null
   const migrationSource = activePeriod
@@ -142,6 +147,28 @@ export function PlansPage({ db = veloDb, now }: PlansPageProps) {
   const migrationKey = migrationSource && activePeriod ? periodMigrationDismissalKey(migrationSource.id, activePeriod.id) : ""
   const migrationDismissal = useLiveQuery(async () => migrationKey ? db.appMeta.get(migrationKey) : undefined, [db, migrationKey])
   const legacyTasks = useLiveQuery(() => db.legacyPlanTasks.toArray(), [db])
+
+  useEffect(() => () => {
+    if (moveUndoTimer.current) clearTimeout(moveUndoTimer.current)
+  }, [])
+
+  function handleTaskMoved(task: PlanTask, previous: TaskPosition) {
+    if (moveUndoTimer.current) clearTimeout(moveUndoTimer.current)
+    setMoveUndo({ taskId: task.id, previous })
+    moveUndoTimer.current = setTimeout(() => {
+      moveUndoTimer.current = null
+      setMoveUndo(null)
+    }, 5_000)
+  }
+
+  async function undoTaskMove() {
+    if (!moveUndo) return
+    const pendingUndo = moveUndo
+    if (moveUndoTimer.current) clearTimeout(moveUndoTimer.current)
+    moveUndoTimer.current = null
+    setMoveUndo(null)
+    await movePlanTask(db, pendingUndo.taskId, pendingUndo.previous, Date.now())
+  }
 
   useEffect(() => {
     if (rawView === view && rawDate === selectedDate) return
@@ -236,9 +263,9 @@ export function PlansPage({ db = veloDb, now }: PlansPageProps) {
             <span className={styles.rangeCount}>{snapshot?.tasks.length ?? 0} 项任务</span>
           </div>
           {snapshot ? (
-            view === "day" ? <DayPlanView db={db} onCreate={openCreate} onOpen={openTask} selectedDate={selectedDate} tasks={snapshot.tasks} today={fallbackDate} />
-              : view === "week" ? <WeekPlanView db={db} onOpen={openTask} selectedDate={selectedDate} tasks={snapshot.tasks} />
-                : view === "month" ? <MonthPlanView db={db} onOpen={openTask} selectedDate={selectedDate} tasks={snapshot.tasks} />
+            view === "day" ? <DayPlanView db={db} onCreate={openCreate} onMoved={handleTaskMoved} onOpen={openTask} selectedDate={selectedDate} tasks={snapshot.tasks} today={fallbackDate} />
+              : view === "week" ? <WeekPlanView db={db} onMoved={handleTaskMoved} onOpen={openTask} selectedDate={selectedDate} tasks={snapshot.tasks} />
+                : view === "month" ? <MonthPlanView db={db} onMoved={handleTaskMoved} onOpen={openTask} selectedDate={selectedDate} tasks={snapshot.tasks} />
                   : <LearningPeriodView
                     onCreate={() => openPeriodEditor()}
                     onDelete={(period) => setPeriodToDelete(period)}
@@ -263,6 +290,7 @@ export function PlansPage({ db = veloDb, now }: PlansPageProps) {
           <p>{snapshot?.periods.length ?? 0} 个周期可用于组织学期与假期。</p>
         </section>
       </div>
+      {moveUndo ? <UndoNotice message="已移动到目标位置" onUndo={() => { void undoTaskMove() }} /> : null}
       {actionNotice ? <p className={styles.actionNotice} role="status">{actionNotice}</p> : null}
       <TaskEditorDialog
         db={db}

@@ -50,7 +50,7 @@
 
 .dialog h2 {
   font-family: "Outfit Variable", Outfit, sans-serif;
-  font-size: 23px;
+  font-size: 1.4375rem;
   font-variation-settings: "wght" 650;
   letter-spacing: -.035em;
   line-height: 1.15;
@@ -66,7 +66,7 @@
   cursor: pointer;
   display: inline-flex;
   font: inherit;
-  font-size: 14px;
+  font-size: .875rem;
   font-weight: 730;
   justify-content: center;
   min-height: 44px;
@@ -77,7 +77,7 @@
   border: 0;
   color: var(--color-text);
   flex: 0 0 44px;
-  font-size: 25px;
+  font-size: 1.5625rem;
   line-height: 1;
   padding: 0;
 }
@@ -89,13 +89,13 @@
 
 .field > span {
   color: var(--color-text);
-  font-size: 13px;
+  font-size: .8125rem;
   font-weight: 720;
 }
 
 .field em {
   color: #236f66;
-  font-size: 11px;
+  font-size: .6875rem;
   font-style: normal;
   margin-left: 4px;
 }
@@ -121,7 +121,7 @@
 .field small,
 .saveError {
   color: #9d1e43;
-  font-size: 12px;
+  font-size: .75rem;
   font-weight: 650;
 }
 
@@ -142,7 +142,7 @@
   cursor: pointer;
   flex: 0 0 auto;
   font: inherit;
-  font-size: 12px;
+  font-size: .75rem;
   font-weight: 740;
   min-height: 44px;
   padding: 0 12px;
@@ -203,7 +203,7 @@
 
 .confirmationDialog > p:not(.eyebrow):not(.saveError) {
   color: var(--color-text-muted);
-  font-size: 13px;
+  font-size: .8125rem;
 }
 
 .dialog button:focus-visible,

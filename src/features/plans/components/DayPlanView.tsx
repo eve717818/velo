@@ -2,13 +2,14 @@ import type { PlanTask } from "@/db/types"
 import type { VeloDB } from "@/db/velo-db"
 import { isOverdue } from "@/features/plans/domain/plan-dates"
 
-import { TaskBar } from "./TaskBar"
+import { TaskBar, type TaskPosition } from "./TaskBar"
 import styles from "../PlansPage.module.css"
 
 interface DayPlanViewProps {
   db: VeloDB
   onCreate?: () => void
   onOpen?: (task: PlanTask, trigger: HTMLButtonElement) => void
+  onMoved?: (task: PlanTask, previous: TaskPosition) => void
   selectedDate: string
   tasks: PlanTask[]
   today?: string
@@ -22,7 +23,7 @@ function sortTasks(tasks: PlanTask[]) {
   return [...tasks].sort((left, right) => left.order - right.order)
 }
 
-export function DayPlanView({ db, onCreate, onOpen, selectedDate, tasks, today = selectedDate }: DayPlanViewProps) {
+export function DayPlanView({ db, onCreate, onMoved, onOpen, selectedDate, tasks, today = selectedDate }: DayPlanViewProps) {
   const timedTasks = tasks
     .filter((task) => task.startMinutes !== undefined)
     .sort((left, right) => left.startMinutes! - right.startMinutes! || left.order - right.order)
@@ -52,7 +53,7 @@ export function DayPlanView({ db, onCreate, onOpen, selectedDate, tasks, today =
             <li data-drop-date={selectedDate} data-start-minutes={task.startMinutes} key={task.id}>
               <time className={styles.timeLabel} dateTime={`${selectedDate}T${formatTime(task.startMinutes!)}`}>{formatTime(task.startMinutes!)}</time>
               <div className={styles.taskBarWithStatus}>
-                <TaskBar db={db} onOpen={onOpen} task={task} />
+                <TaskBar db={db} onMoved={onMoved} onOpen={onOpen} task={task} />
                 {isOverdue(task, today) ? <span className={styles.overdueLabel}>已逾期</span> : null}
               </div>
             </li>
@@ -69,7 +70,7 @@ export function DayPlanView({ db, onCreate, onOpen, selectedDate, tasks, today =
             {untimedTasks.map((task) => (
               <li key={task.id}>
                 <div className={styles.taskBarWithStatus}>
-                  <TaskBar db={db} onOpen={onOpen} task={task} />
+                  <TaskBar db={db} onMoved={onMoved} onOpen={onOpen} task={task} />
                   {isOverdue(task, today) ? <span className={styles.overdueLabel}>已逾期</span> : null}
                 </div>
               </li>

@@ -1,4 +1,4 @@
-import { act, render, screen, waitFor, within } from "@testing-library/react"
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { MemoryRouter, useLocation } from "react-router-dom"
 import { describe, expect, it, vi } from "vitest"
@@ -208,6 +208,41 @@ describe("PlansPage", () => {
       await waitFor(async () => expect(await db.planTasks.get("task-to-move")).toMatchObject({ scheduledDate: "2026-08-30" }))
     } finally {
       rendered.unmount()
+      await db.delete()
+    }
+  })
+
+  it("keeps a cross-date move undo notice at the workspace level after the task leaves the current view", async () => {
+    const db = createDatabase()
+    const user = userEvent.setup()
+    await db.planTasks.add({ id: "cross-date-task", title: "复习导数", scheduledDate: "2026-08-30", isCompleted: 0, order: 1, createdAt: 1, updatedAt: 1 })
+    const rendered = renderPlansPage("/plans?view=month&date=2026-08-30", db, new Date(2026, 7, 30, 9, 0))
+    const originalElementFromPoint = Object.getOwnPropertyDescriptor(document, "elementFromPoint")
+
+    try {
+      const taskButton = await screen.findByRole("button", { name: "打开任务操作：复习导数" })
+      const targetDay = screen.getByRole("button", { name: "2026年8月31日，0 项任务，0 项完成" })
+      Object.defineProperty(document, "elementFromPoint", { configurable: true, value: () => targetDay })
+
+      vi.useFakeTimers()
+      fireEvent.pointerDown(taskButton, { pointerId: 1, clientX: 20, clientY: 30 })
+      void act(() => vi.advanceTimersByTime(350))
+      fireEvent.pointerUp(taskButton, { pointerId: 1, clientX: 42, clientY: 30 })
+      vi.useRealTimers()
+
+      await waitFor(async () => expect(await db.planTasks.get("cross-date-task")).toMatchObject({ scheduledDate: "2026-08-31", startMinutes: undefined, order: 1 }))
+      expect(screen.getByText("已移动到目标位置")).toBeInTheDocument()
+      expect(screen.queryByRole("button", { name: "打开任务操作：复习导数" })).not.toBeInTheDocument()
+
+      await user.click(screen.getByRole("button", { name: "撤销" }))
+
+      await waitFor(async () => expect(await db.planTasks.get("cross-date-task")).toMatchObject({ scheduledDate: "2026-08-30", startMinutes: undefined, order: 1 }))
+      expect(await screen.findByRole("button", { name: "打开任务操作：复习导数" })).toBeInTheDocument()
+    } finally {
+      if (originalElementFromPoint) Object.defineProperty(document, "elementFromPoint", originalElementFromPoint)
+      else Reflect.deleteProperty(document, "elementFromPoint")
+      rendered.unmount()
+      vi.useRealTimers()
       await db.delete()
     }
   })

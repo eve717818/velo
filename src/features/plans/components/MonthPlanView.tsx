@@ -4,12 +4,13 @@ import type { PlanTask } from "@/db/types"
 import type { VeloDB } from "@/db/velo-db"
 import { getMonthGridDates, getProgress, parseLocalDate } from "@/features/plans/domain/plan-dates"
 
-import { TaskBar } from "./TaskBar"
+import { TaskBar, type TaskPosition } from "./TaskBar"
 import styles from "../PlansPage.module.css"
 
 interface MonthPlanViewProps {
   db: VeloDB
   onOpen?: (task: PlanTask, trigger: HTMLButtonElement) => void
+  onMoved?: (task: PlanTask, previous: TaskPosition) => void
   selectedDate: string
   tasks: PlanTask[]
 }
@@ -25,7 +26,7 @@ function sortTasks(tasks: PlanTask[]) {
   return [...tasks].sort((left, right) => (left.startMinutes ?? Number.MAX_SAFE_INTEGER) - (right.startMinutes ?? Number.MAX_SAFE_INTEGER) || left.order - right.order)
 }
 
-export function MonthPlanView({ db, onOpen, selectedDate, tasks }: MonthPlanViewProps) {
+export function MonthPlanView({ db, onMoved, onOpen, selectedDate, tasks }: MonthPlanViewProps) {
   const [selection, setSelection] = useState({ date: selectedDate, sourceDate: selectedDate })
   const activeDate = selection.sourceDate === selectedDate ? selection.date : selectedDate
   const dates = getMonthGridDates(selectedDate)
@@ -63,7 +64,7 @@ export function MonthPlanView({ db, onOpen, selectedDate, tasks }: MonthPlanView
         </div>
         {activeTasks.length ? (
           <ul className={styles.untimedTaskList}>
-            {activeTasks.map((task) => <li key={task.id}><TaskBar db={db} onOpen={onOpen} task={task} /></li>)}
+            {activeTasks.map((task) => <li key={task.id}><TaskBar db={db} onMoved={onMoved} onOpen={onOpen} task={task} /></li>)}
           </ul>
         ) : <p className={styles.emptyLaneCopy}>当天还没有任务。</p>}
       </section>
