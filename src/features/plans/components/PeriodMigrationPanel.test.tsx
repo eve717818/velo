@@ -49,7 +49,7 @@ describe("PeriodMigrationPanel", () => {
 
     try {
       await user.click(screen.getByRole("button", { name: "暂不处理" }))
-      expect(await db.appMeta.get("periodMigrationDismissed:source:target")).toMatchObject({ value: "1" })
+      await waitFor(async () => expect(await db.appMeta.get("periodMigrationDismissed:source:target")).toMatchObject({ value: "1" }))
       await reopenPeriodMigration(db, source.id, target.id)
       expect(await db.appMeta.get("periodMigrationDismissed:source:target")).toBeUndefined()
     } finally {
