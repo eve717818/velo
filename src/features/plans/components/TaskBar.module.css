@@ -73,13 +73,6 @@
   white-space: nowrap;
 }
 
-@media (max-width: 480px) {
-  .taskTitle {
-    overflow-wrap: anywhere;
-    white-space: normal;
-  }
-}
-
 .trailing {
   flex: 0 0 auto;
   text-align: right;

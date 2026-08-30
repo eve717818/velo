@@ -394,13 +394,13 @@ test("plans stay responsive across milestone widths with semantic colors and unc
       const trailing = element.querySelector<HTMLElement>("span[class*='trailing']")
       return {
         hasVerticalClip: element.scrollHeight > element.clientHeight,
-        titleClipped: title ? title.scrollWidth > title.clientWidth + 1 : false,
+        hasHorizontalClip: element.scrollWidth > element.clientWidth + 1,
         overlap: title && trailing ? title.getBoundingClientRect().right > trailing.getBoundingClientRect().left : false,
       }
     })
     expect(textState.hasVerticalClip).toBe(false)
+    expect(textState.hasHorizontalClip).toBe(false)
     expect(textState.overlap).toBe(false)
-    expect(textState.titleClipped).toBe(false)
 
     const zoomedTaskTypography = await taskBar.evaluate((element) => {
       const title = element.querySelector<HTMLElement>("span[class*='taskTitle']")
@@ -475,17 +475,18 @@ test("plans stay responsive across milestone widths with semantic colors and unc
   }
 })
 
-test("long task titles stay on one ellipsized line without clipping", async ({ page }) => {
-  await page.setViewportSize({ width: 1024, height: 900 })
+test("long task titles stay ellipsized at normal and 200% text size", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 })
   await waitForPlanSeed(page)
-  const title = "这是一个需要保持单行省略显示的超长学习任务标题，不能撑破任务条"
+  const title = "这是一个需要在狭窄屏幕上保持单行省略显示的超长学习任务标题，不能撑破任务条"
   await createTask(page, { title, scheduledDate: fixedToday })
 
   const taskBar = page.getByRole("button", { name: `打开任务操作：${title}` })
   await expect(taskBar).toHaveCount(1)
-  const barBox = await readBox(taskBar)
-  expect(barBox.height).toBeLessThanOrEqual(56)
-  const textState = await taskBar.evaluate((element) => {
+  const normalBarBox = await readBox(taskBar)
+  expect(normalBarBox.height).toBeGreaterThanOrEqual(52)
+  expect(normalBarBox.height).toBeLessThanOrEqual(56)
+  const normalTextState = await taskBar.evaluate((element) => {
     const titleElement = element.querySelector<HTMLElement>("span[class*='taskTitle']")
     const trailing = element.querySelector<HTMLElement>("span[class*='trailing']")
     if (!titleElement || !trailing) throw new Error("Task title or trailing metadata missing")
@@ -495,16 +496,48 @@ test("long task titles stay on one ellipsized line without clipping", async ({ p
       overflow: style.overflow,
       textOverflow: style.textOverflow,
       whiteSpace: style.whiteSpace,
-      clipped: titleElement.scrollWidth > titleElement.clientWidth + 1,
+      titleOverflowed: titleElement.scrollWidth > titleElement.clientWidth + 1,
+      barOverflowed: element.scrollWidth > element.clientWidth + 1,
+      verticallyClipped: element.scrollHeight > element.clientHeight + 1,
       overlaps: titleElement.getBoundingClientRect().right > trailing.getBoundingClientRect().left,
     }
   })
-  expect(textState.display).toBe("block")
-  expect(textState.overflow).toBe("hidden")
-  expect(textState.textOverflow).toBe("ellipsis")
-  expect(textState.whiteSpace).toBe("nowrap")
-  expect(textState.clipped).toBe(false)
-  expect(textState.overlaps).toBe(false)
+  expect(normalTextState.display).toBe("block")
+  expect(normalTextState.overflow).toBe("hidden")
+  expect(normalTextState.textOverflow).toBe("ellipsis")
+  expect(normalTextState.whiteSpace).toBe("nowrap")
+  expect(normalTextState.titleOverflowed).toBe(true)
+  expect(normalTextState.barOverflowed).toBe(false)
+  expect(normalTextState.verticallyClipped).toBe(false)
+  expect(normalTextState.overlaps).toBe(false)
+
+  const normalFontSize = await taskBar.locator("span[class*='taskTitle']").evaluate((element) => Number.parseFloat(getComputedStyle(element).fontSize))
+  await page.evaluate(() => {
+    document.documentElement.style.fontSize = "200%"
+  })
+  await expectNoHorizontalOverflow(page)
+  const zoomedBarBox = await readBox(taskBar)
+  expect(zoomedBarBox.height).toBeGreaterThanOrEqual(normalBarBox.height)
+  const zoomedTextState = await taskBar.evaluate((element) => {
+    const titleElement = element.querySelector<HTMLElement>("span[class*='taskTitle']")
+    const trailing = element.querySelector<HTMLElement>("span[class*='trailing']")
+    if (!titleElement || !trailing) throw new Error("Task title or trailing metadata missing")
+    return {
+      fontSize: Number.parseFloat(getComputedStyle(titleElement).fontSize),
+      whiteSpace: getComputedStyle(titleElement).whiteSpace,
+      titleOverflowed: titleElement.scrollWidth > titleElement.clientWidth + 1,
+      barOverflowed: element.scrollWidth > element.clientWidth + 1,
+      verticallyClipped: element.scrollHeight > element.clientHeight + 1,
+      overlaps: titleElement.getBoundingClientRect().right > trailing.getBoundingClientRect().left,
+    }
+  })
+  expect(zoomedTextState.fontSize).toBeGreaterThanOrEqual(normalFontSize * 1.95)
+  expect(zoomedTextState.fontSize).toBeLessThanOrEqual(normalFontSize * 2.05)
+  expect(zoomedTextState.whiteSpace).toBe("nowrap")
+  expect(zoomedTextState.titleOverflowed).toBe(true)
+  expect(zoomedTextState.barOverflowed).toBe(false)
+  expect(zoomedTextState.verticallyClipped).toBe(false)
+  expect(zoomedTextState.overlaps).toBe(false)
 })
 
 test("plans remain accessible through day, month, editor, delete, migration, keyboard, focus, reduced motion, and backdrop flows", async ({ page }) => {
