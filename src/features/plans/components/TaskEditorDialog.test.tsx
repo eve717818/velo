@@ -259,6 +259,53 @@ describe("TaskEditorDialog", () => {
       await db.delete()
     }
   })
+
+  it("ignores a completed save from a backdrop-closed editor session", async () => {
+    const db = createDatabase()
+    const user = userEvent.setup()
+    const firstSave = deferred<PlanTask>()
+    const createSpy = vi.spyOn(planTaskService, "createPlanTask")
+      .mockImplementationOnce(() => firstSave.promise)
+      .mockImplementationOnce((_db, input, now) => Promise.resolve({ id: "second", isCompleted: 0, order: 1, createdAt: now, updatedAt: now, ...input }))
+    const rendered = render(<EditorHarness db={db} />)
+
+    try {
+      await user.click(screen.getByRole("button", { name: "新建任务" }))
+      await user.type(screen.getByLabelText("任务标题"), "旧会话")
+      await user.click(screen.getByRole("button", { name: "保存任务" }))
+
+      const dialog = screen.getByRole("dialog", { name: "新建学习任务" })
+      const rectSpy = vi.spyOn(dialog, "getBoundingClientRect").mockReturnValue({
+        x: 120,
+        y: 180,
+        top: 180,
+        right: 360,
+        bottom: 420,
+        left: 120,
+        width: 240,
+        height: 240,
+        toJSON: () => ({}),
+      })
+      fireEvent.click(dialog, { clientX: 90, clientY: 240 })
+      await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument())
+
+      await user.click(screen.getByRole("button", { name: "新建任务" }))
+      await user.type(screen.getByLabelText("任务标题"), "新会话")
+
+      await act(async () => {
+        firstSave.resolve(existingTask({ id: "first", title: "旧会话" }))
+        await firstSave.promise
+      })
+
+      expect(screen.getByRole("dialog", { name: "新建学习任务" })).toBeInTheDocument()
+      expect(screen.getByLabelText("任务标题")).toHaveValue("新会话")
+      rectSpy.mockRestore()
+    } finally {
+      createSpy.mockRestore()
+      rendered.unmount()
+      await db.delete()
+    }
+  })
 })
 
 describe("task actions and deletion", () => {

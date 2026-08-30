@@ -1,4 +1,4 @@
-import { useEffect, useRef, type KeyboardEvent, type ReactNode, type SyntheticEvent } from "react"
+import { useEffect, useRef, type KeyboardEvent, type MouseEvent, type ReactNode, type SyntheticEvent } from "react"
 import styles from "./PlanDialog.module.css"
 
 const focusableSelector = [
@@ -12,6 +12,11 @@ const focusableSelector = [
 
 function getFocusableElements(dialog: HTMLDialogElement) {
   return Array.from(dialog.querySelectorAll<HTMLElement>(focusableSelector)).filter((element) => !element.hidden)
+}
+
+function isBackdropClick(dialog: HTMLDialogElement, clientX: number, clientY: number) {
+  const { bottom, left, right, top } = dialog.getBoundingClientRect()
+  return clientX < left || clientX > right || clientY < top || clientY > bottom
 }
 
 interface PlanDialogProps {
@@ -71,11 +76,21 @@ export function PlanDialog({ children, labelledBy, onRequestClose, open, returnF
     }
   }
 
+  function onClick(event: MouseEvent<HTMLDialogElement>) {
+    const dialog = dialogRef.current
+    if (!dialog || event.target !== dialog) return
+    if (!isBackdropClick(dialog, event.clientX, event.clientY)) return
+
+    event.preventDefault()
+    onRequestClose()
+  }
+
   return (
     <dialog
       aria-labelledby={labelledBy}
       className={styles.dialog}
       onCancel={closeFromDialog}
+      onClick={onClick}
       onClose={() => { if (open) onRequestClose() }}
       onKeyDown={onKeyDown}
       ref={dialogRef}
