@@ -5,7 +5,7 @@ import { deletePlanTask } from "../data/plan-task-service"
 import styles from "./PlanDialog.module.css"
 import { PlanDialog } from "./PlanDialog"
 import { PlanErrorState } from "./PlanErrorState"
-import { useRequestSession } from "./useRequestSession"
+import { type RequestSession, useRequestSession } from "./useRequestSession"
 
 interface DeleteTaskDialogProps {
   db: VeloDB
@@ -16,25 +16,29 @@ interface DeleteTaskDialogProps {
 }
 
 export function DeleteTaskDialog({ db, onClose, open, returnFocusTo, task }: DeleteTaskDialogProps) {
-  const sessionKey = `${open}-${task.id}-${task.updatedAt}`
+  const sessionKey = open ? `${task.id}-${task.updatedAt}` : "closed"
+  const requestSession = useRequestSession(sessionKey)
+
+  function handleClose() {
+    requestSession.invalidate()
+    onClose()
+  }
 
   return (
-    <PlanDialog labelledBy="delete-task-heading" onRequestClose={onClose} open={open} returnFocusTo={returnFocusTo}>
-      <DeleteTaskDialogSession db={db} key={sessionKey} onClose={onClose} task={task} />
+    <PlanDialog labelledBy="delete-task-heading" onRequestClose={handleClose} open={open} returnFocusTo={returnFocusTo}>
+      <DeleteTaskDialogSession db={db} key={sessionKey} onClose={handleClose} requestSession={requestSession} task={task} />
     </PlanDialog>
   )
 }
 
-function DeleteTaskDialogSession({ db, onClose, task }: Pick<DeleteTaskDialogProps, "db" | "onClose" | "task">) {
+interface DeleteTaskDialogSessionProps extends Pick<DeleteTaskDialogProps, "db" | "onClose" | "task"> {
+  requestSession: RequestSession
+}
+
+function DeleteTaskDialogSession({ db, onClose, requestSession, task }: DeleteTaskDialogSessionProps) {
   const [error, setError] = useState("")
   const [isDeleting, setIsDeleting] = useState(false)
   const lastTaskIdRef = useRef<string | null>(null)
-  const requestSession = useRequestSession()
-
-  function requestClose() {
-    requestSession.invalidate()
-    onClose()
-  }
 
   async function confirmDelete(retryTaskId?: string) {
     const taskId = retryTaskId ?? task.id
@@ -45,7 +49,7 @@ function DeleteTaskDialogSession({ db, onClose, task }: Pick<DeleteTaskDialogPro
     try {
       await deletePlanTask(db, taskId)
       if (!requestSession.isCurrent(requestToken)) return
-      requestClose()
+      onClose()
     } catch (caught) {
       if (!requestSession.isCurrent(requestToken)) return
       setError(caught instanceof Error ? caught.message : "删除任务失败，请重试")
@@ -61,7 +65,7 @@ function DeleteTaskDialogSession({ db, onClose, task }: Pick<DeleteTaskDialogPro
       <p>删除后无法恢复这项任务。</p>
       <div className={styles.actions}>
         {error ? <PlanErrorState error={error} onRetry={() => { if (lastTaskIdRef.current) void confirmDelete(lastTaskIdRef.current) }} /> : null}
-        <button className={styles.secondaryButton} onClick={requestClose} type="button">取消</button>
+        <button className={styles.secondaryButton} onClick={onClose} type="button">取消</button>
         <button className={styles.dangerButton} disabled={isDeleting} onClick={() => { void confirmDelete() }} type="button">
           {isDeleting ? "正在删除" : "确认删除"}
         </button>

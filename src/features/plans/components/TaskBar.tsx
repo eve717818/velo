@@ -20,7 +20,7 @@ interface TaskBarProps {
 }
 
 export function TaskBar({ db, onOpen, task }: TaskBarProps) {
-  const sessionKey = `${task.id}-${task.updatedAt}`
+  const sessionKey = task.id
 
   return <TaskBarSession db={db} key={sessionKey} onOpen={onOpen} task={task} />
 }
@@ -43,7 +43,7 @@ function TaskBarSession({ db, onOpen, task }: TaskBarProps) {
   const startY = useRef<number | null>(null)
   const suppressClick = useRef(false)
   const undoTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const requestSession = useRequestSession()
+  const requestSession = useRequestSession(task.id)
 
   useEffect(() => {
     mounted.current = true

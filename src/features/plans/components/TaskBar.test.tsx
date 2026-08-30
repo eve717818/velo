@@ -83,6 +83,32 @@ describe("TaskBar", () => {
     }
   })
 
+  it("keeps the undo action visible across a same-task rerender with a newer updatedAt", async () => {
+    const db = createDatabase()
+    const currentTask = task()
+    const user = userEvent.setup()
+    await db.planTasks.add(currentTask)
+    const rendered = render(<TaskBar db={db} task={currentTask} />)
+
+    try {
+      const bar = screen.getByRole("button", { name: "打开任务操作：复习导数" })
+      bar.focus()
+      await user.keyboard(" ")
+      expect(await screen.findByRole("status")).toHaveTextContent("任务已完成")
+
+      rendered.rerender(<TaskBar db={db} task={task({ isCompleted: 1, completedAt: 2, updatedAt: 2 })} />)
+      expect(screen.getByRole("status")).toHaveTextContent("任务已完成")
+
+      await user.click(screen.getByRole("button", { name: "撤销" }))
+
+      await waitFor(async () => expect(await db.planTasks.get(currentTask.id)).toMatchObject({ isCompleted: 0 }))
+      expect(screen.queryByRole("status")).not.toBeInTheDocument()
+    } finally {
+      rendered.unmount()
+      await db.delete()
+    }
+  })
+
   it("keeps the Dexie task pending during a swipe preview and persists only after a 70 percent release", async () => {
     const db = createDatabase()
     const currentTask = task()

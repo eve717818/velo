@@ -28,8 +28,12 @@ function PeriodMigrationPanelSession({ db, onClose, sourcePeriod, targetPeriod, 
   const [selectedIds, setSelectedIds] = useState<string[]>([])
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<{ action: "copy" | "dismiss"; message: string } | null>(null)
-  const lastSelectedIdsRef = useRef<string[]>([])
-  const requestSession = useRequestSession()
+  const lastCopyIntentRef = useRef<{
+    sourceIds: string[]
+    targetPeriod: LearningPeriod
+    today: string
+  } | null>(null)
+  const requestSession = useRequestSession(`${sourcePeriod.id}-${targetPeriod.id}`)
 
   function toggle(id: string) {
     setSelectedIds((current) => current.includes(id) ? current.filter((value) => value !== id) : [...current, id])
@@ -40,15 +44,23 @@ function PeriodMigrationPanelSession({ db, onClose, sourcePeriod, targetPeriod, 
     onClose()
   }
 
-  async function copySelected(retryIds?: string[]) {
-    const ids = retryIds ?? selectedIds
-    if (ids.length === 0) return
+  async function copySelected(retryIntent?: { sourceIds: string[]; targetPeriod: LearningPeriod; today: string }) {
+    const intent = retryIntent ?? {
+      sourceIds: [...selectedIds],
+      targetPeriod: { ...targetPeriod },
+      today,
+    }
+    if (intent.sourceIds.length === 0) return
     const requestToken = requestSession.beginRequest()
-    lastSelectedIdsRef.current = [...ids]
+    lastCopyIntentRef.current = {
+      sourceIds: [...intent.sourceIds],
+      targetPeriod: { ...intent.targetPeriod },
+      today: intent.today,
+    }
     setSaving(true)
     setError(null)
     try {
-      await copyTasksToPeriod(db, ids, targetPeriod, today, Date.now())
+      await copyTasksToPeriod(db, intent.sourceIds, intent.targetPeriod, intent.today, Date.now())
       if (!requestSession.isCurrent(requestToken)) return
       requestClose()
     } catch (error) {
@@ -85,7 +97,7 @@ function PeriodMigrationPanelSession({ db, onClose, sourcePeriod, targetPeriod, 
       <div className={styles.migrationActions}>
         <button className={styles.secondaryPeriodAction} disabled={saving} onClick={() => { void dismiss() }} type="button">暂不处理</button>
         {error?.action === "dismiss" ? <PlanErrorState error={error.message} onRetry={() => { void dismiss() }} /> : null}
-        {error?.action === "copy" ? <PlanErrorState error={error.message} onRetry={() => { if (lastSelectedIdsRef.current.length > 0) void copySelected(lastSelectedIdsRef.current) }} /> : null}
+        {error?.action === "copy" ? <PlanErrorState error={error.message} onRetry={() => { if (lastCopyIntentRef.current) void copySelected(lastCopyIntentRef.current) }} /> : null}
         <button className={styles.emptyCreateAction} disabled={saving || selectedIds.length === 0} onClick={() => { void copySelected() }} type="button">复制 {selectedIds.length} 项任务</button>
       </div>
     </aside>

@@ -167,7 +167,8 @@ describe("TaskEditorDialog", () => {
       await user.click(screen.getByRole("button", { name: "新建任务" }))
       await user.type(screen.getByLabelText("任务标题"), "旧会话")
       await user.click(screen.getByRole("button", { name: "保存任务" }))
-      await user.click(screen.getByRole("button", { name: "关闭任务编辑" }))
+      fireEvent.keyDown(screen.getByRole("dialog"), { key: "Escape" })
+      await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument())
       await user.click(screen.getByRole("button", { name: "新建任务" }))
       await user.type(screen.getByLabelText("任务标题"), "新会话")
 
@@ -323,13 +324,102 @@ describe("task actions and deletion", () => {
       await user.click(screen.getByRole("button", { name: "确认删除" }))
 
       expect(await screen.findByRole("alert")).toHaveTextContent("保存失败，请重试")
-      await user.click(screen.getByRole("button", { name: "取消" }))
-      await user.click(trigger)
+      await user.click(screen.getByRole("button", { name: "重试" }))
+
+      await waitFor(async () => expect(await db.planTasks.get(task.id)).toBeUndefined())
+      expect(deleteSpy).toHaveBeenNthCalledWith(1, db, task.id)
+      expect(deleteSpy).toHaveBeenNthCalledWith(2, db, task.id)
+      expect(screen.queryByRole("dialog")).not.toBeInTheDocument()
+    } finally {
+      deleteSpy.mockRestore()
+      rendered.unmount()
+      await db.delete()
+    }
+  })
+
+  it("clears stale delete retry state when a new task session opens", async () => {
+    const db = createDatabase()
+    const firstTask = existingTask({ id: "first-task", title: "第一项" })
+    const secondTask = existingTask({ id: "second-task", title: "第二项", updatedAt: 2 })
+    const user = userEvent.setup()
+    const deleteSpy = vi.spyOn(planTaskService, "deletePlanTask")
+      .mockRejectedValueOnce(new Error("磁盘写入失败"))
+      .mockResolvedValue(true)
+    await db.planTasks.bulkAdd([firstTask, secondTask])
+    const rendered = render(<DeleteTaskDialog db={db} onClose={vi.fn()} open task={firstTask} />)
+
+    try {
+      await user.click(screen.getByRole("button", { name: "确认删除" }))
+      expect(await screen.findByRole("alert")).toHaveTextContent("保存失败，请重试")
+
+      rendered.rerender(<DeleteTaskDialog db={db} onClose={vi.fn()} open task={secondTask} />)
       expect(screen.queryByRole("alert")).not.toBeInTheDocument()
       await user.click(screen.getByRole("button", { name: "确认删除" }))
 
-      await waitFor(async () => expect(await db.planTasks.get(task.id)).toBeUndefined())
-      expect(deleteSpy).toHaveBeenCalledTimes(2)
+      await waitFor(() => expect(deleteSpy).toHaveBeenCalledTimes(2))
+      expect(deleteSpy).toHaveBeenNthCalledWith(1, db, firstTask.id)
+      expect(deleteSpy).toHaveBeenNthCalledWith(2, db, secondTask.id)
+    } finally {
+      deleteSpy.mockRestore()
+      rendered.unmount()
+      await db.delete()
+    }
+  })
+
+  it("ignores a completed delete from an Escape-closed delete session", async () => {
+    const db = createDatabase()
+    const firstTask = existingTask({ id: "first-task", title: "第一项" })
+    const secondTask = existingTask({ id: "second-task", title: "第二项", updatedAt: 2 })
+    const user = userEvent.setup()
+    const firstDelete = deferred<boolean>()
+    const deleteSpy = vi.spyOn(planTaskService, "deletePlanTask")
+      .mockImplementationOnce(() => firstDelete.promise)
+      .mockResolvedValue(true)
+    await db.planTasks.bulkAdd([firstTask, secondTask])
+    const rendered = render(<DeleteHarness db={db} task={firstTask} />)
+
+    try {
+      await user.click(screen.getByRole("button", { name: "删除 第一项" }))
+      await user.click(screen.getByRole("button", { name: "确认删除" }))
+      fireEvent.keyDown(screen.getByRole("dialog"), { key: "Escape" })
+      await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument())
+
+      rendered.rerender(<DeleteHarness db={db} task={secondTask} />)
+      await user.click(screen.getByRole("button", { name: "删除 第二项" }))
+
+      await act(async () => {
+        firstDelete.resolve(true)
+        await firstDelete.promise
+      })
+
+      expect(screen.getByRole("dialog", { name: "确定删除“第二项”吗？" })).toBeInTheDocument()
+      expect(deleteSpy).toHaveBeenCalledTimes(1)
+    } finally {
+      deleteSpy.mockRestore()
+      rendered.unmount()
+      await db.delete()
+    }
+  })
+
+  it("clears delete errors across close and reopen", async () => {
+    const db = createDatabase()
+    const task = existingTask()
+    const user = userEvent.setup()
+    const deleteSpy = vi.spyOn(planTaskService, "deletePlanTask")
+      .mockRejectedValueOnce(new Error("磁盘写入失败"))
+      .mockResolvedValue(true)
+    await db.planTasks.add(task)
+    const rendered = render(<DeleteHarness db={db} task={task} />)
+
+    try {
+      const trigger = screen.getByRole("button", { name: "删除 整理错题" })
+      await user.click(trigger)
+      await user.click(screen.getByRole("button", { name: "确认删除" }))
+
+      expect(await screen.findByRole("alert")).toHaveTextContent("保存失败，请重试")
+      await user.click(screen.getByRole("button", { name: "取消" }))
+      await user.click(trigger)
+      expect(screen.queryByRole("alert")).not.toBeInTheDocument()
     } finally {
       deleteSpy.mockRestore()
       rendered.unmount()

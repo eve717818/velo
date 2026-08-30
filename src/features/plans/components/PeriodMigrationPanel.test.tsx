@@ -110,6 +110,50 @@ describe("PeriodMigrationPanel", () => {
     }
   })
 
+  it("retries copy with the original task ids and target-period scheduling snapshot after props change", async () => {
+    const db = new VeloDB(`period-copy-snapshot-${crypto.randomUUID()}`)
+    const user = userEvent.setup()
+    const onClose = vi.fn()
+    const rows = [task("one"), task("two")]
+    const realCopy = planTaskService.copyTasksToPeriod
+    const copySpy = vi.spyOn(planTaskService, "copyTasksToPeriod")
+      .mockRejectedValueOnce(new Error("磁盘写入失败"))
+      .mockImplementationOnce(realCopy)
+    await db.planTasks.bulkAdd(rows)
+    const rendered = render(<PeriodMigrationPanel db={db} onClose={onClose} open sourcePeriod={source} targetPeriod={target} tasks={rows} today="2027-01-18" />)
+
+    try {
+      await user.click(screen.getByLabelText("选择任务 one"))
+      await user.click(screen.getByLabelText("选择任务 two"))
+      await user.click(screen.getByRole("button", { name: "复制 2 项任务" }))
+
+      expect(await screen.findByRole("alert")).toHaveTextContent("保存失败，请重试")
+
+      rendered.rerender(
+        <PeriodMigrationPanel
+          db={db}
+          onClose={onClose}
+          open
+          sourcePeriod={source}
+          targetPeriod={{ ...target, startDate: "2027-03-01", endDate: "2027-03-31", updatedAt: 2 }}
+          tasks={rows}
+          today="2027-03-05"
+        />,
+      )
+      await user.click(screen.getByLabelText("选择任务 two"))
+      await user.click(screen.getByRole("button", { name: "重试" }))
+
+      await waitFor(async () => expect((await db.planTasks.toArray()).filter((row) => row.scheduledDate === "2027-01-18")).toHaveLength(2))
+      expect((await db.planTasks.toArray()).filter((row) => row.scheduledDate === "2027-03-05")).toHaveLength(0)
+      expect(copySpy).toHaveBeenNthCalledWith(1, db, ["one", "two"], target, "2027-01-18", expect.any(Number))
+      expect(copySpy).toHaveBeenNthCalledWith(2, db, ["one", "two"], target, "2027-01-18", expect.any(Number))
+    } finally {
+      copySpy.mockRestore()
+      rendered.unmount()
+      await db.delete()
+    }
+  })
+
   it("retries dismissing the migration after a failed dismiss request", async () => {
     const db = new VeloDB(`period-dismiss-retry-${crypto.randomUUID()}`)
     const user = userEvent.setup()

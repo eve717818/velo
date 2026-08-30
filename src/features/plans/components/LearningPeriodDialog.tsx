@@ -8,7 +8,7 @@ import type { LearningPeriodInput } from "../domain/learning-periods"
 import styles from "./PlanDialog.module.css"
 import { PlanDialog } from "./PlanDialog"
 import { PlanErrorState } from "./PlanErrorState"
-import { useRequestSession } from "./useRequestSession"
+import { type RequestSession, useRequestSession } from "./useRequestSession"
 
 type FieldName = "name" | "startDate" | "endDate"
 type FieldErrors = Partial<Record<FieldName, string>>
@@ -37,29 +37,33 @@ function conflictingPeriodName(input: LearningPeriodInput, periods: LearningPeri
 
 export function LearningPeriodDialog({ db, onClose, open, period, periods }: LearningPeriodDialogProps) {
   const sessionKey = open ? `${period?.id ?? "new"}-${period?.updatedAt ?? "new"}` : "closed"
+  const requestSession = useRequestSession(sessionKey)
+
+  function handleClose() {
+    requestSession.invalidate()
+    onClose()
+  }
   return (
-    <PlanDialog labelledBy="learning-period-editor-heading" onRequestClose={onClose} open={open}>
-      <LearningPeriodForm db={db} key={sessionKey} onClose={onClose} period={period} periods={periods} />
+    <PlanDialog labelledBy="learning-period-editor-heading" onRequestClose={handleClose} open={open}>
+      <LearningPeriodForm db={db} key={sessionKey} onClose={handleClose} period={period} periods={periods} requestSession={requestSession} />
     </PlanDialog>
   )
 }
 
-function LearningPeriodForm({ db, onClose, period, periods }: Omit<LearningPeriodDialogProps, "open">) {
+interface LearningPeriodFormProps extends Omit<LearningPeriodDialogProps, "open"> {
+  requestSession: RequestSession
+}
+
+function LearningPeriodForm({ db, onClose, period, periods, requestSession }: LearningPeriodFormProps) {
   const [values, setValues] = useState(() => toFormValues(period))
   const [errors, setErrors] = useState<FieldErrors>({})
   const [saveError, setSaveError] = useState("")
   const [saving, setSaving] = useState(false)
   const lastValuesRef = useRef<LearningPeriodInput | null>(null)
-  const requestSession = useRequestSession()
 
   function setValue<K extends keyof LearningPeriodInput>(key: K, value: LearningPeriodInput[K]) {
     setValues((current) => ({ ...current, [key]: value }))
     if (key === "name" || key === "startDate" || key === "endDate") setErrors((current) => ({ ...current, [key]: undefined }))
-  }
-
-  function requestClose() {
-    requestSession.invalidate()
-    onClose()
   }
 
   async function submit(retryValues?: LearningPeriodInput) {
@@ -73,7 +77,7 @@ function LearningPeriodForm({ db, onClose, period, periods }: Omit<LearningPerio
       if (period) await updateLearningPeriod(db, period.id, submittedValues, Date.now())
       else await createLearningPeriod(db, submittedValues, Date.now())
       if (!requestSession.isCurrent(requestToken)) return
-      requestClose()
+      onClose()
     } catch (error) {
       if (!requestSession.isCurrent(requestToken)) return
       if (error instanceof LearningPeriodValidationError) {
@@ -91,7 +95,7 @@ function LearningPeriodForm({ db, onClose, period, periods }: Omit<LearningPerio
     <form aria-busy={saving} className={styles.form} noValidate onSubmit={(event) => { event.preventDefault(); void submit() }}>
       <div className={styles.dialogHeader}>
         <div><p className={styles.eyebrow}>学习周期</p><h2 id="learning-period-editor-heading">{period ? "编辑学习周期" : "新建学习周期"}</h2></div>
-        <button aria-label="关闭周期编辑" className={styles.iconButton} onClick={requestClose} type="button">×</button>
+        <button aria-label="关闭周期编辑" className={styles.iconButton} onClick={onClose} type="button">×</button>
       </div>
       <label className={styles.field} htmlFor="period-kind"><span>周期类型</span><select aria-label="周期类型" id="period-kind" onChange={(event) => setValue("kind", event.target.value as LearningPeriodKind)} value={values.kind}><option value="semester">学期</option><option value="winter-break">寒假</option><option value="summer-break">暑假</option><option value="custom-break">自定义假期</option></select></label>
       <label className={styles.field} htmlFor="period-name"><span>周期名称 <em>必填</em></span><input aria-invalid={Boolean(errors.name)} aria-label="周期名称" id="period-name" onChange={(event) => setValue("name", event.target.value)} value={values.name} />{errors.name ? <small role="alert">{errors.name}</small> : null}</label>
@@ -100,7 +104,7 @@ function LearningPeriodForm({ db, onClose, period, periods }: Omit<LearningPerio
         <label className={styles.field} htmlFor="period-end"><span>结束日期 <em>必填</em></span><input aria-invalid={Boolean(errors.endDate)} aria-label="结束日期" id="period-end" onChange={(event) => setValue("endDate", event.target.value)} type="date" value={values.endDate} />{errors.endDate ? <small role="alert">{errors.endDate}</small> : null}</label>
       </div>
       <label className={styles.field} htmlFor="period-goal"><span>学习目标 <em>可选</em></span><textarea aria-label="学习目标" id="period-goal" onChange={(event) => setValue("goal", event.target.value)} rows={3} value={values.goal} /></label>
-      <div className={styles.actions}>{saveError ? <PlanErrorState error={saveError} onRetry={() => { if (lastValuesRef.current) void submit(lastValuesRef.current) }} /> : null}<button className={styles.secondaryButton} onClick={requestClose} type="button">取消</button><button className={styles.primaryButton} disabled={saving} type="submit">{saving ? "正在保存" : "保存周期"}</button></div>
+      <div className={styles.actions}>{saveError ? <PlanErrorState error={saveError} onRetry={() => { if (lastValuesRef.current) void submit(lastValuesRef.current) }} /> : null}<button className={styles.secondaryButton} onClick={onClose} type="button">取消</button><button className={styles.primaryButton} disabled={saving} type="submit">{saving ? "正在保存" : "保存周期"}</button></div>
     </form>
   )
 }

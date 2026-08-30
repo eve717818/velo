@@ -1,22 +1,37 @@
-import { useEffect, useRef } from "react"
+import { useEffect, useMemo } from "react"
 
-export function useRequestSession() {
-  const tokenRef = useRef(0)
+export interface RequestSession {
+  beginRequest: () => number
+  invalidate: () => void
+  isCurrent: (token: number) => boolean
+}
 
-  useEffect(() => () => { tokenRef.current += 1 }, [])
+function createRequestSession(): RequestSession {
+  let token = 0
 
-  function beginRequest() {
-    tokenRef.current += 1
-    return tokenRef.current
+  return {
+    beginRequest() {
+      token += 1
+      return token
+    },
+    invalidate() {
+      token += 1
+    },
+    isCurrent(requestToken: number) {
+      return requestToken === token
+    },
   }
+}
 
-  function invalidate() {
-    tokenRef.current += 1
-  }
+export function useRequestSession(sessionKey?: string): RequestSession {
+  const requestSession = useMemo(() => {
+    void sessionKey
+    return createRequestSession()
+  }, [sessionKey])
 
-  function isCurrent(token: number) {
-    return token === tokenRef.current
-  }
+  useEffect(() => () => {
+    requestSession.invalidate()
+  }, [requestSession])
 
-  return { beginRequest, invalidate, isCurrent }
+  return requestSession
 }

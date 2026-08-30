@@ -5,7 +5,7 @@ import { createPlanTask, updatePlanTask } from "../data/plan-task-service"
 import styles from "./PlanDialog.module.css"
 import { PlanDialog } from "./PlanDialog"
 import { PlanErrorState } from "./PlanErrorState"
-import { useRequestSession } from "./useRequestSession"
+import { type RequestSession, useRequestSession } from "./useRequestSession"
 
 interface TaskEditorDialogProps {
   db: VeloDB
@@ -51,21 +51,30 @@ function timeToMinutes(value: string) {
 
 export function TaskEditorDialog({ db, initialDate, onClose, open, returnFocusTo, task }: TaskEditorDialogProps) {
   const sessionKey = open ? `${task?.id ?? "new"}-${task?.updatedAt ?? "new"}-${initialDate}` : "closed"
+  const requestSession = useRequestSession(sessionKey)
+
+  function handleClose() {
+    requestSession.invalidate()
+    onClose()
+  }
 
   return (
-    <PlanDialog labelledBy="task-editor-heading" onRequestClose={onClose} open={open} returnFocusTo={returnFocusTo}>
-      <TaskEditorForm db={db} initialDate={initialDate} key={sessionKey} onClose={onClose} task={task} />
+    <PlanDialog labelledBy="task-editor-heading" onRequestClose={handleClose} open={open} returnFocusTo={returnFocusTo}>
+      <TaskEditorForm db={db} initialDate={initialDate} key={sessionKey} onClose={handleClose} requestSession={requestSession} task={task} />
     </PlanDialog>
   )
 }
 
-function TaskEditorForm({ db, initialDate, onClose, task }: Omit<TaskEditorDialogProps, "open">) {
+interface TaskEditorFormProps extends Omit<TaskEditorDialogProps, "open"> {
+  requestSession: RequestSession
+}
+
+function TaskEditorForm({ db, initialDate, onClose, requestSession, task }: TaskEditorFormProps) {
   const [values, setValues] = useState(() => toFormValues(task, initialDate))
   const [errors, setErrors] = useState<FieldErrors>({})
   const [saveError, setSaveError] = useState("")
   const [isSaving, setIsSaving] = useState(false)
   const lastInputRef = useRef<Parameters<typeof createPlanTask>[1] | null>(null)
-  const requestSession = useRequestSession()
   const headingId = "task-editor-heading"
 
   function updateValue<K extends keyof TaskFormValues>(key: K, value: TaskFormValues[K]) {
@@ -73,11 +82,6 @@ function TaskEditorForm({ db, initialDate, onClose, task }: Omit<TaskEditorDialo
     if (key === "title" || key === "scheduledDate") {
       setErrors((current) => ({ ...current, [key]: undefined }))
     }
-  }
-
-  function requestClose() {
-    requestSession.invalidate()
-    onClose()
   }
 
   async function onSubmit(retryInput?: Parameters<typeof createPlanTask>[1]) {
@@ -107,7 +111,7 @@ function TaskEditorForm({ db, initialDate, onClose, task }: Omit<TaskEditorDialo
         await createPlanTask(db, input, Date.now())
       }
       if (!requestSession.isCurrent(requestToken)) return
-      requestClose()
+      onClose()
     } catch (error) {
       if (!requestSession.isCurrent(requestToken)) return
       setSaveError(error instanceof Error ? error.message : "保存任务失败，请重试")
@@ -124,7 +128,7 @@ function TaskEditorForm({ db, initialDate, onClose, task }: Omit<TaskEditorDialo
             <p className={styles.eyebrow}>学习计划</p>
             <h2 id={headingId}>{task ? "编辑学习任务" : "新建学习任务"}</h2>
           </div>
-          <button aria-label="关闭任务编辑" className={styles.iconButton} onClick={requestClose} type="button">×</button>
+          <button aria-label="关闭任务编辑" className={styles.iconButton} onClick={onClose} type="button">×</button>
         </div>
 
         <label className={styles.field} htmlFor="task-title">
@@ -177,7 +181,7 @@ function TaskEditorForm({ db, initialDate, onClose, task }: Omit<TaskEditorDialo
 
         <div className={styles.actions}>
           {saveError ? <PlanErrorState error={saveError} onRetry={() => { if (lastInputRef.current) void onSubmit(lastInputRef.current) }} /> : null}
-          <button className={styles.secondaryButton} onClick={requestClose} type="button">取消</button>
+          <button className={styles.secondaryButton} onClick={onClose} type="button">取消</button>
           <button className={styles.primaryButton} disabled={isSaving} type="submit">{isSaving ? "正在保存" : "保存任务"}</button>
         </div>
       </form>
