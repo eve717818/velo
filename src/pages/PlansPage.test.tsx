@@ -1,9 +1,10 @@
-import { render, screen, waitFor } from "@testing-library/react"
+import { act, render, screen, waitFor, within } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { MemoryRouter, useLocation } from "react-router-dom"
-import { describe, expect, it } from "vitest"
+import { describe, expect, it, vi } from "vitest"
 import type { LearningPeriod } from "@/db/types"
 import { VeloDB } from "@/db/velo-db"
+import * as learningPeriodService from "@/features/plans/data/learning-period-service"
 import { PlansPage } from "./PlansPage"
 
 function LocationProbe() {
@@ -22,6 +23,25 @@ function renderPlansPage(initialEntry: string, db: VeloDB, now = new Date(2026, 
       <LocationProbe />
     </MemoryRouter>,
   )
+}
+
+function period(overrides: Partial<LearningPeriod> = {}): LearningPeriod {
+  return {
+    id: "spring",
+    kind: "semester",
+    name: "春季学期",
+    startDate: "2027-02-22",
+    endDate: "2027-06-30",
+    createdAt: 1,
+    updatedAt: 1,
+    ...overrides,
+  }
+}
+
+function deferred<T>() {
+  let resolve!: (value: T) => void
+  const promise = new Promise<T>((resolvePromise) => { resolve = resolvePromise })
+  return { promise, resolve }
 }
 
 describe("PlansPage", () => {
@@ -149,6 +169,67 @@ describe("PlansPage", () => {
       await user.click(screen.getByRole("button", { name: "开始专注" }))
       expect(screen.getByLabelText("当前位置")).toHaveTextContent("/focus?task=task+%26+focus&minutes=45")
     } finally {
+      rendered.unmount()
+      await db.delete()
+    }
+  })
+
+  it("keeps the delete-period dialog open and retries after a failed period deletion", async () => {
+    const db = createDatabase()
+    const user = userEvent.setup()
+    const targetPeriod = period()
+    const realDelete = learningPeriodService.deleteLearningPeriod
+    const deleteSpy = vi.spyOn(learningPeriodService, "deleteLearningPeriod")
+      .mockRejectedValueOnce(new Error("磁盘写入失败"))
+      .mockImplementationOnce(realDelete)
+    await db.learningPeriods.add(targetPeriod)
+    const rendered = renderPlansPage("/plans?view=period&period=spring&date=2027-03-01", db, new Date(2027, 2, 1, 9, 0))
+
+    try {
+      await user.click(await screen.findByRole("button", { name: "删除周期" }))
+      await user.click(within(screen.getByRole("dialog", { name: "删除“春季学期”？" })).getByRole("button", { name: "删除周期" }))
+
+      expect(await screen.findByRole("alert")).toHaveTextContent("保存失败，请重试")
+      await user.click(screen.getByRole("button", { name: "重试" }))
+
+      await waitFor(async () => expect(await db.learningPeriods.get(targetPeriod.id)).toBeUndefined())
+      expect(deleteSpy).toHaveBeenCalledTimes(2)
+      expect(screen.queryByRole("dialog")).not.toBeInTheDocument()
+    } finally {
+      deleteSpy.mockRestore()
+      rendered.unmount()
+      await db.delete()
+    }
+  })
+
+  it("ignores a completed delete-period request from a closed session", async () => {
+    const db = createDatabase()
+    const user = userEvent.setup()
+    const firstDelete = deferred<{ affectedTaskCount: number }>()
+    const deleteSpy = vi.spyOn(learningPeriodService, "deleteLearningPeriod")
+      .mockImplementationOnce(() => firstDelete.promise)
+    await db.learningPeriods.bulkAdd([
+      period({ id: "spring", name: "春季学期", startDate: "2027-02-22", endDate: "2027-06-30" }),
+      period({ id: "summer", kind: "summer-break", name: "暑假", startDate: "2027-07-01", endDate: "2027-08-31" }),
+    ])
+    const rendered = renderPlansPage("/plans?view=period&period=spring&date=2027-03-01", db, new Date(2027, 2, 1, 9, 0))
+
+    try {
+      await user.click(await screen.findByRole("button", { name: "删除周期" }))
+      await user.click(within(screen.getByRole("dialog", { name: "删除“春季学期”？" })).getByRole("button", { name: "删除周期" }))
+      await user.click(within(screen.getByRole("dialog", { name: "删除“春季学期”？" })).getByRole("button", { name: "取消" }))
+      await user.click(screen.getByRole("button", { name: /暑假.*2027-07-01/ }))
+      await user.click(screen.getByRole("button", { name: "删除周期" }))
+
+      await act(async () => {
+        firstDelete.resolve({ affectedTaskCount: 0 })
+        await firstDelete.promise
+      })
+
+      expect(screen.getByRole("dialog", { name: "删除“暑假”？" })).toBeInTheDocument()
+      expect(deleteSpy).toHaveBeenCalledTimes(1)
+    } finally {
+      deleteSpy.mockRestore()
       rendered.unmount()
       await db.delete()
     }

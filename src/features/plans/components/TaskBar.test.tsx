@@ -29,10 +29,12 @@ function task(overrides: Partial<PlanTask> = {}): PlanTask {
 
 function deferred<T>() {
   let resolve!: (value: T) => void
-  const promise = new Promise<T>((resolvePromise) => {
+  let reject!: (reason?: unknown) => void
+  const promise = new Promise<T>((resolvePromise, rejectPromise) => {
     resolve = resolvePromise
+    reject = rejectPromise
   })
-  return { promise, resolve }
+  return { promise, reject, resolve }
 }
 
 describe("TaskBar", () => {
@@ -208,6 +210,77 @@ describe("TaskBar", () => {
       }
     } finally {
       rendered.unmount()
+    }
+  })
+
+  it("keeps the task incomplete and retries completion after a failed write", async () => {
+    const db = createDatabase()
+    const currentTask = task()
+    const user = userEvent.setup()
+    const realCompletion = planTaskService.setTaskCompletion
+    const completionSpy = vi.spyOn(planTaskService, "setTaskCompletion")
+      .mockRejectedValueOnce(new Error("磁盘写入失败"))
+      .mockImplementationOnce(realCompletion)
+    await db.planTasks.add(currentTask)
+    const rendered = render(<TaskBar db={db} task={currentTask} />)
+
+    try {
+      const bar = screen.getByRole("button", { name: "打开任务操作：复习导数" })
+      bar.focus()
+      await user.keyboard("{Enter}")
+
+      expect(await screen.findByRole("alert")).toHaveTextContent("保存失败，请重试")
+      expect(await db.planTasks.get(currentTask.id)).toMatchObject({ isCompleted: 0 })
+
+      await user.click(screen.getByRole("button", { name: "重试" }))
+
+      await waitFor(async () => expect(await db.planTasks.get(currentTask.id)).toMatchObject({ isCompleted: 1 }))
+      expect(completionSpy).toHaveBeenCalledTimes(2)
+    } finally {
+      completionSpy.mockRestore()
+      rendered.unmount()
+      await db.delete()
+    }
+  })
+
+  it("keeps the task in its lane and retries the same move target after a failed write", async () => {
+    const db = createDatabase()
+    const currentTask = task({ scheduledDate: "2026-08-28", startMinutes: undefined, order: 4 })
+    const user = userEvent.setup()
+    const realMove = planTaskService.movePlanTask
+    const moveSpy = vi.spyOn(planTaskService, "movePlanTask")
+      .mockRejectedValueOnce(new Error("磁盘写入失败"))
+      .mockImplementationOnce(realMove)
+    await db.planTasks.add(currentTask)
+    vi.useFakeTimers()
+    const dropZone = document.createElement("div")
+    dropZone.dataset.dropDate = "2026-08-29"
+    dropZone.dataset.startMinutes = "840"
+    const originalElementFromPoint = Object.getOwnPropertyDescriptor(document, "elementFromPoint")
+    Object.defineProperty(document, "elementFromPoint", { configurable: true, value: () => dropZone })
+    const rendered = render(<TaskBar db={db} task={currentTask} />)
+
+    try {
+      const bar = screen.getByRole("button", { name: "打开任务操作：复习导数" })
+      fireEvent.pointerDown(bar, { pointerId: 1, clientX: 20, clientY: 30 })
+      void act(() => vi.advanceTimersByTime(350))
+      fireEvent.pointerUp(bar, { pointerId: 1, clientX: 20, clientY: 30 })
+      vi.useRealTimers()
+
+      expect(await screen.findByRole("alert")).toHaveTextContent("保存失败，请重试")
+      expect(await db.planTasks.get(currentTask.id)).toMatchObject({ scheduledDate: "2026-08-28", startMinutes: undefined, order: 4 })
+
+      await user.click(screen.getByRole("button", { name: "重试" }))
+
+      await waitFor(async () => expect(await db.planTasks.get(currentTask.id)).toMatchObject({ scheduledDate: "2026-08-29", startMinutes: 840 }))
+      expect(moveSpy).toHaveBeenCalledTimes(2)
+    } finally {
+      moveSpy.mockRestore()
+      if (originalElementFromPoint) Object.defineProperty(document, "elementFromPoint", originalElementFromPoint)
+      else Reflect.deleteProperty(document, "elementFromPoint")
+      rendered.unmount()
+      vi.useRealTimers()
+      await db.delete()
     }
   })
 

@@ -19,6 +19,7 @@ import { PeriodMigrationPanel } from "@/features/plans/components/PeriodMigratio
 import { periodMigrationDismissalKey, reopenPeriodMigration } from "@/features/plans/data/period-migration-service"
 import { PlanDialog } from "@/features/plans/components/PlanDialog"
 import { PlanErrorState } from "@/features/plans/components/PlanErrorState"
+import { useRequestSession } from "@/features/plans/components/useRequestSession"
 import type { PlanTask } from "@/db/types"
 import { parseLocalDate } from "@/features/plans/domain/plan-dates"
 import { countTasksInPeriod } from "@/features/plans/domain/learning-periods"
@@ -56,6 +57,59 @@ function readDate(value: string | null, fallback: string) {
   }
 }
 
+interface DeletePeriodDialogProps {
+  db: VeloDB
+  onClose: () => void
+  onDeleted: (periodId: string) => void
+  period: LearningPeriod
+  taskCount: number
+}
+
+function DeletePeriodDialog({ db, onClose, onDeleted, period, taskCount }: DeletePeriodDialogProps) {
+  const [error, setError] = useState("")
+  const [isDeleting, setIsDeleting] = useState(false)
+  const requestSession = useRequestSession()
+
+  function requestClose() {
+    requestSession.invalidate()
+    onClose()
+  }
+
+  async function confirmDelete(retryPeriodId?: string) {
+    const periodId = retryPeriodId ?? period.id
+    const requestToken = requestSession.beginRequest()
+    setIsDeleting(true)
+    setError("")
+    try {
+      await deleteLearningPeriod(db, periodId)
+      if (!requestSession.isCurrent(requestToken)) return
+      requestSession.invalidate()
+      onDeleted(periodId)
+      onClose()
+    } catch (error) {
+      if (!requestSession.isCurrent(requestToken)) return
+      setError(error instanceof Error ? error.message : "删除周期失败")
+    } finally {
+      if (requestSession.isCurrent(requestToken)) setIsDeleting(false)
+    }
+  }
+
+  return (
+    <PlanDialog labelledBy="delete-period-heading" onRequestClose={requestClose} open>
+      <section aria-busy={isDeleting} className={styles.periodDeleteDialog}>
+        <p className={styles.metaLabel}>删除学习周期</p>
+        <h2 id="delete-period-heading">删除“{period.name}”？</h2>
+        <p>{taskCount} 项任务将变为未归属周期，任务本身不会删除。</p>
+        {error ? <PlanErrorState error={error} onRetry={() => { void confirmDelete(period.id) }} /> : null}
+        <div className={styles.migrationActions}>
+          <button className={styles.secondaryPeriodAction} onClick={requestClose} type="button">取消</button>
+          <button className={styles.dangerPeriodAction} disabled={isDeleting} onClick={() => { void confirmDelete() }} type="button">删除周期</button>
+        </div>
+      </section>
+    </PlanDialog>
+  )
+}
+
 export function PlansPage({ db = veloDb, now }: PlansPageProps) {
   const [searchParams, setSearchParams] = useSearchParams()
   const navigate = useNavigate()
@@ -76,7 +130,6 @@ export function PlansPage({ db = veloDb, now }: PlansPageProps) {
   const [isPeriodDialogOpen, setIsPeriodDialogOpen] = useState(false)
   const [editingPeriod, setEditingPeriod] = useState<LearningPeriod | undefined>()
   const [periodToDelete, setPeriodToDelete] = useState<LearningPeriod | null>(null)
-  const [periodDeleteError, setPeriodDeleteError] = useState("")
   const [isMigrationOpen, setIsMigrationOpen] = useState(false)
   const isCreating = searchParams.get("new") === "1"
   const activePeriod = snapshot?.selectedPeriod ?? snapshot?.periods[0] ?? null
@@ -136,18 +189,10 @@ export function PlansPage({ db = veloDb, now }: PlansPageProps) {
     setIsMigrationOpen(true)
   }
 
-  async function deleteSelectedPeriod() {
-    if (!periodToDelete) return
-    setPeriodDeleteError("")
-    try {
-      await deleteLearningPeriod(db, periodToDelete.id)
-      setPeriodToDelete(null)
-      const nextParams = new URLSearchParams(searchParams)
-      nextParams.delete("period")
-      setSearchParams(nextParams)
-    } catch (error) {
-      setPeriodDeleteError(error instanceof Error ? error.message : "删除周期失败")
-    }
+  function handlePeriodDeleted(deletedPeriodId: string) {
+    const nextParams = new URLSearchParams(searchParams)
+    if (nextParams.get("period") === deletedPeriodId) nextParams.delete("period")
+    setSearchParams(nextParams)
   }
 
   function openTask(openedTask: PlanTask, trigger: HTMLButtonElement) {
@@ -196,7 +241,7 @@ export function PlansPage({ db = veloDb, now }: PlansPageProps) {
                 : view === "month" ? <MonthPlanView db={db} onOpen={openTask} selectedDate={selectedDate} tasks={snapshot.tasks} />
                   : <LearningPeriodView
                     onCreate={() => openPeriodEditor()}
-                    onDelete={(period) => { setPeriodDeleteError(""); setPeriodToDelete(period) }}
+                    onDelete={(period) => setPeriodToDelete(period)}
                     onEdit={openPeriodEditor}
                     onEditTask={(task) => setEditorTask(task)}
                     onReopenMigration={(period) => { void reopenMigrationFor(period) }}
@@ -246,17 +291,7 @@ export function PlansPage({ db = veloDb, now }: PlansPageProps) {
         period={editingPeriod}
         periods={snapshot?.periods ?? []}
       />
-      {periodToDelete ? (
-        <PlanDialog labelledBy="delete-period-heading" onRequestClose={() => setPeriodToDelete(null)} open>
-          <section className={styles.periodDeleteDialog}>
-            <p className={styles.metaLabel}>删除学习周期</p>
-            <h2 id="delete-period-heading">删除“{periodToDelete.name}”？</h2>
-            <p>{countTasksInPeriod(snapshot?.allTasks ?? [], periodToDelete)} 项任务将变为未归属周期，任务本身不会删除。</p>
-            {periodDeleteError ? <PlanErrorState error={periodDeleteError} onRetry={() => { void deleteSelectedPeriod() }} /> : null}
-            <div className={styles.migrationActions}><button className={styles.secondaryPeriodAction} onClick={() => setPeriodToDelete(null)} type="button">取消</button><button className={styles.dangerPeriodAction} onClick={() => { void deleteSelectedPeriod() }} type="button">删除周期</button></div>
-          </section>
-        </PlanDialog>
-      ) : null}
+      {periodToDelete ? <DeletePeriodDialog db={db} key={`${periodToDelete.id}-${periodToDelete.updatedAt}`} onClose={() => setPeriodToDelete(null)} onDeleted={handlePeriodDeleted} period={periodToDelete} taskCount={countTasksInPeriod(snapshot?.allTasks ?? [], periodToDelete)} /> : null}
       {migrationSource && activePeriod && migrationTasks.length > 0 && !migrationDismissal ? <div className={styles.migrationBanner}><span>上一学习周期还有 {migrationTasks.length} 个任务未完成</span><button onClick={() => setIsMigrationOpen(true)} type="button">查看并复制</button></div> : null}
       {migrationSource && activePeriod ? <PeriodMigrationPanel db={db} onClose={() => setIsMigrationOpen(false)} open={isMigrationOpen} sourcePeriod={migrationSource} targetPeriod={activePeriod} tasks={migrationTasks} today={fallbackDate} /> : null}
       {legacyTasks ? <LegacyPlanMigrationPanel db={db} legacyTasks={legacyTasks} open={legacyTasks.length > 0} /> : null}

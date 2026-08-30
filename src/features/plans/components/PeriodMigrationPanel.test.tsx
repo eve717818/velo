@@ -4,6 +4,8 @@ import { describe, expect, it, vi } from "vitest"
 
 import type { LearningPeriod, PlanTask } from "@/db/types"
 import { VeloDB } from "@/db/velo-db"
+import * as planTaskService from "../data/plan-task-service"
+import * as periodMigrationService from "../data/period-migration-service"
 
 import { PeriodMigrationPanel } from "./PeriodMigrationPanel"
 import { reopenPeriodMigration } from "../data/period-migration-service"
@@ -71,6 +73,64 @@ describe("PeriodMigrationPanel", () => {
       expect(await db.planTasks.toArray()).toEqual(rows)
       expect(onClose).not.toHaveBeenCalled()
     } finally {
+      rendered.unmount()
+      await db.delete()
+    }
+  })
+
+  it("keeps the selected tasks visible and retries the same copy selection after failure", async () => {
+    const db = new VeloDB(`period-copy-retry-${crypto.randomUUID()}`)
+    const user = userEvent.setup()
+    const onClose = vi.fn()
+    const rows = [task("one"), task("two")]
+    const realCopy = planTaskService.copyTasksToPeriod
+    const copySpy = vi.spyOn(planTaskService, "copyTasksToPeriod")
+      .mockRejectedValueOnce(new Error("磁盘写入失败"))
+      .mockImplementationOnce(realCopy)
+    await db.planTasks.bulkAdd(rows)
+    const rendered = render(<PeriodMigrationPanel db={db} onClose={onClose} open sourcePeriod={source} targetPeriod={target} tasks={rows} today="2027-01-18" />)
+
+    try {
+      await user.click(screen.getByLabelText("选择任务 one"))
+      await user.click(screen.getByLabelText("选择任务 two"))
+      await user.click(screen.getByRole("button", { name: "复制 2 项任务" }))
+
+      expect(await screen.findByRole("alert")).toHaveTextContent("保存失败，请重试")
+      expect(screen.getByText("已选择 2 项")).toBeInTheDocument()
+      await user.click(screen.getByLabelText("选择任务 two"))
+      await user.click(screen.getByRole("button", { name: "重试" }))
+
+      await waitFor(async () => expect((await db.planTasks.toArray()).filter((row) => row.scheduledDate === "2027-01-18")).toHaveLength(2))
+      expect(copySpy).toHaveBeenCalledTimes(2)
+      expect(onClose).toHaveBeenCalledTimes(1)
+    } finally {
+      copySpy.mockRestore()
+      rendered.unmount()
+      await db.delete()
+    }
+  })
+
+  it("retries dismissing the migration after a failed dismiss request", async () => {
+    const db = new VeloDB(`period-dismiss-retry-${crypto.randomUUID()}`)
+    const user = userEvent.setup()
+    const onClose = vi.fn()
+    const realDismiss = periodMigrationService.dismissPeriodMigration
+    const dismissSpy = vi.spyOn(periodMigrationService, "dismissPeriodMigration")
+    dismissSpy
+      .mockRejectedValueOnce(new Error("磁盘写入失败"))
+      .mockImplementationOnce(realDismiss)
+    const rendered = render(<PeriodMigrationPanel db={db} onClose={onClose} open sourcePeriod={source} targetPeriod={target} tasks={[]} today="2027-01-18" />)
+
+    try {
+      await user.click(screen.getByRole("button", { name: "暂不处理" }))
+
+      expect(await screen.findByRole("alert")).toHaveTextContent("保存失败，请重试")
+      await user.click(screen.getByRole("button", { name: "重试" }))
+
+      await waitFor(() => expect(onClose).toHaveBeenCalledTimes(1))
+      expect(dismissSpy).toHaveBeenCalledTimes(2)
+    } finally {
+      dismissSpy.mockRestore()
       rendered.unmount()
       await db.delete()
     }

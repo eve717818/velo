@@ -1,10 +1,11 @@
-import { useState } from "react"
+import { useRef, useState } from "react"
 import type { PlanTask } from "@/db/types"
 import type { VeloDB } from "@/db/velo-db"
 import { createPlanTask, updatePlanTask } from "../data/plan-task-service"
 import styles from "./PlanDialog.module.css"
 import { PlanDialog } from "./PlanDialog"
 import { PlanErrorState } from "./PlanErrorState"
+import { useRequestSession } from "./useRequestSession"
 
 interface TaskEditorDialogProps {
   db: VeloDB
@@ -49,7 +50,7 @@ function timeToMinutes(value: string) {
 }
 
 export function TaskEditorDialog({ db, initialDate, onClose, open, returnFocusTo, task }: TaskEditorDialogProps) {
-  const sessionKey = open ? `${task?.id ?? "new"}-${initialDate}` : "closed"
+  const sessionKey = open ? `${task?.id ?? "new"}-${task?.updatedAt ?? "new"}-${initialDate}` : "closed"
 
   return (
     <PlanDialog labelledBy="task-editor-heading" onRequestClose={onClose} open={open} returnFocusTo={returnFocusTo}>
@@ -63,6 +64,8 @@ function TaskEditorForm({ db, initialDate, onClose, task }: Omit<TaskEditorDialo
   const [errors, setErrors] = useState<FieldErrors>({})
   const [saveError, setSaveError] = useState("")
   const [isSaving, setIsSaving] = useState(false)
+  const lastInputRef = useRef<Parameters<typeof createPlanTask>[1] | null>(null)
+  const requestSession = useRequestSession()
   const headingId = "task-editor-heading"
 
   function updateValue<K extends keyof TaskFormValues>(key: K, value: TaskFormValues[K]) {
@@ -72,16 +75,13 @@ function TaskEditorForm({ db, initialDate, onClose, task }: Omit<TaskEditorDialo
     }
   }
 
-  async function onSubmit() {
-    const nextErrors: FieldErrors = {}
-    if (!values.title.trim()) nextErrors.title = "请填写任务标题"
-    if (!values.scheduledDate) nextErrors.scheduledDate = "请选择日期"
-    setErrors(nextErrors)
-    if (Object.keys(nextErrors).length > 0) return
+  function requestClose() {
+    requestSession.invalidate()
+    onClose()
+  }
 
-    setIsSaving(true)
-    setSaveError("")
-    const input = {
+  async function onSubmit(retryInput?: Parameters<typeof createPlanTask>[1]) {
+    const input = retryInput ?? {
       title: values.title,
       scheduledDate: values.scheduledDate,
       subject: values.subject || undefined,
@@ -89,6 +89,16 @@ function TaskEditorForm({ db, initialDate, onClose, task }: Omit<TaskEditorDialo
       estimatedMinutes: values.estimatedMinutes ? Number(values.estimatedMinutes) : undefined,
       notes: values.notes || undefined,
     }
+    const nextErrors: FieldErrors = {}
+    if (!input.title.trim()) nextErrors.title = "请填写任务标题"
+    if (!input.scheduledDate) nextErrors.scheduledDate = "请选择日期"
+    setErrors(nextErrors)
+    if (Object.keys(nextErrors).length > 0) return
+
+    setIsSaving(true)
+    setSaveError("")
+    lastInputRef.current = input
+    const requestToken = requestSession.beginRequest()
 
     try {
       if (task) {
@@ -96,11 +106,13 @@ function TaskEditorForm({ db, initialDate, onClose, task }: Omit<TaskEditorDialo
       } else {
         await createPlanTask(db, input, Date.now())
       }
-      onClose()
+      if (!requestSession.isCurrent(requestToken)) return
+      requestClose()
     } catch (error) {
+      if (!requestSession.isCurrent(requestToken)) return
       setSaveError(error instanceof Error ? error.message : "保存任务失败，请重试")
     } finally {
-      setIsSaving(false)
+      if (requestSession.isCurrent(requestToken)) setIsSaving(false)
     }
   }
 
@@ -112,10 +124,8 @@ function TaskEditorForm({ db, initialDate, onClose, task }: Omit<TaskEditorDialo
             <p className={styles.eyebrow}>学习计划</p>
             <h2 id={headingId}>{task ? "编辑学习任务" : "新建学习任务"}</h2>
           </div>
-          <button aria-label="关闭任务编辑" className={styles.iconButton} onClick={onClose} type="button">×</button>
+          <button aria-label="关闭任务编辑" className={styles.iconButton} onClick={requestClose} type="button">×</button>
         </div>
-
-        {saveError ? <PlanErrorState error={saveError} onRetry={() => { void onSubmit() }} /> : null}
 
         <label className={styles.field} htmlFor="task-title">
           <span>任务标题 <em>必填</em></span>
@@ -166,7 +176,8 @@ function TaskEditorForm({ db, initialDate, onClose, task }: Omit<TaskEditorDialo
         </label>
 
         <div className={styles.actions}>
-          <button className={styles.secondaryButton} onClick={onClose} type="button">取消</button>
+          {saveError ? <PlanErrorState error={saveError} onRetry={() => { if (lastInputRef.current) void onSubmit(lastInputRef.current) }} /> : null}
+          <button className={styles.secondaryButton} onClick={requestClose} type="button">取消</button>
           <button className={styles.primaryButton} disabled={isSaving} type="submit">{isSaving ? "正在保存" : "保存任务"}</button>
         </div>
       </form>

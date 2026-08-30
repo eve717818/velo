@@ -11,6 +11,7 @@ import { TaskDragLayer } from "./TaskDragLayer"
 import { UndoNotice } from "./UndoNotice"
 import { PlanErrorState } from "./PlanErrorState"
 import styles from "./TaskBar.module.css"
+import { useRequestSession } from "./useRequestSession"
 
 interface TaskBarProps {
   db: VeloDB
@@ -19,6 +20,12 @@ interface TaskBarProps {
 }
 
 export function TaskBar({ db, onOpen, task }: TaskBarProps) {
+  const sessionKey = `${task.id}-${task.updatedAt}`
+
+  return <TaskBarSession db={db} key={sessionKey} onOpen={onOpen} task={task} />
+}
+
+function TaskBarSession({ db, onOpen, task }: TaskBarProps) {
   const [completionOverride, setCompletionOverride] = useState<boolean | null>(null)
   const [isSaving, setIsSaving] = useState(false)
   const [showUndo, setShowUndo] = useState(false)
@@ -36,6 +43,7 @@ export function TaskBar({ db, onOpen, task }: TaskBarProps) {
   const startY = useRef<number | null>(null)
   const suppressClick = useRef(false)
   const undoTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const requestSession = useRequestSession()
 
   useEffect(() => {
     mounted.current = true
@@ -70,16 +78,17 @@ export function TaskBar({ db, onOpen, task }: TaskBarProps) {
     const isCompleted = completionOverride ?? task.isCompleted === 1
     if (isSaving || (nextValue && isCompleted)) return
 
+    const requestToken = requestSession.beginRequest()
     setIsSaving(true)
     setWriteError(null)
     setCompletionOverride(nextValue)
     try {
       await setTaskCompletion(db, task.id, nextValue, Date.now())
-      if (!mounted.current) return
+      if (!mounted.current || !requestSession.isCurrent(requestToken)) return
       if (nextValue) showUndoWindow("任务已完成", () => void changeCompletion(false))
       else setShowUndo(false)
     } catch (error) {
-      if (mounted.current) {
+      if (mounted.current && requestSession.isCurrent(requestToken)) {
         setCompletionOverride(null)
         setWriteError({
           message: error instanceof Error ? error.message : "更新任务失败",
@@ -87,7 +96,7 @@ export function TaskBar({ db, onOpen, task }: TaskBarProps) {
         })
       }
     } finally {
-      if (mounted.current) setIsSaving(false)
+      if (mounted.current && requestSession.isCurrent(requestToken)) setIsSaving(false)
     }
   }
 
@@ -166,40 +175,42 @@ export function TaskBar({ db, onOpen, task }: TaskBarProps) {
       order: task.order,
     }
 
+    const requestToken = requestSession.beginRequest()
     setIsSaving(true)
     setWriteError(null)
     try {
       await movePlanTask(db, task.id, target, Date.now())
-      if (!mounted.current) return
+      if (!mounted.current || !requestSession.isCurrent(requestToken)) return
       showUndoWindow("已移动到目标位置", () => void restoreTaskPosition(previous))
     } catch (error) {
-      if (mounted.current) {
+      if (mounted.current && requestSession.isCurrent(requestToken)) {
         setWriteError({
           message: error instanceof Error ? error.message : "移动任务失败",
           retry: () => { void moveTask(target) },
         })
       }
     } finally {
-      if (mounted.current) setIsSaving(false)
+      if (mounted.current && requestSession.isCurrent(requestToken)) setIsSaving(false)
     }
   }
 
   async function restoreTaskPosition(previous: { scheduledDate: string; startMinutes: number | undefined; order: number }) {
     if (isSaving) return
+    const requestToken = requestSession.beginRequest()
     setIsSaving(true)
     setWriteError(null)
     try {
       await movePlanTask(db, task.id, previous, Date.now())
-      if (mounted.current) setShowUndo(false)
+      if (mounted.current && requestSession.isCurrent(requestToken)) setShowUndo(false)
     } catch (error) {
-      if (mounted.current) {
+      if (mounted.current && requestSession.isCurrent(requestToken)) {
         setWriteError({
           message: error instanceof Error ? error.message : "恢复任务位置失败",
           retry: () => { void restoreTaskPosition(previous) },
         })
       }
     } finally {
-      if (mounted.current) setIsSaving(false)
+      if (mounted.current && requestSession.isCurrent(requestToken)) setIsSaving(false)
     }
   }
 

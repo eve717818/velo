@@ -1,10 +1,11 @@
 import { useState } from "react"
-import { fireEvent, render, screen, waitFor } from "@testing-library/react"
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { MemoryRouter } from "react-router-dom"
 import { describe, expect, it, vi } from "vitest"
 import type { PlanTask } from "@/db/types"
 import { VeloDB } from "@/db/velo-db"
+import * as planTaskService from "../data/plan-task-service"
 import { DeleteTaskDialog } from "./DeleteTaskDialog"
 import { TaskActionsDialog } from "./TaskActionsDialog"
 import { TaskEditorDialog } from "./TaskEditorDialog"
@@ -12,6 +13,13 @@ import { PlansPage } from "@/pages/PlansPage"
 
 function createDatabase() {
   return new VeloDB(`velo-task-editor-${crypto.randomUUID()}`)
+}
+
+function deferred<T>() {
+  let resolve!: (value: T) => void
+  let reject!: (reason?: unknown) => void
+  const promise = new Promise<T>((resolvePromise, rejectPromise) => { resolve = resolvePromise; reject = rejectPromise })
+  return { promise, reject, resolve }
 }
 
 function existingTask(overrides: Partial<PlanTask> = {}): PlanTask {
@@ -146,6 +154,68 @@ describe("TaskEditorDialog", () => {
     }
   })
 
+  it("ignores a completed save from a closed editor session", async () => {
+    const db = createDatabase()
+    const user = userEvent.setup()
+    const firstSave = deferred<PlanTask>()
+    const createSpy = vi.spyOn(planTaskService, "createPlanTask")
+      .mockImplementationOnce(() => firstSave.promise)
+      .mockImplementationOnce((_db, input, now) => Promise.resolve({ id: "second", isCompleted: 0, order: 1, createdAt: now, updatedAt: now, ...input }))
+    const rendered = render(<EditorHarness db={db} />)
+
+    try {
+      await user.click(screen.getByRole("button", { name: "新建任务" }))
+      await user.type(screen.getByLabelText("任务标题"), "旧会话")
+      await user.click(screen.getByRole("button", { name: "保存任务" }))
+      await user.click(screen.getByRole("button", { name: "关闭任务编辑" }))
+      await user.click(screen.getByRole("button", { name: "新建任务" }))
+      await user.type(screen.getByLabelText("任务标题"), "新会话")
+
+      await act(async () => {
+        firstSave.resolve(existingTask({ id: "first", title: "旧会话" }))
+        await firstSave.promise
+      })
+
+      expect(screen.getByRole("dialog", { name: "新建学习任务" })).toBeInTheDocument()
+      expect(screen.getByLabelText("任务标题")).toHaveValue("新会话")
+    } finally {
+      createSpy.mockRestore()
+      rendered.unmount()
+      await db.delete()
+    }
+  })
+
+  it("retries the last submitted edit values after an update failure", async () => {
+    const db = createDatabase()
+    const task = existingTask()
+    const user = userEvent.setup()
+    const realUpdate = planTaskService.updatePlanTask
+    const updateSpy = vi.spyOn(planTaskService, "updatePlanTask")
+      .mockRejectedValueOnce(new Error("磁盘写入失败"))
+      .mockImplementationOnce(realUpdate)
+    await db.planTasks.add(task)
+    const rendered = render(<EditorHarness db={db} task={task} />)
+
+    try {
+      await user.click(screen.getByRole("button", { name: "编辑 整理错题" }))
+      await user.clear(screen.getByLabelText("任务标题"))
+      await user.type(screen.getByLabelText("任务标题"), "整理微积分错题")
+      await user.click(screen.getByRole("button", { name: "保存任务" }))
+
+      expect(await screen.findByRole("alert")).toHaveTextContent("保存失败，请重试")
+      await user.clear(screen.getByLabelText("任务标题"))
+      await user.click(screen.getByRole("button", { name: "重试" }))
+
+      await waitFor(async () => expect(await db.planTasks.get(task.id)).toMatchObject({ title: "整理微积分错题" }))
+      expect(updateSpy).toHaveBeenCalledTimes(2)
+      expect(screen.queryByRole("dialog")).not.toBeInTheDocument()
+    } finally {
+      updateSpy.mockRestore()
+      rendered.unmount()
+      await db.delete()
+    }
+  })
+
   it("edits an existing task without generating a new ID", async () => {
     const db = createDatabase()
     const task = existingTask()
@@ -231,6 +301,37 @@ describe("task actions and deletion", () => {
       await waitFor(async () => expect(await db.planTasks.get(task.id)).toBeUndefined())
       expect(trigger).toHaveFocus()
     } finally {
+      rendered.unmount()
+      await db.delete()
+    }
+  })
+
+  it("clears delete errors across close and retries the same task deletion", async () => {
+    const db = createDatabase()
+    const task = existingTask()
+    const user = userEvent.setup()
+    const realDelete = planTaskService.deletePlanTask
+    const deleteSpy = vi.spyOn(planTaskService, "deletePlanTask")
+      .mockRejectedValueOnce(new Error("磁盘写入失败"))
+      .mockImplementationOnce(realDelete)
+    await db.planTasks.add(task)
+    const rendered = render(<DeleteHarness db={db} task={task} />)
+
+    try {
+      const trigger = screen.getByRole("button", { name: "删除 整理错题" })
+      await user.click(trigger)
+      await user.click(screen.getByRole("button", { name: "确认删除" }))
+
+      expect(await screen.findByRole("alert")).toHaveTextContent("保存失败，请重试")
+      await user.click(screen.getByRole("button", { name: "取消" }))
+      await user.click(trigger)
+      expect(screen.queryByRole("alert")).not.toBeInTheDocument()
+      await user.click(screen.getByRole("button", { name: "确认删除" }))
+
+      await waitFor(async () => expect(await db.planTasks.get(task.id)).toBeUndefined())
+      expect(deleteSpy).toHaveBeenCalledTimes(2)
+    } finally {
+      deleteSpy.mockRestore()
       rendered.unmount()
       await db.delete()
     }
