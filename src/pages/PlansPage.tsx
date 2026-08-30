@@ -138,6 +138,7 @@ export function PlansPage({ db = veloDb, now }: PlansPageProps) {
   const [moveUndoError, setMoveUndoError] = useState("")
   const [moveUndoSaving, setMoveUndoSaving] = useState(false)
   const moveUndoTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const moveUndoGeneration = useRef(0)
   const isCreating = searchParams.get("new") === "1"
   const activePeriod = snapshot?.selectedPeriod ?? snapshot?.periods[0] ?? null
   const migrationSource = activePeriod
@@ -155,11 +156,13 @@ export function PlansPage({ db = veloDb, now }: PlansPageProps) {
   }, [])
 
   function handleTaskMoved(task: PlanTask, previous: TaskPosition) {
+    const generation = ++moveUndoGeneration.current
     if (moveUndoTimer.current) clearTimeout(moveUndoTimer.current)
     setMoveUndo({ taskId: task.id, previous })
     setMoveUndoError("")
     setMoveUndoSaving(false)
     moveUndoTimer.current = setTimeout(() => {
+      if (moveUndoGeneration.current !== generation) return
       moveUndoTimer.current = null
       setMoveUndo(null)
       setMoveUndoError("")
@@ -169,17 +172,20 @@ export function PlansPage({ db = veloDb, now }: PlansPageProps) {
   async function undoTaskMove() {
     if (!moveUndo || moveUndoSaving) return
     const pendingUndo = moveUndo
+    const generation = moveUndoGeneration.current
     if (moveUndoTimer.current) clearTimeout(moveUndoTimer.current)
     moveUndoTimer.current = null
     setMoveUndoSaving(true)
     setMoveUndoError("")
     try {
       await movePlanTask(db, pendingUndo.taskId, pendingUndo.previous, Date.now())
-      setMoveUndo(null)
+      if (moveUndoGeneration.current === generation) setMoveUndo(null)
     } catch (error) {
-      setMoveUndoError(error instanceof Error ? error.message : "恢复任务位置失败")
+      if (moveUndoGeneration.current === generation) {
+        setMoveUndoError(error instanceof Error ? error.message : "恢复任务位置失败")
+      }
     } finally {
-      setMoveUndoSaving(false)
+      if (moveUndoGeneration.current === generation) setMoveUndoSaving(false)
     }
   }
 

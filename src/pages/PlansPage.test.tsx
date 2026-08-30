@@ -41,8 +41,12 @@ function period(overrides: Partial<LearningPeriod> = {}): LearningPeriod {
 
 function deferred<T>() {
   let resolve!: (value: T) => void
-  const promise = new Promise<T>((resolvePromise) => { resolve = resolvePromise })
-  return { promise, resolve }
+  let reject!: (reason?: unknown) => void
+  const promise = new Promise<T>((resolvePromise, rejectPromise) => {
+    resolve = resolvePromise
+    reject = rejectPromise
+  })
+  return { promise, resolve, reject }
 }
 
 describe("PlansPage", () => {
@@ -318,6 +322,85 @@ describe("PlansPage", () => {
       await waitFor(async () => expect(await db.planTasks.get(originalTask.id)).toMatchObject({ scheduledDate: "2026-08-30", startMinutes: undefined, order: 1 }))
       expect(moveSpy).toHaveBeenCalledTimes(3)
       expect(screen.queryByRole("alert")).not.toBeInTheDocument()
+    } finally {
+      moveSpy.mockRestore()
+      if (originalElementFromPoint) Object.defineProperty(document, "elementFromPoint", originalElementFromPoint)
+      else Reflect.deleteProperty(document, "elementFromPoint")
+      rendered.unmount()
+      vi.useRealTimers()
+      await db.delete()
+    }
+  })
+
+  it.each([
+    ["resolves", (pending: ReturnType<typeof deferred<PlanTask>>) => pending.resolve({ id: "retry-race", title: "复习导数", scheduledDate: "2026-08-30", isCompleted: 0, order: 1, createdAt: 1, updatedAt: 3 })],
+    ["fails", (pending: ReturnType<typeof deferred<PlanTask>>) => pending.reject(new Error("旧撤销失败"))],
+  ])("does not let a stale move undo that $0 overwrite a newer move undo", async (_outcome, settleStaleUndo) => {
+    const db = createDatabase()
+    const user = userEvent.setup()
+    const realMove = planTaskService.movePlanTask
+    const firstMove = deferred<PlanTask>()
+    const staleUndo = deferred<PlanTask>()
+    const secondMove = deferred<PlanTask>()
+    const moveSpy = vi.spyOn(planTaskService, "movePlanTask")
+      .mockImplementationOnce(async (...args) => {
+        await firstMove.promise
+        return realMove(...args)
+      })
+      .mockImplementationOnce(() => staleUndo.promise)
+      .mockImplementationOnce(async (...args) => {
+        await secondMove.promise
+        return realMove(...args)
+      })
+      .mockImplementation(realMove)
+    const originalTask: PlanTask = { id: "retry-race", title: "复习导数", scheduledDate: "2026-08-30", isCompleted: 0, order: 1, createdAt: 1, updatedAt: 1 }
+    await db.planTasks.add(originalTask)
+    const rendered = renderPlansPage("/plans?view=month&date=2026-08-30", db, new Date(2026, 7, 30, 9, 0))
+    const originalElementFromPoint = Object.getOwnPropertyDescriptor(document, "elementFromPoint")
+
+    async function dragTo(datePattern: RegExp, pointerId: number) {
+      const taskButton = await screen.findByRole("button", { name: "打开任务操作：复习导数" })
+      const targetDays = screen.getAllByRole("button", { name: datePattern })
+      expect(targetDays).toHaveLength(1)
+      Object.defineProperty(document, "elementFromPoint", { configurable: true, value: () => targetDays[0] })
+      vi.useFakeTimers()
+      fireEvent.pointerDown(taskButton, { pointerId, clientX: 20, clientY: 30 })
+      act(() => { vi.advanceTimersByTime(350) })
+      expect(screen.getByTestId("task-drag-layer")).toBeInTheDocument()
+      fireEvent.pointerMove(taskButton, { pointerId, clientX: 42, clientY: 30 })
+      fireEvent.pointerUp(taskButton, { pointerId, clientX: 42, clientY: 30 })
+      vi.useRealTimers()
+    }
+
+    try {
+      await dragTo(/^2026年8月31日/, 1)
+      await waitFor(() => expect(moveSpy).toHaveBeenCalledTimes(1))
+      const firstMoveRequest = moveSpy.mock.results[0]?.value as Promise<PlanTask>
+      firstMove.resolve({ id: originalTask.id, title: originalTask.title, scheduledDate: "2026-08-31", isCompleted: 0, order: 1, createdAt: 1, updatedAt: 2 })
+      await act(async () => { await firstMoveRequest })
+      await waitFor(() => expect(screen.getByRole("button", { name: "撤销" })).toBeInTheDocument())
+      const movedDay = screen.getAllByRole("button", { name: /^2026年8月31日/ })
+      expect(movedDay).toHaveLength(1)
+      await user.click(movedDay[0])
+      await waitFor(() => expect(screen.getByRole("button", { name: "打开任务操作：复习导数" })).toBeInTheDocument())
+
+      await user.click(screen.getByRole("button", { name: "撤销" }))
+      await waitFor(() => expect(moveSpy).toHaveBeenCalledTimes(2))
+      await dragTo(/^2026年8月30日/, 2)
+      await waitFor(() => expect(moveSpy).toHaveBeenCalledTimes(3))
+      const secondMoveRequest = moveSpy.mock.results[2]?.value as Promise<PlanTask>
+      secondMove.resolve({ id: originalTask.id, title: originalTask.title, scheduledDate: "2026-08-30", isCompleted: 0, order: 1, createdAt: 1, updatedAt: 3 })
+      await act(async () => { await secondMoveRequest })
+      await waitFor(() => expect(screen.getByRole("button", { name: "撤销" })).toBeInTheDocument())
+
+      await act(async () => {
+        settleStaleUndo(staleUndo)
+        await staleUndo.promise.catch(() => undefined)
+      })
+      expect(screen.queryByRole("alert")).not.toBeInTheDocument()
+      await user.click(screen.getByRole("button", { name: "撤销" }))
+      await waitFor(() => expect(moveSpy).toHaveBeenCalledTimes(4))
+      expect(moveSpy.mock.calls[3]?.[2]).toMatchObject({ scheduledDate: "2026-08-31", startMinutes: undefined, order: 1 })
     } finally {
       moveSpy.mockRestore()
       if (originalElementFromPoint) Object.defineProperty(document, "elementFromPoint", originalElementFromPoint)
