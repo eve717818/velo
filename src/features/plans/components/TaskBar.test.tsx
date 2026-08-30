@@ -463,7 +463,7 @@ describe("TaskBar", () => {
     }
   })
 
-  it("does not drop after an active drag turns into vertical scrolling", async () => {
+  it("keeps an active drag available when moving vertically to a dated drop target", async () => {
     const db = createDatabase()
     const currentTask = task()
     const movePlanTaskSpy = vi.spyOn(planTaskService, "movePlanTask")
@@ -479,15 +479,13 @@ describe("TaskBar", () => {
       const bar = screen.getByRole("button", { name: "打开任务操作：复习导数" })
       fireEvent.pointerDown(bar, { pointerId: 1, clientX: 20, clientY: 30 })
       void act(() => vi.advanceTimersByTime(350))
-      fireEvent.pointerMove(bar, { pointerId: 1, clientX: 20, clientY: 39 })
-      fireEvent.pointerUp(bar, { pointerId: 1, clientX: 20, clientY: 39 })
+      fireEvent.pointerMove(bar, { pointerId: 1, clientX: 20, clientY: 90 })
+      fireEvent.pointerUp(bar, { pointerId: 1, clientX: 20, clientY: 90 })
       vi.useRealTimers()
 
-      const savedTask = await db.planTasks.get(currentTask.id)
-      expect(movePlanTaskSpy).not.toHaveBeenCalled()
+      await waitFor(async () => expect(await db.planTasks.get(currentTask.id)).toMatchObject({ scheduledDate: "2026-08-29", order: 1 }))
+      expect(movePlanTaskSpy).toHaveBeenCalledWith(db, currentTask.id, { scheduledDate: "2026-08-29", startMinutes: undefined }, expect.any(Number))
       expect(screen.queryByTestId("task-drag-layer")).not.toBeInTheDocument()
-      expect(savedTask).toMatchObject({ scheduledDate: "2026-08-28", order: 1 })
-      expect(savedTask?.startMinutes).toBeUndefined()
     } finally {
       movePlanTaskSpy.mockRestore()
       if (originalElementFromPoint) Object.defineProperty(document, "elementFromPoint", originalElementFromPoint)

@@ -221,6 +221,30 @@ describe("plan task service", () => {
           15,
         ),
       ).rejects.toThrow("开始时间必须在 0 到 1439 分钟之间")
+
+      await expect(
+        movePlanTask(
+          db,
+          existing.id,
+          {
+            scheduledDate: "2026-08-28",
+            order: 1.5,
+          },
+          16,
+        ),
+      ).rejects.toThrow("任务排序必须是非负整数")
+
+      await expect(
+        movePlanTask(
+          db,
+          existing.id,
+          {
+            scheduledDate: "2026-08-28",
+            order: -1,
+          },
+          17,
+        ),
+      ).rejects.toThrow("任务排序必须是非负整数")
     })
   })
 

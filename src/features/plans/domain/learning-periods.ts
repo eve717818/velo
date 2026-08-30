@@ -21,23 +21,23 @@ export function validateLearningPeriod(
   existingPeriods: LearningPeriod[],
 ): PeriodValidation {
   if (candidate.name.trim().length === 0) {
-    return { ok: false, field: "name", message: "Learning period name is required" }
+    return { ok: false, field: "name", message: "请填写周期名称" }
   }
 
   try {
     parseLocalDate(candidate.startDate)
   } catch {
-    return { ok: false, field: "startDate", message: "Start date must be a valid local date" }
+    return { ok: false, field: "startDate", message: "开始日期无效" }
   }
 
   try {
     parseLocalDate(candidate.endDate)
   } catch {
-    return { ok: false, field: "endDate", message: "End date must be a valid local date" }
+    return { ok: false, field: "endDate", message: "结束日期无效" }
   }
 
   if (candidate.startDate > candidate.endDate) {
-    return { ok: false, field: "endDate", message: "End date must be on or after the start date" }
+    return { ok: false, field: "endDate", message: "结束日期不能早于开始日期" }
   }
 
   const overlap = existingPeriods.find((period) => {
@@ -49,7 +49,7 @@ export function validateLearningPeriod(
   })
 
   if (overlap) {
-    return { ok: false, field: "startDate", message: "Learning period overlaps an existing period" }
+    return { ok: false, field: "startDate", message: "学习周期不能重叠" }
   }
 
   return { ok: true }

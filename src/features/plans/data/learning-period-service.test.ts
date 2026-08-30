@@ -99,7 +99,7 @@ describe("learning period service", () => {
         ),
         {
         field: "startDate",
-        message: "Learning period overlaps an existing period",
+        message: "学习周期不能重叠",
         },
       )
 
@@ -122,7 +122,7 @@ describe("learning period service", () => {
         ),
         {
         field: "name",
-        message: "Learning period name is required",
+        message: "请填写周期名称",
         },
       )
     })
@@ -185,7 +185,7 @@ describe("learning period service", () => {
         ),
         {
         field: "startDate",
-        message: "Learning period overlaps an existing period",
+        message: "学习周期不能重叠",
         },
       )
 
@@ -215,7 +215,7 @@ describe("learning period service", () => {
         ),
         {
         field: "endDate",
-        message: "End date must be on or after the start date",
+        message: "结束日期不能早于开始日期",
         },
       )
     })
@@ -236,7 +236,7 @@ describe("learning period service", () => {
         ),
         {
         field: "startDate",
-        message: "Start date must be a valid local date",
+        message: "开始日期无效",
         },
       )
     })

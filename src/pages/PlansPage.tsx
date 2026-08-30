@@ -277,7 +277,7 @@ export function PlansPage({ db = veloDb, now }: PlansPageProps) {
           onClose={() => setIsActionDialogOpen(false)}
           onDelete={() => { setDeleteTask(actionTask); setIsActionDialogOpen(false); setIsDeleteDialogOpen(true) }}
           onEdit={() => { setEditorTask(actionTask); setIsActionDialogOpen(false) }}
-          onMove={() => { setActionNotice("移动入口将在后续排程任务中连接。"); setIsActionDialogOpen(false) }}
+          onMove={() => { setEditorTask(actionTask); setIsActionDialogOpen(false) }}
           onStartFocus={(href) => { setIsActionDialogOpen(false); void navigate(href) }}
           open={isActionDialogOpen}
           task={actionTask}

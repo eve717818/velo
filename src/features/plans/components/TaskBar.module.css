@@ -14,8 +14,9 @@
   grid-template-columns: minmax(0, 1fr) auto;
   isolation: isolate;
   min-height: 54px;
+  line-height: 1.2;
   overflow: hidden;
-  padding: 10px 14px;
+  padding: 7px 14px;
   position: relative;
   text-align: left;
   width: 100%;
@@ -51,6 +52,7 @@
 .taskTitle {
   font-size: 14px;
   font-weight: 740;
+  line-height: 1.2;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -61,6 +63,7 @@
   color: var(--color-text-muted);
   font-size: 12px;
   font-weight: 680;
+  line-height: 1.2;
 }
 
 .taskMeta {

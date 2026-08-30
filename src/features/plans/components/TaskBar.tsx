@@ -148,6 +148,11 @@ function TaskBarSession({ db, onOpen, task }: TaskBarProps) {
     if (event.pointerId !== activePointerId.current || startX.current === null || startY.current === null) return
     const distance = event.clientX - startX.current
     const verticalDistance = event.clientY - startY.current
+    if (dragActive.current) {
+      setDragPosition({ x: event.clientX, y: event.clientY })
+      return
+    }
+
     if (Math.abs(verticalDistance) > 8) {
       verticalScrollCancelled.current = true
       dragActive.current = false
@@ -158,10 +163,6 @@ function TaskBarSession({ db, onOpen, task }: TaskBarProps) {
     }
 
     if (verticalScrollCancelled.current) return
-    if (dragActive.current) {
-      setDragPosition({ x: event.clientX, y: event.clientY })
-      return
-    }
 
     if (Math.abs(distance) > 8) clearLongPressTimer()
     setSwipeProgress(getSwipeProgress(distance, getBarWidth(event.currentTarget)))
@@ -216,7 +217,7 @@ function TaskBarSession({ db, onOpen, task }: TaskBarProps) {
 
   function handlePointerRelease(event: PointerEvent<HTMLButtonElement>) {
     if (event.pointerId !== activePointerId.current || startX.current === null) return
-    if (startY.current !== null && Math.abs(event.clientY - startY.current) > 8) {
+    if (!dragActive.current && startY.current !== null && Math.abs(event.clientY - startY.current) > 8) {
       verticalScrollCancelled.current = true
       dragActive.current = false
       clearLongPressTimer()

@@ -131,6 +131,21 @@ describe("PlansPage", () => {
     }
   })
 
+  it("keeps a period-creation entry point after a learning period exists", async () => {
+    const db = createDatabase()
+    const user = userEvent.setup()
+    await db.learningPeriods.add(period({ id: "fall", name: "2026 秋季学期", startDate: "2026-09-01", endDate: "2027-01-16" }))
+    const rendered = renderPlansPage("/plans?view=period&period=fall&date=2026-09-02", db, new Date(2026, 8, 2, 9, 0))
+
+    try {
+      await user.click(await screen.findByRole("button", { name: "新建周期" }))
+      expect(screen.getByRole("dialog", { name: "新建学习周期" })).toBeInTheDocument()
+    } finally {
+      rendered.unmount()
+      await db.delete()
+    }
+  })
+
   it("opens a historical period task through the existing task editor while keeping period management read-only", async () => {
     const db = createDatabase()
     const user = userEvent.setup()
@@ -168,6 +183,29 @@ describe("PlansPage", () => {
       await user.click(await screen.findByRole("button", { name: "打开任务操作：复习导数" }))
       await user.click(screen.getByRole("button", { name: "开始专注" }))
       expect(screen.getByLabelText("当前位置")).toHaveTextContent("/focus?task=task+%26+focus&minutes=45")
+    } finally {
+      rendered.unmount()
+      await db.delete()
+    }
+  })
+
+  it("opens the existing task editor from the move action and saves a new date", async () => {
+    const db = createDatabase()
+    const user = userEvent.setup()
+    await db.planTasks.add({ id: "task-to-move", title: "复习导数", scheduledDate: "2026-08-29", estimatedMinutes: 45, isCompleted: 0, order: 1, createdAt: 1, updatedAt: 1 })
+    const rendered = renderPlansPage("/plans?view=day&date=2026-08-29", db)
+
+    try {
+      await user.click(await screen.findByRole("button", { name: "打开任务操作：复习导数" }))
+      await user.click(screen.getByRole("button", { name: "移动到日期/时间" }))
+
+      const dialog = screen.getByRole("dialog", { name: "编辑学习任务" })
+      expect(dialog).toBeInTheDocument()
+      await user.clear(within(dialog).getByLabelText("日期"))
+      await user.type(within(dialog).getByLabelText("日期"), "2026-08-30")
+      await user.click(within(dialog).getByRole("button", { name: "保存任务" }))
+
+      await waitFor(async () => expect(await db.planTasks.get("task-to-move")).toMatchObject({ scheduledDate: "2026-08-30" }))
     } finally {
       rendered.unmount()
       await db.delete()

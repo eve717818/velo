@@ -147,7 +147,7 @@ describe("TaskEditorDialog", () => {
       await user.click(screen.getByRole("button", { name: "重试" }))
 
       await waitFor(async () => expect(await db.planTasks.toArray()).toMatchObject([{ title: "重试后保存" }]))
-      expect(screen.queryByRole("dialog")).not.toBeInTheDocument()
+      await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument())
     } finally {
       rendered.unmount()
       await db.delete()
@@ -209,7 +209,7 @@ describe("TaskEditorDialog", () => {
 
       await waitFor(async () => expect(await db.planTasks.get(task.id)).toMatchObject({ title: "整理微积分错题" }))
       expect(updateSpy).toHaveBeenCalledTimes(2)
-      expect(screen.queryByRole("dialog")).not.toBeInTheDocument()
+      await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument())
     } finally {
       updateSpy.mockRestore()
       rendered.unmount()

@@ -124,13 +124,16 @@ describe("VeloDB and seedHomeDemo", () => {
     await createVersionOneDatabase(name, [
       legacyTask({ id: "day", scope: "day", periodKey: "2026-08-28" }),
       legacyTask({ id: "week", scope: "week", periodKey: "2026-W35" }),
+      legacyTask({ id: "malformed-day", scope: "day", periodKey: "2026-02-31" }),
     ])
 
     const db = new VeloDB(name)
     await db.open()
     expect(await db.planTasks.get("day")).toMatchObject({ scheduledDate: "2026-08-28", isCompleted: 0 })
     expect(await db.planTasks.get("week")).toBeUndefined()
+    expect(await db.planTasks.get("malformed-day")).toBeUndefined()
     expect(await db.legacyPlanTasks.get("week")).toMatchObject({ scope: "week", periodKey: "2026-W35" })
+    expect(await db.legacyPlanTasks.get("malformed-day")).toMatchObject({ scope: "day", periodKey: "2026-02-31" })
     await db.delete()
   })
 })

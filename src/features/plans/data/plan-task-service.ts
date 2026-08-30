@@ -75,6 +75,9 @@ function assertValidTaskInput(input: CreatePlanTaskInput) {
 function assertValidMoveInput(input: MovePlanTaskInput) {
   assertValidScheduledDate(input.scheduledDate)
   assertValidStartMinutes(input.startMinutes)
+  if (input.order !== undefined && (!Number.isInteger(input.order) || input.order < 0)) {
+    throw new Error("任务排序必须是非负整数")
+  }
 }
 
 function isSameLane(task: Pick<PlanTask, "startMinutes">, startMinutes: number | undefined) {

@@ -65,6 +65,7 @@ export function LearningPeriodView({ onCreate, onDelete, onEdit, onEditTask, onR
           )
         })}
       </div>
+      {onCreate ? <button className={styles.secondaryPeriodAction} onClick={onCreate} type="button">新建周期</button> : null}
 
       {selectedPeriod ? (
         <section aria-labelledby="period-overview-heading" className={styles.periodOverview}>

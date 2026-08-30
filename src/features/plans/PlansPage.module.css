@@ -15,6 +15,12 @@
   box-shadow: var(--shadow-card);
 }
 
+.header,
+.toolbar {
+  position: relative;
+  z-index: 5;
+}
+
 .header {
   border-radius: var(--radius-card-large);
   display: grid;
@@ -445,7 +451,7 @@
 .monthCounts { font-size: 12px; line-height: 1.25; }
 .monthDay[aria-pressed="true"] { background: var(--color-brand); color: white; }
 .monthDay[aria-pressed="true"] .monthCounts { color: rgb(255 255 255 / 82%); }
-.outsideMonth { background: var(--color-surface-muted); color: var(--color-text-faint); }
+.outsideMonth { background: var(--color-surface-muted); color: var(--color-text-muted); }
 
 .monthTaskPanel {
   background: var(--color-surface);
@@ -454,7 +460,7 @@
   bottom: calc(80px + env(safe-area-inset-bottom));
   box-shadow: 0 -14px 34px rgb(34 48 68 / 16%);
   left: 0;
-  max-height: min(60svh, calc(100svh - 104px - env(safe-area-inset-bottom)));
+  max-height: min(44svh, calc(100svh - 280px - env(safe-area-inset-bottom)));
   overflow: auto;
   overscroll-behavior: contain;
   padding-bottom: calc(16px + env(safe-area-inset-bottom));
