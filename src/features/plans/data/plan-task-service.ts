@@ -2,6 +2,7 @@ import type { LearningPeriod, PlanTask } from "@/db/types"
 import type { VeloDB } from "@/db/velo-db"
 
 import { parseLocalDate } from "../domain/plan-dates"
+import { getNextTaskOrder } from "./task-order"
 
 export interface CreatePlanTaskInput {
   title: string
@@ -99,15 +100,6 @@ function isSamePosition(
   return task.scheduledDate === expected.scheduledDate && task.startMinutes === expected.startMinutes && task.order === expected.order
 }
 
-async function getNextOrder(db: VeloDB, scheduledDate: string, startMinutes: number | undefined): Promise<number> {
-  const tasks = await db.planTasks.where("scheduledDate").equals(scheduledDate).toArray()
-  const maxOrder = tasks
-    .filter((task) => isSameLane(task, startMinutes))
-    .reduce((currentMax, task) => Math.max(currentMax, task.order), 0)
-
-  return maxOrder + 1
-}
-
 function shouldReassignOrder(task: Pick<PlanTask, "scheduledDate" | "startMinutes">, input: Pick<UpdatePlanTaskInput, "scheduledDate" | "startMinutes">) {
   return task.scheduledDate !== input.scheduledDate || !isSameLane(task, input.startMinutes)
 }
@@ -135,7 +127,7 @@ export async function createPlanTask(db: VeloDB, input: CreatePlanTaskInput, now
       notes: normalized.notes,
       isCompleted: 0,
       completedAt: undefined,
-      order: await getNextOrder(db, normalized.scheduledDate, normalized.startMinutes),
+      order: await getNextTaskOrder(db, normalized.scheduledDate, normalized.startMinutes),
       createdAt: now,
       updatedAt: now,
     }
@@ -156,7 +148,7 @@ export async function updatePlanTask(db: VeloDB, id: string, input: UpdatePlanTa
     }
 
     const order = shouldReassignOrder(existing, normalized)
-      ? await getNextOrder(db, normalized.scheduledDate, normalized.startMinutes)
+      ? await getNextTaskOrder(db, normalized.scheduledDate, normalized.startMinutes)
       : existing.order
 
     const updated: PlanTask = {
@@ -225,7 +217,7 @@ export async function movePlanTask(db: VeloDB, id: string, input: MovePlanTaskIn
       ...existing,
       scheduledDate: normalized.scheduledDate,
       startMinutes: normalized.startMinutes,
-      order: normalized.order ?? (await getNextOrder(db, normalized.scheduledDate, normalized.startMinutes)),
+      order: normalized.order ?? (await getNextTaskOrder(db, normalized.scheduledDate, normalized.startMinutes)),
       updatedAt: now,
     }
 
@@ -257,7 +249,7 @@ async function copyTasksToPeriodInTransaction(db: VeloDB, sourceIds: string[], s
     throw new Error(`Plan task not found: ${sourceIds[missingIndex]}`)
   }
 
-  let nextOrder = await getNextOrder(db, scheduledDate, undefined)
+  let nextOrder = await getNextTaskOrder(db, scheduledDate, undefined)
   const copiedTasks = sourceTasks.map((task) => ({
     id: crypto.randomUUID(),
     title: task!.title,
