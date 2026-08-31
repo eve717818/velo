@@ -1,6 +1,6 @@
 import { renderHook, waitFor } from "@testing-library/react"
 import { describe, expect, it } from "vitest"
-import type { LearningPeriod, PlanTask } from "@/db/types"
+import type { LearningPeriod, PlanTask, PlanTaskGroup } from "@/db/types"
 import { VeloDB } from "@/db/velo-db"
 import { usePlanWorkspace, type PlanView } from "./usePlanWorkspace"
 
@@ -111,6 +111,50 @@ describe("usePlanWorkspace", () => {
       await waitFor(() => {
         expect(rendered.result.current?.progress).toEqual({ completed: 2, total: 3, ratio: 2 / 3 })
       })
+    } finally {
+      rendered.unmount()
+      await db.delete()
+    }
+  })
+
+  it("returns only groups overlapping the view while progress counts concrete tasks", async () => {
+    const db = createDatabase()
+    await seedWorkspace(db)
+    const overlapping: PlanTaskGroup = {
+      id: "overlap",
+      title: "跨周复习",
+      startDate: "2026-08-20",
+      endDate: "2026-08-26",
+      sessionCount: 1,
+      createdAt: 1,
+      updatedAt: 1,
+    }
+    const outside: PlanTaskGroup = {
+      ...overlapping,
+      id: "outside",
+      title: "下周复习",
+      startDate: "2026-08-31",
+      endDate: "2026-09-02",
+    }
+    await db.planTaskGroups.bulkAdd([overlapping, outside])
+    await db.planTasks.add({
+      ...task("group-step", "2026-08-26"),
+      groupId: overlapping.id,
+      stepIndex: 1,
+      stepTitleMode: "inherit",
+    })
+    const rendered = renderWorkspace(db, "week")
+
+    try {
+      await waitFor(() => {
+        expect(rendered.result.current).toMatchObject({
+          taskGroups: [overlapping],
+          progress: { completed: 1, total: 3, ratio: 1 / 3 },
+        })
+      })
+      expect(rendered.result.current?.allTaskGroups).toEqual(expect.arrayContaining([overlapping, outside]))
+      expect(rendered.result.current?.allTaskGroups).toHaveLength(2)
+      expect(rendered.result.current?.taskGroupById).toEqual({ overlap: overlapping, outside })
     } finally {
       rendered.unmount()
       await db.delete()
