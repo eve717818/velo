@@ -10,3 +10,6 @@ test-results/
 .superpowers/
 .DS_Store
 Thumbs.db
+
+# Engramory live memory store (plain text, machine-local)
+/.engramory-memory/
