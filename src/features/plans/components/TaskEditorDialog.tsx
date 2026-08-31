@@ -1,10 +1,11 @@
 import { useRef, useState } from "react"
-import type { PlanTask } from "@/db/types"
+import type { PlanTask, PlanTaskGroup } from "@/db/types"
 import type { VeloDB } from "@/db/velo-db"
 import { createPlanTask, updatePlanTask } from "../data/plan-task-service"
 import styles from "./PlanDialog.module.css"
 import { PlanDialog } from "./PlanDialog"
 import { PlanErrorState } from "./PlanErrorState"
+import { MultiDayTaskForm } from "./MultiDayTaskForm"
 import { type RequestSession, useRequestSession } from "./useRequestSession"
 
 interface TaskEditorDialogProps {
@@ -14,6 +15,8 @@ interface TaskEditorDialogProps {
   open: boolean
   returnFocusTo?: HTMLElement | null
   task?: PlanTask
+  taskGroup?: PlanTaskGroup
+  initialMode?: "single" | "multi"
 }
 
 interface TaskFormValues {
@@ -49,8 +52,8 @@ function timeToMinutes(value: string) {
   return hours * 60 + minutes
 }
 
-export function TaskEditorDialog({ db, initialDate, onClose, open, returnFocusTo, task }: TaskEditorDialogProps) {
-  const sessionKey = open ? `${task?.id ?? "new"}-${task?.updatedAt ?? "new"}-${initialDate}` : "closed"
+export function TaskEditorDialog({ db, initialDate, initialMode, onClose, open, returnFocusTo, task, taskGroup }: TaskEditorDialogProps) {
+  const sessionKey = open ? `${task?.id ?? taskGroup?.id ?? "new"}-${task?.updatedAt ?? taskGroup?.updatedAt ?? "new"}-${initialDate}` : "closed"
   const requestSession = useRequestSession(sessionKey)
 
   function handleClose() {
@@ -60,7 +63,7 @@ export function TaskEditorDialog({ db, initialDate, onClose, open, returnFocusTo
 
   return (
     <PlanDialog labelledBy="task-editor-heading" onRequestClose={handleClose} open={open} returnFocusTo={returnFocusTo}>
-      <TaskEditorForm db={db} initialDate={initialDate} key={sessionKey} onClose={handleClose} requestSession={requestSession} task={task} />
+      <TaskEditorForm db={db} initialDate={initialDate} initialMode={initialMode} key={sessionKey} onClose={handleClose} requestSession={requestSession} task={task} taskGroup={taskGroup} />
     </PlanDialog>
   )
 }
@@ -69,13 +72,24 @@ interface TaskEditorFormProps extends Omit<TaskEditorDialogProps, "open"> {
   requestSession: RequestSession
 }
 
-function TaskEditorForm({ db, initialDate, onClose, requestSession, task }: TaskEditorFormProps) {
+function TaskEditorForm({ db, initialDate, initialMode, onClose, requestSession, task, taskGroup }: TaskEditorFormProps) {
+  const [mode, setMode] = useState<"single" | "multi">(() => taskGroup ? "multi" : task ? "single" : initialMode ?? "single")
   const [values, setValues] = useState(() => toFormValues(task, initialDate))
   const [errors, setErrors] = useState<FieldErrors>({})
   const [saveError, setSaveError] = useState("")
   const [isSaving, setIsSaving] = useState(false)
   const lastInputRef = useRef<Parameters<typeof createPlanTask>[1] | null>(null)
   const headingId = "task-editor-heading"
+  const modeSwitch = !task && !taskGroup ? (
+    <div aria-label="任务类型" className={styles.modeSwitch} role="group">
+      <button aria-pressed={mode === "single"} onClick={() => setMode("single")} type="button">单日任务</button>
+      <button aria-pressed={mode === "multi"} onClick={() => setMode("multi")} type="button">跨日任务</button>
+    </div>
+  ) : null
+
+  if (mode === "multi") {
+    return <MultiDayTaskForm db={db} initialDate={initialDate} modeSwitch={modeSwitch} onClose={onClose} requestSession={requestSession} taskGroup={taskGroup} />
+  }
 
   function updateValue<K extends keyof TaskFormValues>(key: K, value: TaskFormValues[K]) {
     setValues((current) => ({ ...current, [key]: value }))
@@ -135,6 +149,7 @@ function TaskEditorForm({ db, initialDate, onClose, requestSession, task }: Task
           </div>
           <button aria-label="关闭任务编辑" className={styles.iconButton} onClick={onClose} type="button">×</button>
         </div>
+        {modeSwitch}
 
         <label className={styles.field} htmlFor="task-title">
           <span>任务标题 <em>必填</em></span>

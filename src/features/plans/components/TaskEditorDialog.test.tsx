@@ -70,6 +70,33 @@ function DeleteHarness({ db, task }: { db: VeloDB; task: PlanTask }) {
 }
 
 describe("TaskEditorDialog", () => {
+  it("creates a multi-day task from the unified task editor", async () => {
+    const db = createDatabase()
+    const user = userEvent.setup()
+    const rendered = render(
+      <TaskEditorDialog db={db} initialDate="2026-09-01" onClose={vi.fn()} open />,
+    )
+
+    try {
+      await user.click(screen.getByRole("button", { name: "跨日任务" }))
+      await user.type(screen.getByLabelText("任务名称"), "完成高数第三章")
+      await user.clear(screen.getByLabelText("截止日期"))
+      await user.type(screen.getByLabelText("截止日期"), "2026-09-07")
+      await user.clear(screen.getByLabelText("学习次数"))
+      await user.type(screen.getByLabelText("学习次数"), "3")
+      await user.click(screen.getByRole("button", { name: "保存跨日任务" }))
+
+      await waitFor(async () => {
+        const savedGroup = await db.planTaskGroups.toCollection().first()
+        expect(savedGroup).toBeDefined()
+        expect(await db.planTasks.where("groupId").equals(savedGroup!.id).count()).toBe(3)
+      })
+    } finally {
+      rendered.unmount()
+      await db.delete()
+    }
+  })
+
   it("names the new-task dialog, validates adjacent required fields, and creates a task", async () => {
     const db = createDatabase()
     const user = userEvent.setup()

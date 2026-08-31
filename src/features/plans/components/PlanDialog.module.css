@@ -39,6 +39,34 @@
   justify-content: space-between;
 }
 
+.modeSwitch {
+  background: var(--color-surface-muted);
+  border: 1px solid var(--color-border);
+  border-radius: 15px;
+  display: grid;
+  gap: 4px;
+  grid-template-columns: 1fr 1fr;
+  padding: 4px;
+}
+
+.modeSwitch button {
+  background: transparent;
+  border: 0;
+  border-radius: 11px;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  font: inherit;
+  font-size: .8125rem;
+  font-weight: 720;
+  min-height: 44px;
+}
+
+.modeSwitch button[aria-pressed="true"] {
+  background: var(--color-surface);
+  box-shadow: 0 5px 16px rgb(72 51 78 / 10%);
+  color: var(--color-brand);
+}
+
 .eyebrow {
   color: var(--color-text-muted);
   font-size: .6875rem;
@@ -125,6 +153,112 @@
   color: #9d1e43;
   font-size: .75rem;
   font-weight: 650;
+}
+
+.rangeError {
+  color: #9d1e43;
+  font-size: .75rem;
+  font-weight: 650;
+  margin-top: -8px;
+}
+
+.schedulePreview {
+  display: grid;
+  gap: 12px;
+  min-width: 0;
+}
+
+.previewHeader {
+  align-items: end;
+  display: flex;
+  gap: 16px;
+  justify-content: space-between;
+}
+
+.previewHeader h3 {
+  font-size: 1rem;
+  line-height: 1.2;
+}
+
+.previewHeader > span,
+.previewEyebrow,
+.loadSummary,
+.completedLabel {
+  color: var(--color-text-muted);
+  font-size: .6875rem;
+  font-weight: 680;
+}
+
+.previewEyebrow {
+  color: #216d79;
+  letter-spacing: .08em;
+  margin-bottom: 3px;
+  text-transform: uppercase;
+}
+
+.previewList {
+  display: grid;
+  gap: 10px;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.previewRow {
+  background: linear-gradient(145deg, rgb(249 247 250 / 96%), rgb(240 244 247 / 92%));
+  border: 1px solid rgb(143 126 151 / 16%);
+  border-radius: 16px;
+  display: grid;
+  gap: 10px;
+  padding: 14px;
+}
+
+.stepMeta {
+  align-items: center;
+  display: flex;
+  gap: 10px;
+  justify-content: space-between;
+}
+
+.stepMeta strong {
+  font-size: .8125rem;
+}
+
+.completedLabel {
+  color: #236f66;
+}
+
+.previewFields {
+  display: grid;
+  gap: 10px;
+}
+
+.loadSummary {
+  color: #356b78;
+  margin: 0;
+}
+
+.confirmRemoval {
+  align-items: center;
+  background: #f4f0f5;
+  border: 1px solid rgb(144 29 120 / 16%);
+  border-radius: 14px;
+  cursor: pointer;
+  display: flex;
+  gap: 10px;
+  min-height: 44px;
+  padding: 10px 12px;
+}
+
+.confirmRemoval input {
+  accent-color: var(--color-brand);
+  height: 20px;
+  width: 20px;
+}
+
+.confirmRemoval span {
+  font-size: .8125rem;
+  font-weight: 680;
 }
 
 .saveError {
@@ -217,6 +351,11 @@
   outline-offset: 3px;
 }
 
+.confirmRemoval:has(input:focus-visible) {
+  outline: 3px solid var(--color-cool-blue);
+  outline-offset: 3px;
+}
+
 .primaryButton:focus-visible {
   outline-color: var(--color-brand);
 }
@@ -241,5 +380,9 @@
 
   .fieldGrid {
     grid-template-columns: 1fr 1fr;
+  }
+
+  .previewFields {
+    grid-template-columns: minmax(120px, .75fr) minmax(0, 1.25fr);
   }
 }
