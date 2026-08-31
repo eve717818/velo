@@ -51,6 +51,38 @@ function deferred<T>() {
 }
 
 describe("PlansPage", () => {
+  it("keeps overall progress based on task instances when a multi-day band is present", async () => {
+    const db = createDatabase()
+    const user = userEvent.setup()
+    await db.planTaskGroups.add({
+      id: "group-progress",
+      title: "高数第三章",
+      startDate: "2026-09-01",
+      endDate: "2026-09-03",
+      sessionCount: 3,
+      createdAt: 1,
+      updatedAt: 1,
+    })
+    await db.planTasks.bulkAdd([
+      { id: "step-1", title: "高数第三章", scheduledDate: "2026-09-01", groupId: "group-progress", stepIndex: 1, stepTitleMode: "inherit", isCompleted: 1, order: 1, createdAt: 1, updatedAt: 1 },
+      { id: "step-2", title: "高数第三章", scheduledDate: "2026-09-02", groupId: "group-progress", stepIndex: 2, stepTitleMode: "inherit", isCompleted: 0, order: 1, createdAt: 1, updatedAt: 1 },
+      { id: "step-3", title: "高数第三章", scheduledDate: "2026-09-03", groupId: "group-progress", stepIndex: 3, stepTitleMode: "inherit", isCompleted: 0, order: 1, createdAt: 1, updatedAt: 1 },
+    ])
+    const rendered = renderPlansPage("/plans?view=week&date=2026-09-02", db, new Date(2026, 8, 2, 9, 0))
+
+    try {
+      const progressHeading = await screen.findByRole("heading", { name: "完成进度" })
+      const progressPanel = progressHeading.closest("section")
+      expect(progressPanel).not.toBeNull()
+      await waitFor(() => expect(within(progressPanel!).getByText("1 / 3")).toBeInTheDocument())
+      await user.click(screen.getByRole("button", { name: /高数第三章.*1\/3/ }))
+      expect(screen.getByRole("dialog", { name: "编辑跨日任务" })).toBeInTheDocument()
+    } finally {
+      rendered.unmount()
+      await db.delete()
+    }
+  })
+
   it("switches among all plan views while keeping the selected date in the URL", async () => {
     const db = createDatabase()
     const user = userEvent.setup()
@@ -318,13 +350,8 @@ describe("PlansPage", () => {
       const targetDay = screen.getByRole("button", { name: "2026年8月31日，0 项任务，0 项完成" })
       Object.defineProperty(document, "elementFromPoint", { configurable: true, value: () => targetDay })
 
-      vi.useFakeTimers()
       fireEvent.pointerDown(taskButton, { pointerId: 1, clientX: 20, clientY: 30 })
-      await act(async () => {
-        vi.runOnlyPendingTimers()
-        await Promise.resolve()
-      })
-      vi.useRealTimers()
+      await act(async () => { await new Promise((resolve) => setTimeout(resolve, 360)) })
       await waitFor(() => expect(screen.getByTestId("task-drag-layer")).toBeInTheDocument())
       fireEvent.pointerUp(taskButton, { pointerId: 1, clientX: 42, clientY: 30 })
 
@@ -359,13 +386,8 @@ describe("PlansPage", () => {
       const targetDay = screen.getByRole("button", { name: "2026年8月31日，0 项任务，0 项完成" })
       Object.defineProperty(document, "elementFromPoint", { configurable: true, value: () => targetDay })
 
-      vi.useFakeTimers()
       fireEvent.pointerDown(taskButton, { pointerId: 1, clientX: 20, clientY: 30 })
-      await act(async () => {
-        vi.runOnlyPendingTimers()
-        await Promise.resolve()
-      })
-      vi.useRealTimers()
+      await act(async () => { await new Promise((resolve) => setTimeout(resolve, 360)) })
       await waitFor(() => expect(screen.getByTestId("task-drag-layer")).toBeInTheDocument())
       fireEvent.pointerUp(taskButton, { pointerId: 1, clientX: 42, clientY: 30 })
       await waitFor(() => expect(moveSpy).toHaveBeenCalledTimes(1))
@@ -405,13 +427,8 @@ describe("PlansPage", () => {
       const targetDay = screen.getByRole("button", { name: "2026年8月31日，0 项任务，0 项完成" })
       Object.defineProperty(document, "elementFromPoint", { configurable: true, value: () => targetDay })
 
-      vi.useFakeTimers()
       fireEvent.pointerDown(taskButton, { pointerId: 1, clientX: 20, clientY: 30 })
-      await act(async () => {
-        vi.runOnlyPendingTimers()
-        await Promise.resolve()
-      })
-      vi.useRealTimers()
+      await act(async () => { await new Promise((resolve) => setTimeout(resolve, 360)) })
       await waitFor(() => expect(screen.getByTestId("task-drag-layer")).toBeInTheDocument())
       fireEvent.pointerUp(taskButton, { pointerId: 1, clientX: 42, clientY: 30 })
 
@@ -468,13 +485,8 @@ describe("PlansPage", () => {
       const targetDays = screen.getAllByRole("button", { name: datePattern })
       expect(targetDays).toHaveLength(1)
       Object.defineProperty(document, "elementFromPoint", { configurable: true, value: () => targetDays[0] })
-      vi.useFakeTimers()
       fireEvent.pointerDown(taskButton, { pointerId, clientX: 20, clientY: 30 })
-      await act(async () => {
-        vi.runOnlyPendingTimers()
-        await Promise.resolve()
-      })
-      vi.useRealTimers()
+      await act(async () => { await new Promise((resolve) => setTimeout(resolve, 360)) })
       await waitFor(() => expect(screen.getByTestId("task-drag-layer")).toBeInTheDocument())
       fireEvent.pointerMove(taskButton, { pointerId, clientX: 42, clientY: 30 })
       fireEvent.pointerUp(taskButton, { pointerId, clientX: 42, clientY: 30 })
@@ -511,6 +523,7 @@ describe("PlansPage", () => {
       await user.click(screen.getByRole("button", { name: "撤销" }))
       await waitFor(() => expect(moveSpy).toHaveBeenCalledTimes(4))
       expect(moveSpy.mock.calls[3]?.[2]).toMatchObject({ scheduledDate: "2026-08-31", startMinutes: undefined, order: 1 })
+      await waitFor(async () => expect(await db.planTasks.get(originalTask.id)).toMatchObject({ scheduledDate: "2026-08-31" }))
     } finally {
       moveSpy.mockRestore()
       if (originalElementFromPoint) Object.defineProperty(document, "elementFromPoint", originalElementFromPoint)

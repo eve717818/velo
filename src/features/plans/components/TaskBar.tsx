@@ -15,6 +15,7 @@ import { useRequestSession } from "./useRequestSession"
 
 interface TaskBarProps {
   db: VeloDB
+  groupLabel?: string
   onOpen?: (task: PlanTask, trigger: HTMLButtonElement) => void
   onMoved?: (task: PlanTask, previous: TaskPosition) => void
   task: PlanTask
@@ -26,13 +27,13 @@ export interface TaskPosition {
   order: number
 }
 
-export function TaskBar({ db, onMoved, onOpen, task }: TaskBarProps) {
+export function TaskBar({ db, groupLabel, onMoved, onOpen, task }: TaskBarProps) {
   const sessionKey = task.id
 
-  return <TaskBarSession db={db} key={sessionKey} onMoved={onMoved} onOpen={onOpen} task={task} />
+  return <TaskBarSession db={db} groupLabel={groupLabel} key={sessionKey} onMoved={onMoved} onOpen={onOpen} task={task} />
 }
 
-function TaskBarSession({ db, onMoved, onOpen, task }: TaskBarProps) {
+function TaskBarSession({ db, groupLabel, onMoved, onOpen, task }: TaskBarProps) {
   const [completionOverride, setCompletionOverride] = useState<boolean | null>(null)
   const [isSaving, setIsSaving] = useState(false)
   const [showUndo, setShowUndo] = useState(false)
@@ -312,7 +313,10 @@ function TaskBarSession({ db, onMoved, onOpen, task }: TaskBarProps) {
         {swipeProgress > 0 ? <FlowArrowIcon /> : null}
         <span className={styles.copy}>
           <span className={styles.taskTitle}>{task.title}</span>
-          <span className={styles.taskMeta}>{task.subject ?? "未分类"} · {task.estimatedMinutes ? `${task.estimatedMinutes} 分钟` : "未估时"}</span>
+          <span className={styles.taskMeta}>
+            {groupLabel ? <span className={styles.groupLabel}>{groupLabel}</span> : null}
+            {task.subject ?? "未分类"} · {task.estimatedMinutes ? `${task.estimatedMinutes} 分钟` : "未估时"}
+          </span>
         </span>
         <span className={styles.trailing}>{isCompleted ? "已完成" : task.startMinutes === undefined ? "未定时" : `${String(Math.floor(task.startMinutes / 60)).padStart(2, "0")}:${String(task.startMinutes % 60).padStart(2, "0")}`}</span>
       </button>

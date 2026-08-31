@@ -73,6 +73,17 @@
   white-space: nowrap;
 }
 
+.groupLabel {
+  background: var(--color-cool-blue-soft);
+  border-radius: 999px;
+  color: #334377;
+  display: inline-block;
+  font-size: .6875rem;
+  font-weight: 800;
+  margin-right: 6px;
+  padding: 2px 6px;
+}
+
 .trailing {
   flex: 0 0 auto;
   text-align: right;

@@ -1,7 +1,7 @@
 import { render, screen, within } from "@testing-library/react"
 import { describe, expect, it, vi } from "vitest"
 
-import type { PlanTask } from "@/db/types"
+import type { PlanTask, PlanTaskGroup } from "@/db/types"
 import { VeloDB } from "@/db/velo-db"
 
 import { DayPlanView } from "./DayPlanView"
@@ -20,6 +20,35 @@ function task(overrides: Partial<PlanTask> = {}): PlanTask {
 }
 
 describe("DayPlanView", () => {
+  it("identifies the current step of a multi-day task without changing the task title", () => {
+    const db = new VeloDB(`day-view-${crypto.randomUUID()}`)
+    const group: PlanTaskGroup = {
+      id: "calculus-group",
+      title: "高数第三章",
+      startDate: "2026-09-01",
+      endDate: "2026-09-07",
+      sessionCount: 3,
+      createdAt: 1,
+      updatedAt: 1,
+    }
+    const rendered = render(
+      <DayPlanView
+        db={db}
+        selectedDate="2026-09-03"
+        taskGroups={[group]}
+        tasks={[task({ groupId: group.id, scheduledDate: "2026-09-03", stepIndex: 2, title: "极限与连续" })]}
+      />,
+    )
+
+    try {
+      expect(screen.getByText("极限与连续")).toBeInTheDocument()
+      expect(screen.getByText("第 2/3 次")).toBeInTheDocument()
+    } finally {
+      rendered.unmount()
+      void db.delete()
+    }
+  })
+
   it("sorts timed tasks, keeps untimed tasks in 待安排, and marks only past incomplete work overdue", () => {
     const db = new VeloDB(`day-view-${crypto.randomUUID()}`)
     const rendered = render(

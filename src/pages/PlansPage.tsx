@@ -21,7 +21,7 @@ import { periodMigrationDismissalKey, reopenPeriodMigration } from "@/features/p
 import { PlanDialog } from "@/features/plans/components/PlanDialog"
 import { PlanErrorState } from "@/features/plans/components/PlanErrorState"
 import { useRequestSession } from "@/features/plans/components/useRequestSession"
-import type { PlanTask } from "@/db/types"
+import type { PlanTask, PlanTaskGroup } from "@/db/types"
 import { parseLocalDate } from "@/features/plans/domain/plan-dates"
 import { countTasksInPeriod } from "@/features/plans/domain/learning-periods"
 import { deleteLearningPeriod } from "@/features/plans/data/learning-period-service"
@@ -125,6 +125,7 @@ export function PlansPage({ db = veloDb, now }: PlansPageProps) {
   const snapshot = usePlanWorkspace({ db, view, selectedDate, periodId })
   const [actionTask, setActionTask] = useState<PlanTask | null>(null)
   const [editorTask, setEditorTask] = useState<PlanTask | null>(null)
+  const [editorTaskGroup, setEditorTaskGroup] = useState<PlanTaskGroup | null>(null)
   const [deleteTask, setDeleteTask] = useState<PlanTask | null>(null)
   const [isActionDialogOpen, setIsActionDialogOpen] = useState(false)
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
@@ -318,6 +319,7 @@ export function PlansPage({ db = veloDb, now }: PlansPageProps) {
 
   function closeEditor() {
     setEditorTask(null)
+    setEditorTaskGroup(null)
     if (!isCreating) return
     const nextParams = new URLSearchParams(searchParams)
     nextParams.delete("new")
@@ -328,6 +330,11 @@ export function PlansPage({ db = veloDb, now }: PlansPageProps) {
   createParams.set("view", view)
   createParams.set("date", selectedDate)
   createParams.set("new", "1")
+
+  function openTaskGroup(group: PlanTaskGroup, trigger: HTMLButtonElement) {
+    setTaskTrigger(trigger)
+    setEditorTaskGroup(group)
+  }
 
   return (
     <main aria-busy={snapshot === undefined} className={styles.page}>
@@ -350,9 +357,9 @@ export function PlansPage({ db = veloDb, now }: PlansPageProps) {
             <span className={styles.rangeCount}>{snapshot?.tasks.length ?? 0} 项任务</span>
           </div>
           {snapshot ? (
-            view === "day" ? <DayPlanView db={db} onCreate={openCreate} onMoved={handleTaskMoved} onOpen={openTask} selectedDate={selectedDate} tasks={snapshot.tasks} today={fallbackDate} />
-              : view === "week" ? <WeekPlanView db={db} onMoved={handleTaskMoved} onOpen={openTask} selectedDate={selectedDate} tasks={snapshot.tasks} />
-                : view === "month" ? <MonthPlanView db={db} onMoved={handleTaskMoved} onOpen={openTask} selectedDate={selectedDate} tasks={snapshot.tasks} />
+            view === "day" ? <DayPlanView db={db} onCreate={openCreate} onMoved={handleTaskMoved} onOpen={openTask} selectedDate={selectedDate} taskGroups={snapshot.taskGroups} tasks={snapshot.tasks} today={fallbackDate} />
+              : view === "week" ? <WeekPlanView allTasks={snapshot.allTasks} db={db} onMoved={handleTaskMoved} onOpen={openTask} onOpenGroup={openTaskGroup} selectedDate={selectedDate} taskGroups={snapshot.taskGroups} tasks={snapshot.tasks} today={fallbackDate} />
+                : view === "month" ? <MonthPlanView allTasks={snapshot.allTasks} db={db} onMoved={handleTaskMoved} onOpen={openTask} onOpenGroup={openTaskGroup} selectedDate={selectedDate} taskGroups={snapshot.taskGroups} tasks={snapshot.tasks} today={fallbackDate} />
                   : <LearningPeriodView
                     onCreate={() => openPeriodEditor()}
                     onDelete={(period) => setPeriodToDelete(period)}
@@ -384,9 +391,10 @@ export function PlansPage({ db = veloDb, now }: PlansPageProps) {
         db={db}
         initialDate={selectedDate}
         onClose={closeEditor}
-        open={isCreating || editorTask !== null}
-        returnFocusTo={editorTask ? taskTrigger : null}
+        open={isCreating || editorTask !== null || editorTaskGroup !== null}
+        returnFocusTo={editorTask || editorTaskGroup ? taskTrigger : null}
         task={editorTask ?? undefined}
+        taskGroup={editorTaskGroup ?? undefined}
       />
       {actionTask ? (
         <TaskActionsDialog

@@ -1,7 +1,7 @@
 import { render, screen } from "@testing-library/react"
 import { describe, expect, it } from "vitest"
 
-import type { PlanTask } from "@/db/types"
+import type { PlanTask, PlanTaskGroup } from "@/db/types"
 import { VeloDB } from "@/db/velo-db"
 
 import { WeekPlanView } from "./WeekPlanView"
@@ -20,6 +20,35 @@ function task(overrides: Partial<PlanTask> = {}): PlanTask {
 }
 
 describe("WeekPlanView", () => {
+  it("renders an accessible multi-day band with progress and scheduled nodes", () => {
+    const db = new VeloDB(`week-view-${crypto.randomUUID()}`)
+    const group: PlanTaskGroup = {
+      id: "calculus-group",
+      title: "高数第三章",
+      startDate: "2026-09-01",
+      endDate: "2026-09-07",
+      sessionCount: 3,
+      createdAt: 1,
+      updatedAt: 1,
+    }
+    const tasks = [
+      task({ groupId: group.id, id: "step-1", scheduledDate: "2026-09-01", stepIndex: 1, isCompleted: 1 }),
+      task({ groupId: group.id, id: "step-2", scheduledDate: "2026-09-03", stepIndex: 2 }),
+      task({ groupId: group.id, id: "step-3", scheduledDate: "2026-09-07", stepIndex: 3 }),
+    ]
+    const rendered = render(
+      <WeekPlanView allTasks={tasks} db={db} selectedDate="2026-09-03" taskGroups={[group]} tasks={tasks} today="2026-09-03" />,
+    )
+
+    try {
+      expect(screen.getByRole("button", { name: /高数第三章.*9月1日至9月7日.*1\/3/ })).toBeInTheDocument()
+      expect(screen.getAllByTestId("task-group-step-node")).toHaveLength(3)
+    } finally {
+      rendered.unmount()
+      void db.delete()
+    }
+  })
+
   it("provides seven selectable mobile dates and a selected-day task list across a year boundary", () => {
     const db = new VeloDB(`week-view-${crypto.randomUUID()}`)
     const rendered = render(<WeekPlanView db={db} selectedDate="2026-12-31" tasks={[task()]} />)

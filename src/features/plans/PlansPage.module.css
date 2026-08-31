@@ -416,20 +416,57 @@
 .weekDateButton small { font-size: 12px; font-weight: 680; margin-top: 3px; white-space: nowrap; }
 .weekDateButton[aria-pressed="true"] { background: var(--color-brand); color: white; }
 
+.weekGroupScroller {
+  margin-inline: -4px;
+  overflow-x: auto;
+  overscroll-behavior-inline: contain;
+  padding: 4px;
+  scrollbar-width: thin;
+}
+
+.weekGroupBands,
+.monthGroupBands {
+  display: grid;
+  gap: 7px;
+  grid-template-columns: repeat(7, minmax(72px, 1fr));
+}
+
+.weekGroupBands {
+  min-width: 640px;
+}
+
 .weekGrid { display: none; }
 
 .monthWeekdays,
 .monthGrid {
-  display: grid;
-  grid-template-columns: repeat(7, minmax(44px, 1fr));
   margin-left: calc(50% - 50vw + 4px);
   margin-right: calc(50% - 50vw + 4px);
   width: calc(100vw - 8px);
 }
 
+.monthWeekdays,
+.monthWeekDays {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(44px, 1fr));
+}
+
 .monthWeekdays { color: var(--color-text-muted); font-size: 12px; font-weight: 720; text-align: center; }
 
-.monthGrid { border-left: 1px solid var(--color-border); border-top: 1px solid var(--color-border); }
+.monthGrid {
+  border-left: 1px solid var(--color-border);
+  border-top: 1px solid var(--color-border);
+  display: grid;
+}
+
+.monthWeekRow { min-width: 0; }
+
+.monthGroupBands {
+  background: linear-gradient(90deg, rgb(246 234 242 / 64%), rgb(220 229 246 / 58%));
+  border-bottom: 1px solid var(--color-border);
+  border-right: 1px solid var(--color-border);
+  grid-template-columns: repeat(7, minmax(44px, 1fr));
+  padding: 6px;
+}
 
 .monthDay {
   background: var(--color-surface);
@@ -485,6 +522,9 @@
 
   .weekDateStrip,
   .weekMobileList { display: none; }
+
+  .weekGroupScroller { margin-inline: 0; overflow: visible; padding: 0; }
+  .weekGroupBands { grid-template-columns: repeat(7, minmax(0, 1fr)); min-width: 0; }
 
   .weekGrid { display: grid; gap: 8px; grid-template-columns: repeat(7, minmax(0, 1fr)); }
 

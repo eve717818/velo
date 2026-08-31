@@ -1,0 +1,96 @@
+.band {
+  background: linear-gradient(118deg, rgb(144 29 120 / 14%), rgb(97 118 199 / 13%));
+  border: 1px solid rgb(144 29 120 / 20%);
+  border-radius: 12px;
+  color: var(--color-text);
+  cursor: pointer;
+  display: grid;
+  font: inherit;
+  gap: 8px;
+  min-height: 52px;
+  min-width: 0;
+  overflow: hidden;
+  padding: 9px 12px;
+  position: relative;
+  text-align: left;
+  transition: border-color var(--motion-fast) var(--ease-flow), transform var(--motion-fast) var(--ease-flow);
+}
+
+.band[data-continuation-start="true"] {
+  border-bottom-left-radius: 5px;
+  border-left-style: dashed;
+  border-top-left-radius: 5px;
+}
+
+.band[data-continuation-end="true"] {
+  border-bottom-right-radius: 5px;
+  border-right-style: dashed;
+  border-top-right-radius: 5px;
+}
+
+.bandCopy {
+  align-items: center;
+  display: flex;
+  gap: 8px;
+  justify-content: space-between;
+  min-width: 0;
+}
+
+.bandCopy strong {
+  font-size: 12px;
+  font-weight: 780;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.progress {
+  background: rgb(255 255 255 / 72%);
+  border: 1px solid rgb(255 255 255 / 88%);
+  border-radius: 999px;
+  color: var(--color-brand-strong);
+  flex: 0 0 auto;
+  font-size: 11px;
+  font-weight: 820;
+  padding: 3px 7px;
+}
+
+.track {
+  background: rgb(144 29 120 / 12%);
+  border-radius: 999px;
+  display: block;
+  height: 4px;
+  margin: 0 4px;
+  position: relative;
+}
+
+.stepNode {
+  background: #aeb8d9;
+  border: 2px solid rgb(255 255 255 / 92%);
+  border-radius: 50%;
+  height: 10px;
+  position: absolute;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: 10px;
+}
+
+.stepNode[data-state="completed"] { background: var(--color-brand); }
+.stepNode[data-state="current"] { background: var(--color-cool-blue); box-shadow: 0 0 0 4px rgb(97 118 199 / 16%); }
+.stepNode[data-state="needs-reschedule"] { background: #ce755f; }
+
+.month {
+  min-height: 40px;
+  padding: 7px 9px;
+}
+
+.month .track { display: none; }
+
+.band:hover { border-color: rgb(144 29 120 / 38%); }
+.band:active { transform: scale(.99); }
+.band:focus-visible { outline: 3px solid var(--color-cool-blue); outline-offset: 2px; }
+
+@media (prefers-reduced-motion: reduce) {
+  .band { transition: none; }
+  .band:active { transform: none; }
+}
