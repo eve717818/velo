@@ -1,7 +1,7 @@
 # Velow Notebook：跨日学习任务设计规格
 
 - 日期：2026-08-31
-- 状态：待用户最终审阅
+- 状态：已确认
 - 产品：Velow Notebook
 - 适用范围：里程碑 2 学习计划的兼容式扩展
 - 前置设计：`2026-08-28-velow-milestone-2-learning-plan-design.md`
