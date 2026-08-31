@@ -1,6 +1,6 @@
 import Dexie from "dexie"
 import { describe, expect, it } from "vitest"
-import type { LegacyPlanTask, NoteDocument, PlanTask } from "./types"
+import type { LegacyPlanTask, NoteDocument, PlanTask, PlanTaskGroup } from "./types"
 import { seedHomeDemo } from "./seed"
 import { VeloDB } from "./velo-db"
 
@@ -40,6 +40,20 @@ async function createVersionOneDatabase(name: string, tasks: LegacyPlanTask[]) {
   const oldDb = new Dexie(name)
   oldDb.version(1).stores({
     planTasks: "id, [scope+periodKey], periodKey, isCompleted, order, updatedAt",
+    knowledgeNodes: "id, parentId, type, order, updatedAt",
+    notes: "id, nodeId, title, updatedAt",
+    appMeta: "key, updatedAt",
+  })
+  await oldDb.table("planTasks").bulkAdd(tasks)
+  oldDb.close()
+}
+
+async function createVersionTwoDatabase(name: string, tasks: PlanTask[]) {
+  const oldDb = new Dexie(name)
+  oldDb.version(2).stores({
+    planTasks: "id, scheduledDate, [scheduledDate+isCompleted], [scheduledDate+startMinutes], isCompleted, updatedAt",
+    learningPeriods: "id, kind, startDate, endDate, updatedAt",
+    legacyPlanTasks: "id, scope, periodKey, updatedAt",
     knowledgeNodes: "id, parentId, type, order, updatedAt",
     notes: "id, nodeId, title, updatedAt",
     appMeta: "key, updatedAt",
@@ -135,5 +149,43 @@ describe("VeloDB and seedHomeDemo", () => {
     expect(await db.legacyPlanTasks.get("week")).toMatchObject({ scope: "week", periodKey: "2026-W35" })
     expect(await db.legacyPlanTasks.get("malformed-day")).toMatchObject({ scope: "day", periodKey: "2026-02-31" })
     await db.delete()
+  })
+
+  it("upgrades version two data without changing existing tasks", async () => {
+    const name = `velo-v2-upgrade-${crypto.randomUUID()}`
+    await createVersionTwoDatabase(name, [existingTask])
+
+    const db = new VeloDB(name)
+    await db.open()
+
+    expect(await db.planTasks.toArray()).toEqual([existingTask])
+    expect(await db.planTaskGroups.count()).toBe(0)
+    await db.delete()
+  })
+
+  it("indexes task groups and their ordered child steps", async () => {
+    await withDatabase(async (db) => {
+      const group: PlanTaskGroup = {
+        id: "calculus-review",
+        title: "高等数学阶段复习",
+        startDate: "2026-08-31",
+        endDate: "2026-09-06",
+        sessionCount: 2,
+        createdAt: 1,
+        updatedAt: 1,
+      }
+      await db.planTaskGroups.add(group)
+      await db.planTasks.bulkAdd([
+        { ...existingTask, id: "step-2", groupId: group.id, stepIndex: 2, scheduledDate: "2026-09-06" },
+        { ...existingTask, id: "step-1", groupId: group.id, stepIndex: 1, scheduledDate: "2026-08-31" },
+      ])
+
+      expect(await db.planTaskGroups.where("startDate").equals("2026-08-31").toArray()).toEqual([group])
+      expect(await db.planTasks.where("groupId").equals(group.id).count()).toBe(2)
+      expect(await db.planTasks.where("[groupId+stepIndex]").between([group.id, Dexie.minKey], [group.id, Dexie.maxKey]).toArray()).toMatchObject([
+        { id: "step-1", stepIndex: 1 },
+        { id: "step-2", stepIndex: 2 },
+      ])
+    })
   })
 })

@@ -1,4 +1,18 @@
 export type LearningPeriodKind = "semester" | "winter-break" | "summer-break" | "custom-break"
+export type PlanTaskStepTitleMode = "inherit" | "custom"
+
+export interface PlanTaskGroup {
+  id: string
+  title: string
+  subject?: string
+  notes?: string
+  startDate: string
+  endDate: string
+  sessionCount: number
+  estimatedMinutes?: number
+  createdAt: number
+  updatedAt: number
+}
 
 export interface PlanTask {
   id: string
@@ -10,6 +24,9 @@ export interface PlanTask {
   notes?: string
   isCompleted: 0 | 1
   completedAt?: number
+  groupId?: string
+  stepIndex?: number
+  stepTitleMode?: PlanTaskStepTitleMode
   order: number
   createdAt: number
   updatedAt: number
