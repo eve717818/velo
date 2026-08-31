@@ -36,6 +36,8 @@
 - Create `src/features/plans/domain/task-group-status.test.ts`: progress and state rules.
 - Create `src/features/plans/data/plan-task-group-service.ts`: atomic group CRUD and schedule reconciliation.
 - Create `src/features/plans/data/plan-task-group-service.test.ts`: transaction, validation, reconciliation, and rollback coverage.
+- Create `src/features/plans/data/task-order.ts`: shared next-order lookup used by ordinary and grouped task creation.
+- Modify `src/features/plans/data/plan-task-service.ts`: consume the shared order helper before adding group-aware move validation.
 - Modify `src/features/plans/data/plan-task-service.ts`: group-aware move validation and optional range extension.
 - Modify `src/features/plans/data/plan-task-service.test.ts`: duplicate-date and range-extension tests.
 
@@ -320,6 +322,8 @@ git commit -m "feat: add deterministic multi-day scheduling"
 **Files:**
 - Create: `src/features/plans/data/plan-task-group-service.ts`
 - Create: `src/features/plans/data/plan-task-group-service.test.ts`
+- Create: `src/features/plans/data/task-order.ts`
+- Modify: `src/features/plans/data/plan-task-service.ts`
 
 **Interfaces:**
 - Consumes: schema from Task 1 and schedule drafts from Task 2.
@@ -348,6 +352,7 @@ export async function createPlanTaskGroup(db: VeloDB, input: CreatePlanTaskGroup
 export async function updatePlanTaskGroup(db: VeloDB, id: string, input: CreatePlanTaskGroupInput, now: number): Promise<{ group: PlanTaskGroup; tasks: PlanTask[] }>
 export async function applyTaskGroupSchedule(db: VeloDB, groupId: string, proposals: RescheduleProposal[], now: number): Promise<PlanTask[]>
 export async function deletePlanTaskGroup(db: VeloDB, groupId: string): Promise<{ deletedTaskCount: number }>
+export async function getNextTaskOrder(db: VeloDB, scheduledDate: string, startMinutes: number | undefined): Promise<number>
 ```
 
 - [ ] **Step 1: Write failing create and rollback tests**
@@ -404,7 +409,7 @@ return db.transaction("rw", db.planTaskGroups, db.planTasks, async () => {
 })
 ```
 
-Each created task uses `stepTitleMode`, inherits subject/notes/estimate, starts incomplete and untimed, and receives the next order for its scheduled date.
+Extract the existing private order query from `plan-task-service.ts` into `task-order.ts` as `getNextTaskOrder`, then import it in both task services. Each created task uses `stepTitleMode`, inherits subject/notes/estimate, starts incomplete and untimed, and receives the next order for its scheduled date. Existing ordinary-task ordering tests must remain green through the extraction.
 
 - [ ] **Step 4: Write failing reconciliation, reschedule, and deletion tests**
 
@@ -423,7 +428,7 @@ Expected: PASS.
 - [ ] **Step 7: Commit the service unit**
 
 ```bash
-git add src/features/plans/data/plan-task-group-service.ts src/features/plans/data/plan-task-group-service.test.ts
+git add src/features/plans/data/plan-task-group-service.ts src/features/plans/data/plan-task-group-service.test.ts src/features/plans/data/task-order.ts src/features/plans/data/plan-task-service.ts
 git commit -m "feat: add atomic multi-day task services"
 ```
 
@@ -584,7 +589,7 @@ Keep the existing single-day form and request-session behavior unchanged.
 
 - [ ] **Step 4: Implement `MultiDayTaskForm` and `SchedulePreview`**
 
-Use controlled strings for title, dates, count, estimate, subject, and notes. Recompute draft dates from `buildMultiDaySchedule` after valid range/count changes, but preserve user-edited preview rows until a range/count field changes. Submit the exact visible rows to `createPlanTaskGroup` or `updatePlanTaskGroup`.
+Use controlled strings for title, dates, count, estimate, subject, and notes. Recompute draft dates from `buildMultiDaySchedule` after valid range/count changes, but preserve user-edited preview rows until a range/count field changes. When editing, exclude the current group's own steps from daily-load input so they do not make their existing dates look artificially busy. Submit the exact visible rows to `createPlanTaskGroup` or `updatePlanTaskGroup`.
 
 `SchedulePreview` renders rows with labels `第 1 次`, editable date/title inputs, and a load summary such as `当天已有 2 项 · 预计 90 分钟`. Field errors remain adjacent to their input.
 
