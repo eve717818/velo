@@ -32,16 +32,14 @@ export interface PlanTaskGroup {
 export interface PlanTask {
   id: string
   title: string
-  scheduledDate: string
+  scope: PlanTaskScope
+  periodKey: string
   startMinutes?: number
   subject?: string
   estimatedMinutes?: number
   notes?: string
   isCompleted: 0 | 1
   completedAt?: number
-  groupId?: string
-  stepIndex?: number
-  stepTitleMode?: PlanTaskStepTitleMode
   order: number
   createdAt: number
   updatedAt: number

@@ -1,5 +1,16 @@
 import Dexie, { type Table } from "dexie"
+import { assertValidPlanPeriodKey } from "../features/plans/domain/plan-period-keys"
 import type { AppMeta, KnowledgeNode, LearningPeriod, LegacyPlanTask, NoteDocument, PlanTask, PlanTaskGroup, RangePlan } from "./types"
+
+type VersionFourPlanTaskRow = {
+  id: string
+  scheduledDate?: unknown
+  startMinutes?: number
+  groupId?: unknown
+  stepIndex?: unknown
+  stepTitleMode?: unknown
+  [key: string]: unknown
+}
 
 export class VeloDB extends Dexie {
   planTasks!: Table<PlanTask, string>
@@ -75,6 +86,27 @@ export class VeloDB extends Dexie {
       notes: "id, nodeId, title, updatedAt",
       appMeta: "key, updatedAt",
     })
+
+    this.version(5)
+      .stores({
+        planTasks: "id, [scope+periodKey], scope, periodKey, [scope+periodKey+isCompleted], isCompleted, updatedAt",
+        planTaskGroups: "id, startDate, endDate, updatedAt",
+        rangePlans: "&id, kind, rangeStart, rangeEnd, updatedAt",
+        learningPeriods: "id, kind, startDate, endDate, updatedAt",
+        legacyPlanTasks: "id, scope, periodKey, updatedAt",
+        knowledgeNodes: "id, parentId, type, order, updatedAt",
+        notes: "id, nodeId, title, updatedAt",
+        appMeta: "key, updatedAt",
+      })
+      .upgrade(async (transaction) => {
+        const tasks = transaction.table<VersionFourPlanTaskRow, string>("planTasks")
+        for (const row of await tasks.toArray()) {
+          const { scheduledDate, groupId: _groupId, stepIndex: _stepIndex, stepTitleMode: _stepTitleMode, ...rest } = row
+          if (typeof scheduledDate !== "string") throw new Error("v4 任务日期缺失")
+          assertValidPlanPeriodKey("day", scheduledDate)
+          await tasks.put({ ...rest, scope: "day", periodKey: scheduledDate, startMinutes: row.startMinutes })
+        }
+      })
   }
 }
 

@@ -17,6 +17,35 @@ async function withDatabase(run: (db: VeloDB) => Promise<void>) {
 
 const existingTask: PlanTask = {
   id: "existing-task",
+  scope: "day",
+  periodKey: "2026-08-25",
+  title: "已有计划",
+  isCompleted: 0,
+  order: 1,
+  createdAt: 1,
+  updatedAt: 1,
+}
+
+type VersionFourPlanTask = {
+  id: string
+  title: string
+  scheduledDate: string
+  startMinutes?: number
+  subject?: string
+  estimatedMinutes?: number
+  notes?: string
+  isCompleted: 0 | 1
+  completedAt?: number
+  groupId?: string
+  stepIndex?: number
+  stepTitleMode?: "inherit" | "custom"
+  order: number
+  createdAt: number
+  updatedAt: number
+}
+
+const existingVersionFourTask: VersionFourPlanTask = {
+  id: "existing-task",
   scheduledDate: "2026-08-25",
   title: "已有计划",
   isCompleted: 0,
@@ -48,10 +77,26 @@ async function createVersionOneDatabase(name: string, tasks: LegacyPlanTask[]) {
   oldDb.close()
 }
 
-async function createVersionTwoDatabase(name: string, tasks: PlanTask[]) {
+async function createVersionTwoDatabase(name: string, tasks: VersionFourPlanTask[]) {
   const oldDb = new Dexie(name)
   oldDb.version(2).stores({
     planTasks: "id, scheduledDate, [scheduledDate+isCompleted], [scheduledDate+startMinutes], isCompleted, updatedAt",
+    learningPeriods: "id, kind, startDate, endDate, updatedAt",
+    legacyPlanTasks: "id, scope, periodKey, updatedAt",
+    knowledgeNodes: "id, parentId, type, order, updatedAt",
+    notes: "id, nodeId, title, updatedAt",
+    appMeta: "key, updatedAt",
+  })
+  await oldDb.table("planTasks").bulkAdd(tasks)
+  oldDb.close()
+}
+
+async function createVersionFourDatabase(name: string, tasks: VersionFourPlanTask[]) {
+  const oldDb = new Dexie(name)
+  oldDb.version(4).stores({
+    planTasks: "id, scheduledDate, [scheduledDate+isCompleted], [scheduledDate+startMinutes], groupId, [groupId+stepIndex], isCompleted, updatedAt",
+    planTaskGroups: "id, startDate, endDate, updatedAt",
+    rangePlans: "&id, kind, rangeStart, rangeEnd, updatedAt",
     learningPeriods: "id, kind, startDate, endDate, updatedAt",
     legacyPlanTasks: "id, scope, periodKey, updatedAt",
     knowledgeNodes: "id, parentId, type, order, updatedAt",
@@ -81,6 +126,10 @@ describe("VeloDB and seedHomeDemo", () => {
       expect(db.rangePlans.schema.indexes.map((index) => index.name)).toEqual(
         expect.arrayContaining(["kind", "rangeStart", "rangeEnd", "updatedAt"]),
       )
+      expect(db.planTasks.schema.indexes.map((index) => index.name)).toEqual(
+        expect.arrayContaining(["[scope+periodKey]", "scope", "periodKey", "[scope+periodKey+isCompleted]", "isCompleted", "updatedAt"]),
+      )
+      expect(db.planTaskGroups.schema.primKey.keyPath).toBe("id")
     })
   })
 
@@ -88,7 +137,7 @@ describe("VeloDB and seedHomeDemo", () => {
     await withDatabase(async (db) => {
       await seedHomeDemo(db, seedDate)
 
-      expect(await db.planTasks.where("scheduledDate").equals("2026-08-25").count()).toBe(5)
+      expect(await db.planTasks.where("[scope+periodKey]").equals(["day", "2026-08-25"]).count()).toBe(5)
       expect(await db.planTasks.where("isCompleted").equals(1).count()).toBe(3)
       expect(await db.notes.orderBy("updatedAt").last()).toMatchObject({ title: "线性代数：矩阵的秩" })
       expect(await db.appMeta.get("homeDemoSeed")).toMatchObject({ key: "homeDemoSeed", value: "v1:applied" })
@@ -154,7 +203,7 @@ describe("VeloDB and seedHomeDemo", () => {
 
     const db = new VeloDB(name)
     await db.open()
-    expect(await db.planTasks.get("day")).toMatchObject({ scheduledDate: "2026-08-28", isCompleted: 0 })
+    expect(await db.planTasks.get("day")).toMatchObject({ scope: "day", periodKey: "2026-08-28", isCompleted: 0 })
     expect(await db.planTasks.get("week")).toBeUndefined()
     expect(await db.planTasks.get("malformed-day")).toBeUndefined()
     expect(await db.legacyPlanTasks.get("week")).toMatchObject({ scope: "week", periodKey: "2026-W35" })
@@ -162,9 +211,9 @@ describe("VeloDB and seedHomeDemo", () => {
     await db.delete()
   })
 
-  it("upgrades version two data without changing existing tasks", async () => {
+  it("upgrades version two data into independent day tasks", async () => {
     const name = `velo-v2-upgrade-${crypto.randomUUID()}`
-    await createVersionTwoDatabase(name, [existingTask])
+    await createVersionTwoDatabase(name, [existingVersionFourTask])
 
     const db = new VeloDB(name)
     await db.open()
@@ -174,7 +223,59 @@ describe("VeloDB and seedHomeDemo", () => {
     await db.delete()
   })
 
-  it("indexes task groups and their ordered child steps", async () => {
+  it("upgrades v4 tasks into independent day tasks", async () => {
+    const name = `velo-v4-upgrade-${crypto.randomUUID()}`
+    await createVersionFourDatabase(name, [
+      existingVersionFourTask,
+      { ...existingVersionFourTask, id: "group-step", groupId: "group", stepIndex: 2, stepTitleMode: "inherit", isCompleted: 1 },
+    ])
+
+    const db = new VeloDB(name)
+    await db.open()
+
+    expect(await db.planTasks.get("existing-task")).toMatchObject({
+      scope: "day",
+      periodKey: "2026-08-25",
+      title: "已有计划",
+    })
+    expect(await db.planTasks.get("group-step")).toMatchObject({
+      scope: "day",
+      periodKey: "2026-08-25",
+      isCompleted: 1,
+    })
+    expect(await db.planTasks.get("group-step")).not.toHaveProperty("groupId")
+    expect(await db.planTasks.get("group-step")).not.toHaveProperty("stepIndex")
+    expect(await db.planTasks.get("group-step")).not.toHaveProperty("stepTitleMode")
+    expect(await db.planTaskGroups.count()).toBeGreaterThanOrEqual(0)
+    await db.delete()
+  })
+
+  it("rolls back a v5 upgrade when a v4 task date is invalid", async () => {
+    const name = `velo-v4-invalid-upgrade-${crypto.randomUUID()}`
+    const invalidTask: VersionFourPlanTask = { ...existingVersionFourTask, scheduledDate: "2027-02-29" }
+    await createVersionFourDatabase(name, [invalidTask])
+
+    const db = new VeloDB(name)
+    await expect(db.open()).rejects.toThrow()
+    db.close()
+
+    const rawV4 = new Dexie(name)
+    rawV4.version(4).stores({
+      planTasks: "id, scheduledDate, [scheduledDate+isCompleted], [scheduledDate+startMinutes], groupId, [groupId+stepIndex], isCompleted, updatedAt",
+      planTaskGroups: "id, startDate, endDate, updatedAt",
+      rangePlans: "&id, kind, rangeStart, rangeEnd, updatedAt",
+      learningPeriods: "id, kind, startDate, endDate, updatedAt",
+      legacyPlanTasks: "id, scope, periodKey, updatedAt",
+      knowledgeNodes: "id, parentId, type, order, updatedAt",
+      notes: "id, nodeId, title, updatedAt",
+      appMeta: "key, updatedAt",
+    })
+    await rawV4.open()
+    expect(await rawV4.table("planTasks").toArray()).toEqual([invalidTask])
+    await rawV4.delete()
+  })
+
+  it("preserves the task-group table through the v5 schema", async () => {
     await withDatabase(async (db) => {
       const group: PlanTaskGroup = {
         id: "calculus-review",
@@ -186,17 +287,7 @@ describe("VeloDB and seedHomeDemo", () => {
         updatedAt: 1,
       }
       await db.planTaskGroups.add(group)
-      await db.planTasks.bulkAdd([
-        { ...existingTask, id: "step-2", groupId: group.id, stepIndex: 2, scheduledDate: "2026-09-06" },
-        { ...existingTask, id: "step-1", groupId: group.id, stepIndex: 1, scheduledDate: "2026-08-31" },
-      ])
-
       expect(await db.planTaskGroups.where("startDate").equals("2026-08-31").toArray()).toEqual([group])
-      expect(await db.planTasks.where("groupId").equals(group.id).count()).toBe(2)
-      expect(await db.planTasks.where("[groupId+stepIndex]").between([group.id, Dexie.minKey], [group.id, Dexie.maxKey]).toArray()).toMatchObject([
-        { id: "step-1", stepIndex: 1 },
-        { id: "step-2", stepIndex: 2 },
-      ])
     })
   })
 })
