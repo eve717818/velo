@@ -1,4 +1,5 @@
 export type LearningPeriodKind = "semester" | "winter-break" | "summer-break" | "custom-break"
+export type PlanTaskScope = "day" | "week" | "month" | "semester"
 export type PlanTaskStepTitleMode = "inherit" | "custom"
 export type RangePlanKind = "week" | "month"
 
