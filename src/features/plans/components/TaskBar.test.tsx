@@ -16,7 +16,8 @@ function task(overrides: Partial<PlanTask> = {}): PlanTask {
   return {
     id: "task-bar",
     title: "复习导数",
-    scheduledDate: "2026-08-28",
+    scope: "day",
+    periodKey: "2026-08-28",
     subject: "高等数学",
     estimatedMinutes: 45,
     isCompleted: 0,
@@ -317,7 +318,7 @@ describe("TaskBar", () => {
 
   it("keeps the task in its lane and retries the same move target after a failed write", async () => {
     const db = createDatabase()
-    const currentTask = task({ scheduledDate: "2026-08-28", startMinutes: undefined, order: 4 })
+    const currentTask = task({ periodKey: "2026-08-28", startMinutes: undefined, order: 4 })
     const user = userEvent.setup()
     const realMove = planTaskService.movePlanTask
     const moveSpy = vi.spyOn(planTaskService, "movePlanTask")
@@ -326,7 +327,7 @@ describe("TaskBar", () => {
     await db.planTasks.add(currentTask)
     vi.useFakeTimers()
     const dropZone = document.createElement("div")
-    dropZone.dataset.dropDate = "2026-08-29"
+    dropZone.dataset.dropPeriodKey = "2026-08-29"
     dropZone.dataset.startMinutes = "840"
     const originalElementFromPoint = Object.getOwnPropertyDescriptor(document, "elementFromPoint")
     Object.defineProperty(document, "elementFromPoint", { configurable: true, value: () => dropZone })
@@ -340,11 +341,11 @@ describe("TaskBar", () => {
       vi.useRealTimers()
 
       expect(await screen.findByRole("alert")).toHaveTextContent("保存失败，请重试")
-      expect(await db.planTasks.get(currentTask.id)).toMatchObject({ scheduledDate: "2026-08-28", startMinutes: undefined, order: 4 })
+      expect(await db.planTasks.get(currentTask.id)).toMatchObject({ scope: "day", periodKey: "2026-08-28", startMinutes: undefined, order: 4 })
 
       await user.click(screen.getByRole("button", { name: "重试" }))
 
-      await waitFor(async () => expect(await db.planTasks.get(currentTask.id)).toMatchObject({ scheduledDate: "2026-08-29", startMinutes: 840 }))
+      await waitFor(async () => expect(await db.planTasks.get(currentTask.id)).toMatchObject({ scope: "day", periodKey: "2026-08-29", startMinutes: 840 }))
       expect(moveSpy).toHaveBeenCalledTimes(2)
     } finally {
       moveSpy.mockRestore()
@@ -513,13 +514,14 @@ describe("TaskBar", () => {
     const db = createDatabase()
     const currentTask = task()
     const movePlanTaskSpy = vi.spyOn(planTaskService, "movePlanTask")
+    const onMoved = vi.fn()
     await db.planTasks.add(currentTask)
     vi.useFakeTimers()
     const dropZone = document.createElement("div")
-    dropZone.dataset.dropDate = "2026-08-29"
+    dropZone.dataset.dropPeriodKey = "2026-08-29"
     const originalElementFromPoint = Object.getOwnPropertyDescriptor(document, "elementFromPoint")
     Object.defineProperty(document, "elementFromPoint", { configurable: true, value: () => dropZone })
-    const rendered = render(<TaskBar db={db} task={currentTask} />)
+    const rendered = render(<TaskBar db={db} onMoved={onMoved} task={currentTask} />)
 
     try {
       const bar = screen.getByRole("button", { name: "打开任务操作：复习导数" })
@@ -529,8 +531,14 @@ describe("TaskBar", () => {
       fireEvent.pointerUp(bar, { pointerId: 1, clientX: 20, clientY: 90 })
       vi.useRealTimers()
 
-      await waitFor(async () => expect(await db.planTasks.get(currentTask.id)).toMatchObject({ scheduledDate: "2026-08-29", order: 1 }))
-      expect(movePlanTaskSpy).toHaveBeenCalledWith(db, currentTask.id, { scheduledDate: "2026-08-29", startMinutes: undefined }, expect.any(Number))
+      await waitFor(async () => expect(await db.planTasks.get(currentTask.id)).toMatchObject({ scope: "day", periodKey: "2026-08-29", order: 1 }))
+      expect(movePlanTaskSpy).toHaveBeenCalledWith(db, currentTask.id, { scope: "day", periodKey: "2026-08-29", startMinutes: undefined }, expect.any(Number))
+      expect(onMoved).toHaveBeenCalledWith(expect.objectContaining({ scope: "day", periodKey: "2026-08-29" }), {
+        scope: "day",
+        periodKey: "2026-08-28",
+        startMinutes: undefined,
+        order: 1,
+      })
       expect(screen.queryByTestId("task-drag-layer")).not.toBeInTheDocument()
     } finally {
       movePlanTaskSpy.mockRestore()
@@ -544,11 +552,11 @@ describe("TaskBar", () => {
 
   it("moves to a nested timed drop target and restores the original lane on undo", async () => {
     const db = createDatabase()
-    const currentTask = task({ scheduledDate: "2026-08-28", startMinutes: undefined, order: 4 })
+    const currentTask = task({ periodKey: "2026-08-28", startMinutes: undefined, order: 4 })
     await db.planTasks.add(currentTask)
     vi.useFakeTimers()
     const dropZone = document.createElement("div")
-    dropZone.dataset.dropDate = "2026-08-29"
+    dropZone.dataset.dropPeriodKey = "2026-08-29"
     dropZone.dataset.startMinutes = "840"
     const nestedTarget = document.createElement("span")
     dropZone.append(nestedTarget)
@@ -565,10 +573,10 @@ describe("TaskBar", () => {
       vi.useRealTimers()
 
       await new Promise<void>((resolve) => window.setTimeout(resolve, 50))
-      expect(await db.planTasks.get(currentTask.id)).toMatchObject({ scheduledDate: "2026-08-29", startMinutes: 840, order: 1 })
+      expect(await db.planTasks.get(currentTask.id)).toMatchObject({ scope: "day", periodKey: "2026-08-29", startMinutes: 840, order: 1 })
       expect(await screen.findByRole("status")).toHaveTextContent("已移动到目标位置")
       await userEvent.setup().click(screen.getByRole("button", { name: "撤销" }))
-      await waitFor(async () => expect(await db.planTasks.get(currentTask.id)).toMatchObject({ scheduledDate: "2026-08-28", startMinutes: undefined, order: 4 }))
+      await waitFor(async () => expect(await db.planTasks.get(currentTask.id)).toMatchObject({ scope: "day", periodKey: "2026-08-28", startMinutes: undefined, order: 4 }))
     } finally {
       if (originalElementFromPoint) Object.defineProperty(document, "elementFromPoint", originalElementFromPoint)
       else Reflect.deleteProperty(document, "elementFromPoint")
@@ -580,14 +588,14 @@ describe("TaskBar", () => {
 
   it("moves an untimed task to an untimed lane on a different date", async () => {
     const db = createDatabase()
-    const currentTask = task({ scheduledDate: "2026-08-28", startMinutes: undefined, order: 4 })
+    const currentTask = task({ periodKey: "2026-08-28", startMinutes: undefined, order: 4 })
     await db.planTasks.bulkAdd([
       currentTask,
-      task({ id: "target-date-task", title: "整理错题", scheduledDate: "2026-08-29", startMinutes: undefined, order: 3 }),
+      task({ id: "target-date-task", title: "整理错题", periodKey: "2026-08-29", startMinutes: undefined, order: 3 }),
     ])
     vi.useFakeTimers()
     const dropZone = document.createElement("div")
-    dropZone.dataset.dropDate = "2026-08-29"
+    dropZone.dataset.dropPeriodKey = "2026-08-29"
     const originalElementFromPoint = Object.getOwnPropertyDescriptor(document, "elementFromPoint")
     Object.defineProperty(document, "elementFromPoint", { configurable: true, value: () => dropZone })
     const rendered = render(<TaskBar db={db} task={currentTask} />)
@@ -599,7 +607,7 @@ describe("TaskBar", () => {
       fireEvent.pointerUp(bar, { pointerId: 1, clientX: 20, clientY: 30 })
       vi.useRealTimers()
 
-      await waitFor(async () => expect(await db.planTasks.get(currentTask.id)).toMatchObject({ scheduledDate: "2026-08-29", startMinutes: undefined, order: 4 }))
+      await waitFor(async () => expect(await db.planTasks.get(currentTask.id)).toMatchObject({ scope: "day", periodKey: "2026-08-29", startMinutes: undefined, order: 4 }))
     } finally {
       if (originalElementFromPoint) Object.defineProperty(document, "elementFromPoint", originalElementFromPoint)
       else Reflect.deleteProperty(document, "elementFromPoint")
@@ -615,7 +623,7 @@ describe("TaskBar", () => {
     await db.planTasks.bulkAdd([currentTask, task({ id: "later-task", title: "预习积分", order: 5 })])
     vi.useFakeTimers()
     const dropZone = document.createElement("div")
-    dropZone.dataset.dropDate = "2026-08-28"
+    dropZone.dataset.dropPeriodKey = "2026-08-28"
     const originalElementFromPoint = Object.getOwnPropertyDescriptor(document, "elementFromPoint")
     Object.defineProperty(document, "elementFromPoint", { configurable: true, value: () => dropZone })
     const rendered = render(<TaskBar db={db} task={currentTask} />)
@@ -627,7 +635,7 @@ describe("TaskBar", () => {
       fireEvent.pointerUp(bar, { pointerId: 1, clientX: 20, clientY: 30 })
       vi.useRealTimers()
 
-      await waitFor(async () => expect(await db.planTasks.get(currentTask.id)).toMatchObject({ scheduledDate: "2026-08-28", startMinutes: undefined, order: 6 }))
+      await waitFor(async () => expect(await db.planTasks.get(currentTask.id)).toMatchObject({ scope: "day", periodKey: "2026-08-28", startMinutes: undefined, order: 6 }))
     } finally {
       if (originalElementFromPoint) Object.defineProperty(document, "elementFromPoint", originalElementFromPoint)
       else Reflect.deleteProperty(document, "elementFromPoint")
@@ -643,7 +651,7 @@ describe("TaskBar", () => {
     await db.planTasks.bulkAdd([currentTask, task({ id: "later-task", title: "预习积分", startMinutes: 600, order: 5 })])
     vi.useFakeTimers()
     const dropZone = document.createElement("div")
-    dropZone.dataset.dropDate = "2026-08-28"
+    dropZone.dataset.dropPeriodKey = "2026-08-28"
     dropZone.dataset.startMinutes = "720"
     const originalElementFromPoint = Object.getOwnPropertyDescriptor(document, "elementFromPoint")
     Object.defineProperty(document, "elementFromPoint", { configurable: true, value: () => dropZone })
@@ -656,7 +664,7 @@ describe("TaskBar", () => {
       fireEvent.pointerUp(bar, { pointerId: 1, clientX: 20, clientY: 30 })
       vi.useRealTimers()
 
-      await waitFor(async () => expect(await db.planTasks.get(currentTask.id)).toMatchObject({ scheduledDate: "2026-08-28", startMinutes: 720, order: 6 }))
+      await waitFor(async () => expect(await db.planTasks.get(currentTask.id)).toMatchObject({ scope: "day", periodKey: "2026-08-28", startMinutes: 720, order: 6 }))
     } finally {
       if (originalElementFromPoint) Object.defineProperty(document, "elementFromPoint", originalElementFromPoint)
       else Reflect.deleteProperty(document, "elementFromPoint")
@@ -681,7 +689,7 @@ describe("TaskBar", () => {
 
       expect(screen.queryByTestId("task-drag-layer")).not.toBeInTheDocument()
       vi.useRealTimers()
-      expect(await db.planTasks.get(currentTask.id)).toMatchObject({ scheduledDate: "2026-08-28", order: 1 })
+      expect(await db.planTasks.get(currentTask.id)).toMatchObject({ scope: "day", periodKey: "2026-08-28", order: 1 })
     } finally {
       rendered.unmount()
       vi.useRealTimers()

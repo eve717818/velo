@@ -1,7 +1,8 @@
 import { parseLocalDate } from "./plan-dates"
 
 export interface TaskDropTarget {
-  scheduledDate: string
+  scope: "day"
+  periodKey: string
   startMinutes?: number
 }
 
@@ -13,21 +14,21 @@ function isValidStartMinutes(value: string): boolean {
 }
 
 export function readTaskDropTarget(element: HTMLElement): TaskDropTarget | null {
-  const target = element.closest<HTMLElement>("[data-drop-date]")
-  const scheduledDate = target?.dataset.dropDate
-  if (!scheduledDate) return null
+  const target = element.closest<HTMLElement>("[data-drop-period-key]")
+  const periodKey = target?.dataset.dropPeriodKey
+  if (!periodKey) return null
 
   try {
-    parseLocalDate(scheduledDate)
+    parseLocalDate(periodKey)
   } catch {
     return null
   }
 
   const rawMinutes = target.dataset.startMinutes
   if (rawMinutes === undefined) {
-    return { scheduledDate, startMinutes: undefined }
+    return { scope: "day", periodKey, startMinutes: undefined }
   }
 
   if (!isValidStartMinutes(rawMinutes)) return null
-  return { scheduledDate, startMinutes: Number(rawMinutes) }
+  return { scope: "day", periodKey, startMinutes: Number(rawMinutes) }
 }

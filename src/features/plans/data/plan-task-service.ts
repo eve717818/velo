@@ -1,12 +1,20 @@
-import type { LearningPeriod, PlanTask } from "@/db/types"
+import type { LearningPeriod, PlanTask, PlanTaskScope } from "@/db/types"
 import type { VeloDB } from "@/db/velo-db"
 
-import { parseLocalDate } from "../domain/plan-dates"
+import { assertValidPlanPeriodKey } from "../domain/plan-period-keys"
 import { getNextTaskOrder } from "./task-order"
 
+export interface PlanTaskLocation {
+  scope: PlanTaskScope
+  periodKey: string
+  startMinutes?: number
+  order: number
+}
+
 export interface CreatePlanTaskInput {
+  scope: PlanTaskScope
+  periodKey: string
   title: string
-  scheduledDate: string
   startMinutes?: number
   subject?: string
   estimatedMinutes?: number
@@ -16,14 +24,11 @@ export interface CreatePlanTaskInput {
 export type UpdatePlanTaskInput = CreatePlanTaskInput
 
 export interface MovePlanTaskInput {
-  scheduledDate: string
+  scope: PlanTaskScope
+  periodKey: string
   startMinutes?: number
   order?: number
-  expectedPosition?: {
-    scheduledDate: string
-    startMinutes: number | undefined
-    order: number
-  }
+  expectedPosition?: PlanTaskLocation
 }
 
 function normalizeText(value: string | undefined): string | undefined {
@@ -31,20 +36,12 @@ function normalizeText(value: string | undefined): string | undefined {
   return normalized ? normalized : undefined
 }
 
-function normalizeTaskInput<T extends CreatePlanTaskInput | MovePlanTaskInput>(input: T): T {
+function normalizeTaskInput<T extends CreatePlanTaskInput>(input: T): T {
   return {
     ...input,
-    title: "title" in input ? input.title.trim() : undefined,
-    subject: "subject" in input ? normalizeText(input.subject) : undefined,
-    notes: "notes" in input ? normalizeText(input.notes) : undefined,
-  }
-}
-
-function assertValidScheduledDate(value: string) {
-  try {
-    parseLocalDate(value)
-  } catch {
-    throw new Error("任务日期无效")
+    title: input.title.trim(),
+    subject: normalizeText(input.subject),
+    notes: normalizeText(input.notes),
   }
 }
 
@@ -76,58 +73,64 @@ function assertValidTaskInput(input: CreatePlanTaskInput) {
     throw new Error("任务名称不能为空")
   }
 
-  assertValidScheduledDate(input.scheduledDate)
-  assertValidStartMinutes(input.startMinutes)
+  assertValidTaskLocation(input.scope, input.periodKey, input.startMinutes)
   assertValidEstimate(input.estimatedMinutes)
 }
 
+function assertValidTaskLocation(scope: PlanTaskScope, periodKey: string, startMinutes: number | undefined) {
+  assertValidPlanPeriodKey(scope, periodKey)
+  if (scope !== "day" && startMinutes !== undefined) {
+    throw new Error("只有日计划任务可以设置时间")
+  }
+  assertValidStartMinutes(startMinutes)
+}
+
 function assertValidMoveInput(input: MovePlanTaskInput) {
-  assertValidScheduledDate(input.scheduledDate)
-  assertValidStartMinutes(input.startMinutes)
+  assertValidTaskLocation(input.scope, input.periodKey, input.startMinutes)
   if (input.order !== undefined && (!Number.isInteger(input.order) || input.order < 0)) {
     throw new Error("任务排序必须是非负整数")
   }
 }
 
-function isSameLane(task: Pick<PlanTask, "startMinutes">, startMinutes: number | undefined) {
-  return (task.startMinutes === undefined) === (startMinutes === undefined)
+async function assertSemesterPeriodExists(db: VeloDB, scope: PlanTaskScope, periodKey: string) {
+  if (scope === "semester" && !(await db.learningPeriods.get(periodKey))) {
+    throw new Error("请选择有效的学期或假期")
+  }
+}
+
+function isSameLane(task: Pick<PlanTask, "scope" | "startMinutes">, startMinutes: number | undefined) {
+  return task.scope !== "day" || (task.startMinutes === undefined) === (startMinutes === undefined)
 }
 
 function isSamePosition(
-  task: Pick<PlanTask, "scheduledDate" | "startMinutes" | "order">,
+  task: PlanTaskLocation,
   expected: NonNullable<MovePlanTaskInput["expectedPosition"]>,
 ) {
-  return task.scheduledDate === expected.scheduledDate && task.startMinutes === expected.startMinutes && task.order === expected.order
+  return task.scope === expected.scope && task.periodKey === expected.periodKey && task.startMinutes === expected.startMinutes && task.order === expected.order
 }
 
-function shouldReassignOrder(task: Pick<PlanTask, "scheduledDate" | "startMinutes">, input: Pick<UpdatePlanTaskInput, "scheduledDate" | "startMinutes">) {
-  return task.scheduledDate !== input.scheduledDate || !isSameLane(task, input.startMinutes)
-}
-
-function resolveCopyScheduledDate(targetPeriod: Pick<LearningPeriod, "startDate" | "endDate">, today: string) {
-  if (today >= targetPeriod.startDate && today <= targetPeriod.endDate) {
-    return today
-  }
-
-  return targetPeriod.startDate
+function shouldReassignOrder(task: Pick<PlanTask, "scope" | "periodKey" | "startMinutes">, input: Pick<UpdatePlanTaskInput, "periodKey" | "startMinutes">) {
+  return task.periodKey !== input.periodKey || !isSameLane(task, input.startMinutes)
 }
 
 export async function createPlanTask(db: VeloDB, input: CreatePlanTaskInput, now: number): Promise<PlanTask> {
   assertValidTaskInput(input)
   const normalized = normalizeTaskInput(input)
 
-  return db.transaction("rw", db.planTasks, async () => {
+  return db.transaction("rw", db.planTasks, db.learningPeriods, async () => {
+    await assertSemesterPeriodExists(db, normalized.scope, normalized.periodKey)
     const created: PlanTask = {
       id: crypto.randomUUID(),
       title: normalized.title,
-      scheduledDate: normalized.scheduledDate,
+      scope: normalized.scope,
+      periodKey: normalized.periodKey,
       startMinutes: normalized.startMinutes,
       subject: normalized.subject,
       estimatedMinutes: normalized.estimatedMinutes,
       notes: normalized.notes,
       isCompleted: 0,
       completedAt: undefined,
-      order: await getNextTaskOrder(db, normalized.scheduledDate, normalized.startMinutes),
+      order: await getNextTaskOrder(db, normalized.scope, normalized.periodKey, normalized.startMinutes),
       createdAt: now,
       updatedAt: now,
     }
@@ -141,21 +144,26 @@ export async function updatePlanTask(db: VeloDB, id: string, input: UpdatePlanTa
   assertValidTaskInput(input)
   const normalized = normalizeTaskInput(input)
 
-  return db.transaction("rw", db.planTasks, async () => {
+  return db.transaction("rw", db.planTasks, db.learningPeriods, async () => {
     const existing = await db.planTasks.get(id)
     if (!existing) {
       throw new Error("Plan task not found")
     }
+    if (normalized.scope !== existing.scope) {
+      throw new Error("不能跨计划层级移动任务")
+    }
+    await assertSemesterPeriodExists(db, normalized.scope, normalized.periodKey)
 
     const order = shouldReassignOrder(existing, normalized)
-      ? await getNextTaskOrder(db, normalized.scheduledDate, normalized.startMinutes)
+      ? await getNextTaskOrder(db, normalized.scope, normalized.periodKey, normalized.startMinutes)
       : existing.order
 
     const updated: PlanTask = {
       ...existing,
       id,
       title: normalized.title,
-      scheduledDate: normalized.scheduledDate,
+      scope: normalized.scope,
+      periodKey: normalized.periodKey,
       startMinutes: normalized.startMinutes,
       subject: normalized.subject,
       estimatedMinutes: normalized.estimatedMinutes,
@@ -202,22 +210,26 @@ export async function setTaskCompletion(db: VeloDB, id: string, isCompleted: boo
 
 export async function movePlanTask(db: VeloDB, id: string, input: MovePlanTaskInput, now: number): Promise<PlanTask> {
   assertValidMoveInput(input)
-  const normalized = normalizeTaskInput(input)
 
-  return db.transaction("rw", db.planTasks, async () => {
+  return db.transaction("rw", db.planTasks, db.learningPeriods, async () => {
     const existing = await db.planTasks.get(id)
     if (!existing) {
       throw new Error("Plan task not found")
     }
-    if (normalized.expectedPosition && !isSamePosition(existing, normalized.expectedPosition)) {
+    if (input.scope !== existing.scope) {
+      throw new Error("不能跨计划层级移动任务")
+    }
+    await assertSemesterPeriodExists(db, input.scope, input.periodKey)
+    if (input.expectedPosition && !isSamePosition(existing, input.expectedPosition)) {
       throw new Error("任务位置已变化，请重试")
     }
 
     const updated: PlanTask = {
       ...existing,
-      scheduledDate: normalized.scheduledDate,
-      startMinutes: normalized.startMinutes,
-      order: normalized.order ?? (await getNextTaskOrder(db, normalized.scheduledDate, normalized.startMinutes)),
+      scope: input.scope,
+      periodKey: input.periodKey,
+      startMinutes: input.startMinutes,
+      order: input.order ?? (await getNextTaskOrder(db, input.scope, input.periodKey, input.startMinutes)),
       updatedAt: now,
     }
 
@@ -236,24 +248,23 @@ export async function copyTasksToPeriod(
   if (targetPeriod.endDate < today) {
     throw new Error("不能复制到已结束的学习周期")
   }
-  const scheduledDate = resolveCopyScheduledDate(targetPeriod, today)
-  assertValidScheduledDate(scheduledDate)
 
-  return db.transaction("rw", db.planTasks, async () => copyTasksToPeriodInTransaction(db, sourceIds, scheduledDate, now))
+  return db.transaction("rw", db.planTasks, async () => copyTasksToPeriodInTransaction(db, sourceIds, targetPeriod.id, now))
 }
 
-async function copyTasksToPeriodInTransaction(db: VeloDB, sourceIds: string[], scheduledDate: string, now: number): Promise<string[]> {
+async function copyTasksToPeriodInTransaction(db: VeloDB, sourceIds: string[], periodKey: string, now: number): Promise<string[]> {
   const sourceTasks = await db.planTasks.bulkGet(sourceIds)
   const missingIndex = sourceTasks.findIndex((task) => !task)
   if (missingIndex >= 0) {
     throw new Error(`Plan task not found: ${sourceIds[missingIndex]}`)
   }
 
-  let nextOrder = await getNextTaskOrder(db, scheduledDate, undefined)
+  let nextOrder = await getNextTaskOrder(db, "semester", periodKey, undefined)
   const copiedTasks = sourceTasks.map((task) => ({
     id: crypto.randomUUID(),
     title: task!.title,
-    scheduledDate,
+    scope: "semester" as const,
+    periodKey,
     startMinutes: undefined,
     subject: task!.subject,
     estimatedMinutes: task!.estimatedMinutes,
@@ -285,12 +296,10 @@ export async function copyTasksToPeriodAndDismiss(
   if (targetPeriod.endDate < today) {
     throw new Error("不能复制到已结束的学习周期")
   }
-  const scheduledDate = resolveCopyScheduledDate(targetPeriod, today)
-  assertValidScheduledDate(scheduledDate)
   const dismissalKey = `periodMigrationDismissed:${sourcePeriodId}:${targetPeriod.id}`
 
   return db.transaction("rw", db.planTasks, db.appMeta, async () => {
-    const copiedIds = await copyTasksToPeriodInTransaction(db, sourceIds, scheduledDate, now)
+    const copiedIds = await copyTasksToPeriodInTransaction(db, sourceIds, targetPeriod.id, now)
     await db.appMeta.put({ key: dismissalKey, value: "1", updatedAt: now })
     return copiedIds
   })

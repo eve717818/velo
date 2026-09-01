@@ -8,7 +8,8 @@ import { TaskDragLayer } from "./TaskDragLayer"
 const task: PlanTask = {
   id: "drag-task",
   title: "复习导数",
-  scheduledDate: "2026-08-28",
+  scope: "day",
+  periodKey: "2026-08-28",
   isCompleted: 0,
   order: 1,
   createdAt: 1,

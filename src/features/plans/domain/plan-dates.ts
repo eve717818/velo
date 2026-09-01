@@ -69,14 +69,14 @@ export function getProgress(tasks: Array<Pick<PlanTask, "isCompleted">>) {
 }
 
 export function isOverdue(
-  task: Pick<PlanTask, "scheduledDate" | "isCompleted">,
+  task: Pick<PlanTask, "scope" | "periodKey" | "isCompleted">,
   today: string,
 ): boolean {
-  if (task.isCompleted === 1) {
+  if (task.scope !== "day" || task.isCompleted === 1) {
     return false
   }
 
-  return task.scheduledDate < today
+  return task.periodKey < today
 }
 
 export function clampDateToRange(value: string, startDate: string, endDate: string): string {

@@ -116,12 +116,18 @@ describe("plan date rules", () => {
   })
 
   it("marks incomplete past tasks overdue and completed tasks not overdue", () => {
-    expect(isOverdue({ scheduledDate: "2026-08-27", isCompleted: 0 }, "2026-08-28")).toBe(true)
-    expect(isOverdue({ scheduledDate: "2026-08-27", isCompleted: 1 }, "2026-08-28")).toBe(false)
+    expect(isOverdue({ scope: "day", periodKey: "2026-08-27", isCompleted: 0 }, "2026-08-28")).toBe(true)
+    expect(isOverdue({ scope: "day", periodKey: "2026-08-27", isCompleted: 1 }, "2026-08-28")).toBe(false)
   })
 
   it("does not mark tasks due today as overdue", () => {
-    expect(isOverdue({ scheduledDate: "2026-08-28", isCompleted: 0 }, "2026-08-28")).toBe(false)
+    expect(isOverdue({ scope: "day", periodKey: "2026-08-28", isCompleted: 0 }, "2026-08-28")).toBe(false)
+  })
+
+  it("never marks non-day tasks overdue", () => {
+    expect(isOverdue({ scope: "week", periodKey: "2026-08-24", isCompleted: 0 }, "2026-08-28")).toBe(false)
+    expect(isOverdue({ scope: "month", periodKey: "2026-07", isCompleted: 0 }, "2026-08-28")).toBe(false)
+    expect(isOverdue({ scope: "semester", periodKey: "spring-2026", isCompleted: 0 }, "2026-08-28")).toBe(false)
   })
 
   it("clamps dates below the range to the range start", () => {

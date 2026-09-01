@@ -40,7 +40,12 @@ describe("LegacyPlanMigrationPanel", () => {
       await user.type(screen.getByLabelText("安排日期"), "2027-02-20")
       await user.click(screen.getByRole("button", { name: "转换为学习任务" }))
       await waitFor(async () => expect(await db.legacyPlanTasks.get(legacy.id)).toBeUndefined())
-      expect((await db.planTasks.toArray())[0]).toMatchObject({ title: legacy.title, scheduledDate: "2027-02-20" })
+      expect((await db.planTasks.toArray())[0]).toMatchObject({
+        title: legacy.title,
+        scope: "day",
+        periodKey: "2027-02-20",
+      })
+      expect((await db.planTasks.toArray())[0].startMinutes).toBeUndefined()
     } finally {
       rendered.unmount()
       await db.delete()

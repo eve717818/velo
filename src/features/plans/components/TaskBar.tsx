@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, type CSSProperties, type KeyboardEvent, ty
 
 import type { PlanTask } from "@/db/types"
 import type { VeloDB } from "@/db/velo-db"
-import { movePlanTask, setTaskCompletion } from "@/features/plans/data/plan-task-service"
+import { movePlanTask, setTaskCompletion, type PlanTaskLocation } from "@/features/plans/data/plan-task-service"
 import { readTaskDropTarget, type TaskDropTarget } from "@/features/plans/domain/task-drop"
 import { getSwipeProgress, shouldCompleteSwipe } from "@/features/plans/domain/task-gesture"
 
@@ -21,11 +21,7 @@ interface TaskBarProps {
   task: PlanTask
 }
 
-export interface TaskPosition {
-  scheduledDate: string
-  startMinutes: number | undefined
-  order: number
-}
+export type TaskPosition = PlanTaskLocation
 
 export function TaskBar({ db, groupLabel, onMoved, onOpen, task }: TaskBarProps) {
   const sessionKey = task.id
@@ -189,7 +185,8 @@ function TaskBarSession({ db, groupLabel, onMoved, onOpen, task }: TaskBarProps)
   async function moveTask(target: TaskDropTarget) {
     if (isSaving) return
     const previous: TaskPosition = {
-      scheduledDate: task.scheduledDate,
+      scope: task.scope,
+      periodKey: task.periodKey,
       startMinutes: task.startMinutes,
       order: task.order,
     }
@@ -203,7 +200,8 @@ function TaskBarSession({ db, groupLabel, onMoved, onOpen, task }: TaskBarProps)
         onMoved(moved, previous)
       } else if (!onMoved && mounted.current && requestSession.isCurrent(requestToken)) {
         showUndoWindow("已移动到目标位置", () => void restoreTaskPosition(previous, {
-          scheduledDate: moved.scheduledDate,
+          scope: moved.scope,
+          periodKey: moved.periodKey,
           startMinutes: moved.startMinutes,
           order: moved.order,
         }))
@@ -221,8 +219,8 @@ function TaskBarSession({ db, groupLabel, onMoved, onOpen, task }: TaskBarProps)
   }
 
   async function restoreTaskPosition(
-    previous: { scheduledDate: string; startMinutes: number | undefined; order: number },
-    expectedPosition?: { scheduledDate: string; startMinutes: number | undefined; order: number },
+    previous: TaskPosition,
+    expectedPosition?: TaskPosition,
   ) {
     if (isSaving) return
     const requestToken = requestSession.beginRequest()

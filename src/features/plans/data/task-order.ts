@@ -1,16 +1,17 @@
-import type { PlanTask } from "@/db/types"
+import type { PlanTask, PlanTaskScope } from "@/db/types"
 import type { VeloDB } from "@/db/velo-db"
 
-function isSameLane(task: Pick<PlanTask, "startMinutes">, startMinutes: number | undefined) {
-  return (task.startMinutes === undefined) === (startMinutes === undefined)
+function isSameLane(task: Pick<PlanTask, "scope" | "startMinutes">, startMinutes: number | undefined) {
+  return task.scope !== "day" || (task.startMinutes === undefined) === (startMinutes === undefined)
 }
 
 export async function getNextTaskOrder(
   db: VeloDB,
-  scheduledDate: string,
+  scope: PlanTaskScope,
+  periodKey: string,
   startMinutes: number | undefined,
 ): Promise<number> {
-  const tasks = await db.planTasks.where("scheduledDate").equals(scheduledDate).toArray()
+  const tasks = await db.planTasks.where("[scope+periodKey]").equals([scope, periodKey]).toArray()
   const maxOrder = tasks
     .filter((task) => isSameLane(task, startMinutes))
     .reduce((currentMax, task) => Math.max(currentMax, task.order), 0)
