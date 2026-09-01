@@ -252,8 +252,9 @@ describe("VeloDB and seedHomeDemo", () => {
 
   it("rolls back a v5 upgrade when a v4 task date is invalid", async () => {
     const name = `velo-v4-invalid-upgrade-${crypto.randomUUID()}`
-    const invalidTask: VersionFourPlanTask = { ...existingVersionFourTask, scheduledDate: "2027-02-29" }
-    await createVersionFourDatabase(name, [invalidTask])
+    const validTask: VersionFourPlanTask = { ...existingVersionFourTask, id: "a-valid" }
+    const invalidTask: VersionFourPlanTask = { ...existingVersionFourTask, id: "z-invalid", scheduledDate: "2027-02-29" }
+    await createVersionFourDatabase(name, [validTask, invalidTask])
 
     const db = new VeloDB(name)
     await expect(db.open()).rejects.toThrow()
@@ -271,7 +272,13 @@ describe("VeloDB and seedHomeDemo", () => {
       appMeta: "key, updatedAt",
     })
     await rawV4.open()
-    expect(await rawV4.table("planTasks").toArray()).toEqual([invalidTask])
+    const rawTasks = await rawV4.table<VersionFourPlanTask, string>("planTasks").orderBy("id").toArray()
+    expect(rawTasks).toEqual([validTask, invalidTask])
+    const reloadedValidTask = await rawV4.table<VersionFourPlanTask, string>("planTasks").get(validTask.id)
+    expect(reloadedValidTask).toEqual(validTask)
+    expect(reloadedValidTask).not.toHaveProperty("scope")
+    expect(reloadedValidTask).not.toHaveProperty("periodKey")
+    expect(await rawV4.table<VersionFourPlanTask, string>("planTasks").get(invalidTask.id)).toEqual(invalidTask)
     await rawV4.delete()
   })
 
