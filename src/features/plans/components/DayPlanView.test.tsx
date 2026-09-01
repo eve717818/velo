@@ -10,7 +10,8 @@ function task(overrides: Partial<PlanTask> = {}): PlanTask {
   return {
     id: crypto.randomUUID(),
     title: "复习导数",
-    scheduledDate: "2026-08-28",
+    scope: "day",
+    periodKey: "2026-08-28",
     isCompleted: 0,
     order: 1,
     createdAt: 1,
@@ -36,7 +37,7 @@ describe("DayPlanView", () => {
         db={db}
         selectedDate="2026-09-03"
         taskGroups={[group]}
-        tasks={[task({ groupId: group.id, scheduledDate: "2026-09-03", stepIndex: 2, title: "极限与连续" })]}
+        tasks={[task({ groupId: group.id, periodKey: "2026-09-03", stepIndex: 2, title: "极限与连续" })]}
       />,
     )
 
@@ -59,8 +60,8 @@ describe("DayPlanView", () => {
           task({ id: "late", title: "晚课", startMinutes: 840 }),
           task({ id: "early", title: "早课", startMinutes: 540 }),
           task({ id: "unscheduled", title: "整理错题" }),
-          task({ id: "overdue", title: "昨天未完成", scheduledDate: "2026-08-27" }),
-          task({ id: "finished", title: "昨天完成", scheduledDate: "2026-08-27", isCompleted: 1 }),
+          task({ id: "overdue", title: "昨天未完成", periodKey: "2026-08-27" }),
+          task({ id: "finished", title: "昨天完成", periodKey: "2026-08-27", isCompleted: 1 }),
         ]}
         today="2026-08-28"
       />,
@@ -77,6 +78,33 @@ describe("DayPlanView", () => {
       expect(within(screen.getByLabelText("待安排任务")).getByText("整理错题")).toBeInTheDocument()
       expect(screen.getByText("已逾期")).toBeInTheDocument()
       expect(screen.getAllByText("已逾期")).toHaveLength(1)
+    } finally {
+      rendered.unmount()
+      void db.delete()
+    }
+  })
+
+  it("marks timed and untimed day lanes with the scope-aware drop period key", () => {
+    const db = new VeloDB(`day-view-${crypto.randomUUID()}`)
+    const rendered = render(
+      <DayPlanView
+        db={db}
+        selectedDate="2026-08-28"
+        tasks={[
+          task({ id: "timed", startMinutes: 540 }),
+          task({ id: "untimed" }),
+        ]}
+      />,
+    )
+
+    try {
+      const timedDropTarget = within(screen.getByLabelText("定时任务")).getByRole("listitem")
+      const untimedDropTarget = screen.getByTestId("current-plan-drop-zone")
+
+      expect(timedDropTarget).toHaveAttribute("data-drop-period-key", "2026-08-28")
+      expect(untimedDropTarget).toHaveAttribute("data-drop-period-key", "2026-08-28")
+      expect(timedDropTarget).not.toHaveAttribute("data-drop-date")
+      expect(untimedDropTarget).not.toHaveAttribute("data-drop-date")
     } finally {
       rendered.unmount()
       void db.delete()

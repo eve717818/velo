@@ -56,7 +56,7 @@ export function DayPlanView({ db, onCreate, onMoved, onOpen, selectedDate, taskG
         </div>
         <ul className={styles.timedTaskList}>
           {timedTasks.map((task) => (
-            <li data-drop-date={selectedDate} data-start-minutes={task.startMinutes} key={task.id}>
+            <li data-drop-period-key={selectedDate} data-start-minutes={task.startMinutes} key={task.id}>
               <time className={styles.timeLabel} dateTime={`${selectedDate}T${formatTime(task.startMinutes!)}`}>{formatTime(task.startMinutes!)}</time>
               <div className={styles.taskBarWithStatus}>
                 <TaskBar db={db} groupLabel={groupLabel(task)} onMoved={onMoved} onOpen={onOpen} task={task} />
@@ -66,7 +66,7 @@ export function DayPlanView({ db, onCreate, onMoved, onOpen, selectedDate, taskG
           ))}
         </ul>
       </section>
-      <section aria-label="待安排任务" className={styles.dayLane} data-drop-date={selectedDate} data-testid="current-plan-drop-zone">
+      <section aria-label="待安排任务" className={styles.dayLane} data-drop-period-key={selectedDate} data-testid="current-plan-drop-zone">
         <div className={styles.laneHeading}>
           <h3>待安排</h3>
           <span>{untimedTasks.length} 项</span>

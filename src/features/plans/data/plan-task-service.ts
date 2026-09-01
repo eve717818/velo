@@ -249,7 +249,10 @@ export async function copyTasksToPeriod(
     throw new Error("不能复制到已结束的学习周期")
   }
 
-  return db.transaction("rw", db.planTasks, async () => copyTasksToPeriodInTransaction(db, sourceIds, targetPeriod.id, now))
+  return db.transaction("rw", db.planTasks, db.learningPeriods, async () => {
+    await assertSemesterPeriodExists(db, "semester", targetPeriod.id)
+    return copyTasksToPeriodInTransaction(db, sourceIds, targetPeriod.id, now)
+  })
 }
 
 async function copyTasksToPeriodInTransaction(db: VeloDB, sourceIds: string[], periodKey: string, now: number): Promise<string[]> {
@@ -298,7 +301,8 @@ export async function copyTasksToPeriodAndDismiss(
   }
   const dismissalKey = `periodMigrationDismissed:${sourcePeriodId}:${targetPeriod.id}`
 
-  return db.transaction("rw", db.planTasks, db.appMeta, async () => {
+  return db.transaction("rw", db.planTasks, db.learningPeriods, db.appMeta, async () => {
+    await assertSemesterPeriodExists(db, "semester", targetPeriod.id)
     const copiedIds = await copyTasksToPeriodInTransaction(db, sourceIds, targetPeriod.id, now)
     await db.appMeta.put({ key: dismissalKey, value: "1", updatedAt: now })
     return copiedIds

@@ -248,13 +248,15 @@ describe("plan task service", () => {
 
   it("copies independent incomplete tasks into the target semester", async () => {
     await withDatabase(async (db) => {
+      const target = period()
+      await db.learningPeriods.add(target)
       await db.planTasks.bulkAdd([
         task({ id: "source-1", title: "英语阅读", periodKey: "2027-01-10", subject: "英语", estimatedMinutes: 30, notes: "精读第一篇", startMinutes: 480, isCompleted: 1, completedAt: 50, order: 1 }),
         task({ id: "source-2", title: "数学整理", periodKey: "2027-01-11", subject: "数学", estimatedMinutes: 45, notes: "错题回顾", order: 2 }),
         task({ id: "target-existing", scope: "semester", periodKey: "winter-break", title: "既有长期任务", order: 2 }),
       ])
 
-      const copiedIds = await copyTasksToPeriod(db, ["source-1", "source-2"], period(), "2027-01-20", 100)
+      const copiedIds = await copyTasksToPeriod(db, ["source-1", "source-2"], target, "2027-01-20", 100)
       expect(copiedIds).toHaveLength(2)
       expect(copiedIds).not.toContain("source-1")
       expect(copiedIds).not.toContain("source-2")
@@ -289,6 +291,33 @@ describe("plan task service", () => {
     })
   })
 
+  it("rejects copying tasks to a learning period deleted after it was read", async () => {
+    await withDatabase(async (db) => {
+      const target = period({ id: "stale-copy-target" })
+      await db.learningPeriods.add(target)
+      const staleTarget = await db.learningPeriods.get(target.id)
+      await db.learningPeriods.delete(target.id)
+      await db.planTasks.add(task({ id: "stale-copy-source" }))
+
+      await expect(copyTasksToPeriod(db, ["stale-copy-source"], staleTarget!, "2027-01-18", 200)).rejects.toThrow("请选择有效的学期或假期")
+      expect(await db.planTasks.toArray()).toEqual([expect.objectContaining({ id: "stale-copy-source" })])
+    })
+  })
+
+  it("rejects copying and dismissal when the target period was deleted after it was read", async () => {
+    await withDatabase(async (db) => {
+      const target = period({ id: "stale-dismiss-target" })
+      await db.learningPeriods.add(target)
+      const staleTarget = await db.learningPeriods.get(target.id)
+      await db.learningPeriods.delete(target.id)
+      await db.planTasks.add(task({ id: "stale-dismiss-source" }))
+
+      await expect(copyTasksToPeriodAndDismiss(db, ["stale-dismiss-source"], staleTarget!, "source", "2027-01-18", 201)).rejects.toThrow("请选择有效的学期或假期")
+      expect(await db.planTasks.toArray()).toEqual([expect.objectContaining({ id: "stale-dismiss-source" })])
+      expect(await db.appMeta.get("periodMigrationDismissed:source:stale-dismiss-target")).toBeUndefined()
+    })
+  })
+
   it("rejects copying tasks into a historical target period", async () => {
     await withDatabase(async (db) => {
       const historicalTarget = period({ id: "historical-target", endDate: "2027-01-16" })
@@ -303,6 +332,7 @@ describe("plan task service", () => {
     await withDatabase(async (db) => {
       await db.planTasks.add(task({ id: "atomic-source", periodKey: "2027-01-10" }))
       const target = period()
+      await db.learningPeriods.add(target)
 
       await copyTasksToPeriodAndDismiss(db, ["atomic-source"], target, "source", "2027-01-18", 301)
       expect(await db.appMeta.get("periodMigrationDismissed:source:winter-break")).toMatchObject({ value: "1" })
@@ -318,6 +348,8 @@ describe("plan task service", () => {
 
   it("rolls back all copied tasks when one write fails", async () => {
     await withDatabase(async (db) => {
+      const target = period()
+      await db.learningPeriods.add(target)
       await db.planTasks.bulkAdd([
         task({ id: "source-1", title: "英语阅读", periodKey: "2027-01-10", order: 1 }),
         task({ id: "source-2", title: "数学整理", periodKey: "2027-01-11", order: 2 }),
@@ -329,7 +361,7 @@ describe("plan task service", () => {
         if (writes === 2) throw new Error("forced write error")
       })
 
-      await expect(copyTasksToPeriod(db, ["source-1", "source-2"], period(), "2027-01-10", 200)).rejects.toThrow("forced write error")
+      await expect(copyTasksToPeriod(db, ["source-1", "source-2"], target, "2027-01-10", 200)).rejects.toThrow("forced write error")
       expect((await db.planTasks.toArray()).map((item) => item.id).sort()).toEqual(["source-1", "source-2"])
     })
   })
