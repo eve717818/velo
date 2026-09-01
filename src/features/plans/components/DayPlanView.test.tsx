@@ -21,7 +21,7 @@ function task(overrides: Partial<PlanTask> = {}): PlanTask {
 }
 
 describe("DayPlanView", () => {
-  it("identifies the current step of a multi-day task without changing the task title", () => {
+  it("does not expose retired task-group step labels", () => {
     const db = new VeloDB(`day-view-${crypto.randomUUID()}`)
     const group: PlanTaskGroup = {
       id: "calculus-group",
@@ -37,13 +37,17 @@ describe("DayPlanView", () => {
         db={db}
         selectedDate="2026-09-03"
         taskGroups={[group]}
-        tasks={[task({ groupId: group.id, periodKey: "2026-09-03", stepIndex: 2, title: "极限与连续" })]}
+        tasks={[{
+          ...task({ periodKey: "2026-09-03", title: "极限与连续" }),
+          groupId: group.id,
+          stepIndex: 2,
+        } as unknown as PlanTask]}
       />,
     )
 
     try {
       expect(screen.getByText("极限与连续")).toBeInTheDocument()
-      expect(screen.getByText("第 2/3 次")).toBeInTheDocument()
+      expect(screen.queryByText("第 2/3 次")).not.toBeInTheDocument()
     } finally {
       rendered.unmount()
       void db.delete()

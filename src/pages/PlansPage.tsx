@@ -11,8 +11,7 @@ import { TaskActionsDialog } from "@/features/plans/components/TaskActionsDialog
 import { TaskEditorDialog } from "@/features/plans/components/TaskEditorDialog"
 import { UndoNotice } from "@/features/plans/components/UndoNotice"
 import { DayPlanView } from "@/features/plans/components/DayPlanView"
-import { MonthPlanView } from "@/features/plans/components/MonthPlanView"
-import { WeekPlanView } from "@/features/plans/components/WeekPlanView"
+import { PlanTaskListView } from "@/features/plans/components/PlanTaskListView"
 import { LearningPeriodDialog } from "@/features/plans/components/LearningPeriodDialog"
 import { LearningPeriodView } from "@/features/plans/components/LearningPeriodView"
 import { LegacyPlanMigrationPanel } from "@/features/plans/components/LegacyPlanMigrationPanel"
@@ -374,9 +373,9 @@ export function PlansPage({ db = veloDb, now }: PlansPageProps) {
           ) : null}
           <SwipeDiscoveryHint visible={Boolean(snapshot?.tasks.some((task) => task.isCompleted === 0)) && view !== "period"} />
           {snapshot ? (
-            view === "day" ? <DayPlanView db={db} onCreate={openCreate} onMoved={handleTaskMoved} onOpen={openTask} selectedDate={selectedDate} taskGroups={snapshot.taskGroups} tasks={snapshot.tasks} today={fallbackDate} />
-              : view === "week" ? <WeekPlanView db={db} onMoved={handleTaskMoved} onOpen={openTask} selectedDate={selectedDate} taskGroups={snapshot.taskGroups} tasks={snapshot.tasks} />
-                : view === "month" ? <MonthPlanView db={db} onMoved={handleTaskMoved} onOpen={openTask} selectedDate={selectedDate} taskGroups={snapshot.taskGroups} tasks={snapshot.tasks} />
+            view === "day" ? <DayPlanView db={db} onCreate={openCreate} onMoved={handleTaskMoved} onOpen={openTask} selectedDate={selectedDate} tasks={snapshot.tasks} today={fallbackDate} />
+              : view === "week" ? <PlanTaskListView db={db} onCreate={openCreate} onMoved={handleTaskMoved} onOpen={openTask} periodKey={snapshot.periodKey ?? ""} scope="week" tasks={snapshot.tasks} />
+                : view === "month" ? <PlanTaskListView db={db} onCreate={openCreate} onMoved={handleTaskMoved} onOpen={openTask} periodKey={snapshot.periodKey ?? ""} scope="month" tasks={snapshot.tasks} />
                   : <LearningPeriodView
                     onCreate={() => openPeriodEditor()}
                     onDelete={(period) => setPeriodToDelete(period)}

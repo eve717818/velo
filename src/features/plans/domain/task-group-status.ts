@@ -8,27 +8,22 @@ export interface TaskGroupProgress {
 
 export type TaskGroupStepState = "upcoming" | "current" | "completed" | "needs-reschedule"
 
+function retired<T>(...ignored: unknown[]): T {
+  void ignored
+  throw new Error("跨日任务已停用")
+}
+
+/** Kept only for rollback compatibility; task-group status is no longer supported. */
 export function getTaskGroupProgress(groupId: string, tasks: PlanTask[]): TaskGroupProgress {
-  const groupTasks = tasks.filter((task) => task.groupId === groupId)
-  const completed = groupTasks.filter((task) => task.isCompleted === 1).length
-  return {
-    completed,
-    total: groupTasks.length,
-    ratio: groupTasks.length === 0 ? 0 : completed / groupTasks.length,
-  }
+  return retired(groupId, tasks)
 }
 
+/** Kept only for rollback compatibility; task-group status is no longer supported. */
 export function getTaskGroupStepState(task: PlanTask, today: string): TaskGroupStepState {
-  if (task.isCompleted === 1) return "completed"
-  if (task.scheduledDate < today) return "needs-reschedule"
-  if (task.scheduledDate === today) return "current"
-  return "upcoming"
+  return retired(task, today)
 }
 
-export function groupOverlapsRange(
-  group: PlanTaskGroup,
-  startDate: string,
-  endDate: string,
-): boolean {
-  return group.startDate <= endDate && group.endDate >= startDate
+/** Kept only for rollback compatibility; task-group status is no longer supported. */
+export function groupOverlapsRange(group: PlanTaskGroup, startDate: string, endDate: string): boolean {
+  return retired(group, startDate, endDate)
 }
