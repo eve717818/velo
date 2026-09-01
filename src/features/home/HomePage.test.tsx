@@ -1,6 +1,7 @@
 import { render, screen } from "@testing-library/react"
 import { MemoryRouter } from "react-router-dom"
 import { describe, expect, it } from "vitest"
+import type { PlanTask } from "@/db/types"
 import { seedHomeDemo } from "@/db/seed"
 import { VeloDB } from "@/db/velo-db"
 import { HomePage } from "./HomePage"
@@ -20,6 +21,37 @@ function renderHome(db: VeloDB) {
 }
 
 describe("HomePage", () => {
+  it("shows today only from the day workspace", async () => {
+    const db = createDatabase()
+    const today = "2026-08-25"
+    const task = (overrides: Pick<PlanTask, "id" | "title" | "scope" | "periodKey"> & Partial<PlanTask>): PlanTask => ({
+      isCompleted: 0,
+      order: 0,
+      createdAt: 1,
+      updatedAt: 1,
+      ...overrides,
+    })
+    await db.planTasks.bulkAdd([
+      task({ id: "day-done", title: "今日已完成", scope: "day", periodKey: today, isCompleted: 1, order: 1 }),
+      task({ id: "day-next", title: "今日下一项", scope: "day", periodKey: today, order: 2 }),
+      task({ id: "week", title: "本周任务", scope: "week", periodKey: "2026-08-24", order: 1 }),
+      task({ id: "month", title: "本月任务", scope: "month", periodKey: "2026-08", order: 1 }),
+      task({ id: "semester", title: "学期任务", scope: "semester", periodKey: "fall", order: 1 }),
+    ])
+    const view = renderHome(db)
+
+    try {
+      expect(await screen.findByText("1 / 2")).toBeInTheDocument()
+      expect(screen.getByText("今日下一项")).toBeInTheDocument()
+      expect(screen.queryByText("本周任务")).not.toBeInTheDocument()
+      expect(screen.queryByText("本月任务")).not.toBeInTheDocument()
+      expect(screen.queryByText("学期任务")).not.toBeInTheDocument()
+    } finally {
+      view.unmount()
+      await db.delete()
+    }
+  })
+
   it("renders the seeded home snapshot and actionable destinations", async () => {
     const db = createDatabase()
     await seedHomeDemo(db, now)

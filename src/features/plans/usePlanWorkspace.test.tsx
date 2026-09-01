@@ -1,6 +1,6 @@
 import { renderHook, waitFor } from "@testing-library/react"
 import { describe, expect, it } from "vitest"
-import type { LearningPeriod, PlanTask, PlanTaskGroup, RangePlan } from "@/db/types"
+import type { LearningPeriod, PlanTask } from "@/db/types"
 import { VeloDB } from "@/db/velo-db"
 import { usePlanWorkspace, type PlanView } from "./usePlanWorkspace"
 
@@ -8,76 +8,62 @@ function createDatabase() {
   return new VeloDB(`velo-plan-workspace-${crypto.randomUUID()}`)
 }
 
-function task(id: string, scheduledDate: string, isCompleted: 0 | 1 = 0): PlanTask {
+function task(overrides: Pick<PlanTask, "id" | "scope" | "periodKey"> & Partial<PlanTask>): PlanTask {
   return {
-    id,
-    title: `Task ${id}`,
-    scheduledDate,
-    isCompleted,
+    title: `Task ${overrides.id}`,
+    isCompleted: 0,
     order: 0,
     createdAt: 1,
     updatedAt: 1,
+    ...overrides,
   }
 }
 
-const period: LearningPeriod = {
-  id: "autumn-opening",
+const fall: LearningPeriod = {
+  id: "fall",
   kind: "semester",
-  name: "秋季开学段",
-  startDate: "2026-08-30",
-  endDate: "2026-09-02",
+  name: "秋季学期",
+  startDate: "2026-09-01",
+  endDate: "2027-01-31",
   createdAt: 1,
   updatedAt: 1,
 }
 
-const laterPeriod: LearningPeriod = {
-  id: "autumn-review",
-  kind: "custom-break",
-  name: "秋季复习段",
-  startDate: "2026-09-10",
-  endDate: "2026-09-12",
-  createdAt: 2,
-  updatedAt: 2,
-}
-
-async function seedWorkspace(db: VeloDB) {
-  await db.learningPeriods.add(period)
-  await db.planTasks.bulkAdd([
-    task("week-start", "2026-08-24", 1),
-    task("selected-day", "2026-08-30"),
-    task("next-week", "2026-08-31", 1),
-    task("period-end", "2026-09-02"),
-    task("after-period", "2026-09-03"),
-  ])
-}
-
 function renderWorkspace(db: VeloDB, view: PlanView, periodId?: string) {
-  return renderHook(() =>
-    usePlanWorkspace({
-      db,
-      view,
-      selectedDate: "2026-08-30",
-      periodId,
-    }),
-  )
+  return renderHook(() => usePlanWorkspace({
+    db,
+    view,
+    selectedDate: "2026-09-01",
+    periodId,
+  }))
 }
 
 describe("usePlanWorkspace", () => {
   it.each([
-    ["day", undefined, ["selected-day"]],
-    ["week", undefined, ["week-start", "selected-day"]],
-    ["month", undefined, ["week-start", "selected-day", "next-week"]],
-    ["period", period.id, ["selected-day", "next-week", "period-end"]],
-  ] satisfies Array<[PlanView, string | undefined, string[]]>) (
-    "queries the inclusive %s range",
-    async (view, periodId, expectedIds) => {
+    ["day", undefined, "day"],
+    ["week", undefined, "week"],
+    ["month", undefined, "month"],
+    ["period", fall.id, "semester"],
+  ] satisfies Array<[PlanView, string | undefined, string]>)(
+    "returns only the active %s workspace",
+    async (view, periodId, expectedId) => {
       const db = createDatabase()
-      await seedWorkspace(db)
+      await db.learningPeriods.add(fall)
+      await db.planTasks.bulkAdd([
+        task({ id: "day", scope: "day", periodKey: "2026-09-01" }),
+        task({ id: "week", scope: "week", periodKey: "2026-08-31" }),
+        task({ id: "month", scope: "month", periodKey: "2026-09" }),
+        task({ id: "semester", scope: "semester", periodKey: "fall" }),
+      ])
       const rendered = renderWorkspace(db, view, periodId)
 
       try {
         await waitFor(() => {
-          expect(rendered.result.current?.tasks.map(({ id }) => id)).toEqual(expectedIds)
+          expect(rendered.result.current).toMatchObject({
+            scope: view === "period" ? "semester" : view,
+            tasks: [expect.objectContaining({ id: expectedId })],
+            progress: { completed: 0, total: 1, ratio: 0 },
+          })
         })
       } finally {
         rendered.unmount()
@@ -86,115 +72,39 @@ describe("usePlanWorkspace", () => {
     },
   )
 
-  it("keeps periods and progress live without copying database rows into page state", async () => {
+  it("sorts day tasks by time before order and other scopes by order", async () => {
     const db = createDatabase()
-    await seedWorkspace(db)
-    const rendered = renderWorkspace(db, "period", period.id)
-
-    try {
-      await waitFor(() => {
-        expect(rendered.result.current).toMatchObject({
-          periods: [period],
-          selectedPeriod: period,
-          progress: { completed: 1, total: 3, ratio: 1 / 3 },
-        })
-      })
-
-      await db.learningPeriods.add(laterPeriod)
-
-      await waitFor(() => {
-        expect(rendered.result.current?.periods).toEqual([period, laterPeriod])
-      })
-
-      await db.planTasks.update("selected-day", { isCompleted: 1, completedAt: 2, updatedAt: 2 })
-
-      await waitFor(() => {
-        expect(rendered.result.current?.progress).toEqual({ completed: 2, total: 3, ratio: 2 / 3 })
-      })
-    } finally {
-      rendered.unmount()
-      await db.delete()
-    }
-  })
-
-  it("returns the matching range plan only for week and month views", async () => {
-    const db = createDatabase()
-    const weekPlan: RangePlan = {
-      id: "week:2026-08-24",
-      kind: "week",
-      rangeStart: "2026-08-24",
-      rangeEnd: "2026-08-30",
-      theme: "开学准备",
-      goal: "完成预习",
-      focusItems: ["高等数学"],
-      createdAt: 1,
-      updatedAt: 1,
-    }
-    await db.rangePlans.add(weekPlan)
-    const week = renderWorkspace(db, "week")
+    await db.planTasks.bulkAdd([
+      task({ id: "day-untimed", scope: "day", periodKey: "2026-09-01", order: 1 }),
+      task({ id: "day-late", scope: "day", periodKey: "2026-09-01", startMinutes: 600, order: 2 }),
+      task({ id: "day-early", scope: "day", periodKey: "2026-09-01", startMinutes: 480, order: 3 }),
+      task({ id: "week-second", scope: "week", periodKey: "2026-08-31", order: 2 }),
+      task({ id: "week-first", scope: "week", periodKey: "2026-08-31", order: 1 }),
+    ])
     const day = renderWorkspace(db, "day")
-
-    try {
-      await waitFor(() => expect(week.result.current?.rangePlan).toEqual(weekPlan))
-      await waitFor(() => expect(day.result.current?.rangePlan).toBeNull())
-    } finally {
-      week.unmount()
-      day.unmount()
-      await db.delete()
-    }
-  })
-
-  it("returns only groups overlapping the view while progress counts concrete tasks", async () => {
-    const db = createDatabase()
-    await seedWorkspace(db)
-    const overlapping: PlanTaskGroup = {
-      id: "overlap",
-      title: "跨周复习",
-      startDate: "2026-08-20",
-      endDate: "2026-08-26",
-      sessionCount: 1,
-      createdAt: 1,
-      updatedAt: 1,
-    }
-    const outside: PlanTaskGroup = {
-      ...overlapping,
-      id: "outside",
-      title: "下周复习",
-      startDate: "2026-08-31",
-      endDate: "2026-09-02",
-    }
-    await db.planTaskGroups.bulkAdd([overlapping, outside])
-    await db.planTasks.add({
-      ...task("group-step", "2026-08-26"),
-      groupId: overlapping.id,
-      stepIndex: 1,
-      stepTitleMode: "inherit",
-    })
-    const rendered = renderWorkspace(db, "week")
+    const week = renderWorkspace(db, "week")
 
     try {
       await waitFor(() => {
-        expect(rendered.result.current).toMatchObject({
-          taskGroups: [overlapping],
-          progress: { completed: 1, total: 3, ratio: 1 / 3 },
-        })
+        expect(day.result.current?.tasks.map(({ id }) => id)).toEqual(["day-early", "day-late", "day-untimed"])
+        expect(week.result.current?.tasks.map(({ id }) => id)).toEqual(["week-first", "week-second"])
       })
-      expect(rendered.result.current?.allTaskGroups).toEqual(expect.arrayContaining([overlapping, outside]))
-      expect(rendered.result.current?.allTaskGroups).toHaveLength(2)
-      expect(rendered.result.current?.taskGroupById).toEqual({ overlap: overlapping, outside })
     } finally {
-      rendered.unmount()
+      day.unmount()
+      week.unmount()
       await db.delete()
     }
   })
 
-  it("returns an empty zero progress snapshot when a period is not selected", async () => {
+  it("returns no semester tasks until a period is selected", async () => {
     const db = createDatabase()
     const rendered = renderWorkspace(db, "period")
 
     try {
       await waitFor(() => {
         expect(rendered.result.current).toMatchObject({
+          scope: "semester",
+          periodKey: null,
           tasks: [],
           selectedPeriod: null,
           progress: { completed: 0, total: 0, ratio: 0 },
@@ -202,36 +112,6 @@ describe("usePlanWorkspace", () => {
       })
     } finally {
       rendered.unmount()
-      await db.delete()
-    }
-  })
-
-  it("returns one winter-break task from the same source in day, week, month, and period queries", async () => {
-    const db = createDatabase()
-    const winterBreak: LearningPeriod = {
-      id: "winter-break",
-      kind: "winter-break",
-      name: "寒假",
-      startDate: "2027-01-17",
-      endDate: "2027-02-21",
-      createdAt: 1,
-      updatedAt: 1,
-    }
-    await db.learningPeriods.add(winterBreak)
-    await db.planTasks.add(task("winter-holiday", "2027-02-21"))
-    const renders = (["day", "week", "month", "period"] as PlanView[]).map((view) => renderHook(() => usePlanWorkspace({
-      db,
-      view,
-      selectedDate: "2027-02-21",
-      periodId: view === "period" ? winterBreak.id : undefined,
-    })))
-
-    try {
-      await Promise.all(renders.map((rendered) => waitFor(() => {
-        expect(rendered.result.current?.tasks.map((row) => row.id)).toEqual(["winter-holiday"])
-      })))
-    } finally {
-      renders.forEach((rendered) => rendered.unmount())
       await db.delete()
     }
   })
