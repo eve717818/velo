@@ -26,6 +26,15 @@ describe("plan period keys", () => {
     expect(() => assertValidPlanPeriodKey("day", "2027-02-29")).toThrow("日计划周期无效")
     expect(() => assertValidPlanPeriodKey("week", "2026-09-01")).toThrow("周计划周期无效")
     expect(() => assertValidPlanPeriodKey("month", "2026-13")).toThrow("月计划周期无效")
+    expect(() => assertValidPlanPeriodKey("semester", "   ")).toThrow("请选择有效的学期或假期")
+  })
+
+  it("clamps month navigation to the target month end", () => {
+    expect(shiftPlanPeriod("month", "2026-01-29", 1)).toBe("2026-02-28")
+    expect(shiftPlanPeriod("month", "2026-01-30", 1)).toBe("2026-02-28")
+    expect(shiftPlanPeriod("month", "2026-01-31", 1)).toBe("2026-02-28")
+    expect(shiftPlanPeriod("month", "2026-01-31", 2)).toBe("2026-03-31")
+    expect(shiftPlanPeriod("month", "2026-12-31", 1)).toBe("2027-01-31")
   })
 
   it("formats visible labels", () => {

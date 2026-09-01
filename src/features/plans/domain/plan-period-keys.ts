@@ -23,14 +23,17 @@ export function assertValidPlanPeriodKey(scope: PlanTaskScope, periodKey: string
     if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(periodKey)) throw new Error("月计划周期无效")
     return
   }
-  if (!periodKey.trim()) throw new Error("请选择学期或假期")
+  if (!periodKey.trim()) throw new Error("请选择有效的学期或假期")
 }
 
 export function shiftPlanPeriod(scope: Exclude<PlanTaskScope, "semester">, selectedDate: string, amount: number) {
   if (scope === "day") return addLocalDays(selectedDate, amount)
   if (scope === "week") return addLocalDays(selectedDate, amount * 7)
   const value = parseLocalDate(selectedDate)
-  return formatLocalDate(new Date(value.getFullYear(), value.getMonth() + amount, Math.min(value.getDate(), 28), 12))
+  const targetYear = value.getFullYear()
+  const targetMonth = value.getMonth() + amount
+  const targetMonthLastDay = new Date(targetYear, targetMonth + 1, 0, 12).getDate()
+  return formatLocalDate(new Date(targetYear, targetMonth, Math.min(value.getDate(), targetMonthLastDay), 12))
 }
 
 export function formatPlanPeriodLabel(scope: PlanTaskScope, selectedDate: string, period?: LearningPeriod) {
