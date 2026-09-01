@@ -49,6 +49,8 @@ function TaskBarSession({ db, groupLabel, onMoved, onOpen, task }: TaskBarProps)
   const mounted = useRef(false)
   const startX = useRef<number | null>(null)
   const startY = useRef<number | null>(null)
+  const gestureAxis = useRef<"pending" | "horizontal" | "vertical">("pending")
+  const lastMove = useRef<{ x: number; time: number } | null>(null)
   const suppressClick = useRef(false)
   const undoTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const requestSession = useRequestSession(task.id)
@@ -126,6 +128,8 @@ function TaskBarSession({ db, groupLabel, onMoved, onOpen, task }: TaskBarProps)
     startY.current = null
     dragActive.current = false
     verticalScrollCancelled.current = false
+    gestureAxis.current = "pending"
+    lastMove.current = null
     setSwipeProgress(0)
     setDragPosition(null)
   }
@@ -140,6 +144,7 @@ function TaskBarSession({ db, groupLabel, onMoved, onOpen, task }: TaskBarProps)
     verticalScrollCancelled.current = false
     startX.current = event.clientX
     startY.current = event.clientY
+    lastMove.current = { x: event.clientX, time: event.timeStamp }
     event.currentTarget.setPointerCapture?.(event.pointerId)
     const { clientX, clientY, pointerId } = event
     longPressTimer.current = setTimeout(() => {
@@ -161,7 +166,11 @@ function TaskBarSession({ db, groupLabel, onMoved, onOpen, task }: TaskBarProps)
       return
     }
 
-    if (Math.abs(verticalDistance) > 8) {
+    if (gestureAxis.current === "pending" && Math.max(Math.abs(distance), Math.abs(verticalDistance)) >= 6) {
+      gestureAxis.current = Math.abs(distance) > Math.abs(verticalDistance) * 1.15 ? "horizontal" : "vertical"
+    }
+
+    if (gestureAxis.current === "vertical") {
       verticalScrollCancelled.current = true
       dragActive.current = false
       clearLongPressTimer()
@@ -170,9 +179,10 @@ function TaskBarSession({ db, groupLabel, onMoved, onOpen, task }: TaskBarProps)
       return
     }
 
-    if (verticalScrollCancelled.current) return
+    if (verticalScrollCancelled.current || gestureAxis.current === "pending") return
 
-    if (Math.abs(distance) > 8) clearLongPressTimer()
+    clearLongPressTimer()
+    lastMove.current = { x: event.clientX, time: event.timeStamp }
     setSwipeProgress(getSwipeProgress(distance, getBarWidth(event.currentTarget)))
   }
 
@@ -260,11 +270,14 @@ function TaskBarSession({ db, groupLabel, onMoved, onOpen, task }: TaskBarProps)
 
     const distance = event.clientX - startX.current
     const width = getBarWidth(event.currentTarget)
+    const last = lastMove.current
+    const elapsed = last ? Math.max(1, event.timeStamp - last.time) : 1
+    const velocity = last ? Math.max(0, (event.clientX - last.x) / elapsed) : 0
     suppressClick.current = Math.abs(distance) > 4
     resetPointer(event.pointerId)
     releasePointerCapture(event.currentTarget, event.pointerId)
 
-    if (shouldCompleteSwipe(distance, width)) void changeCompletion(true)
+    if (shouldCompleteSwipe(distance, width, velocity)) void changeCompletion(true)
   }
 
   function handlePointerCancel(event: PointerEvent<HTMLButtonElement>) {
@@ -310,7 +323,7 @@ function TaskBarSession({ db, groupLabel, onMoved, onOpen, task }: TaskBarProps)
         type="button"
       >
         <span aria-hidden="true" className={styles.completionFill} />
-        {swipeProgress > 0 ? <FlowArrowIcon /> : null}
+        {!isCompleted ? <span className={styles.swipeAffordance} data-testid="swipe-completion-arrow"><FlowArrowIcon /></span> : null}
         <span className={styles.copy}>
           <span className={styles.taskTitle}>{task.title}</span>
           <span className={styles.taskMeta}>

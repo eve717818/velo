@@ -1,5 +1,19 @@
 export type LearningPeriodKind = "semester" | "winter-break" | "summer-break" | "custom-break"
 export type PlanTaskStepTitleMode = "inherit" | "custom"
+export type RangePlanKind = "week" | "month"
+
+export interface RangePlan {
+  id: string
+  kind: RangePlanKind
+  rangeStart: string
+  rangeEnd: string
+  theme: string
+  goal: string
+  focusItems: string[]
+  note?: string
+  createdAt: number
+  updatedAt: number
+}
 
 export interface PlanTaskGroup {
   id: string

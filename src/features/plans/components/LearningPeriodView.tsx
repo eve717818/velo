@@ -1,4 +1,5 @@
 import type { LearningPeriod, LearningPeriodKind, PlanTask } from "@/db/types"
+import { MoreHorizontal, Plus } from "lucide-react"
 
 import { findPeriodForDate } from "../domain/learning-periods"
 import { getProgress } from "../domain/plan-dates"
@@ -41,7 +42,7 @@ export function LearningPeriodView({ onCreate, onDelete, onEdit, onEditTask, onR
   if (sortedPeriods.length === 0) {
     return (
       <div className={styles.periodEmptyState}>
-        <div><h3>还没有学习周期</h3><p>用学期和假期安排学习节奏。</p></div>
+        <div><h3>还没有学期或假期</h3><p>用学期和假期安排长期学习节奏。</p></div>
         <button className={styles.emptyCreateAction} onClick={onCreate} type="button">创建第一个学期或假期</button>
       </div>
     )
@@ -49,7 +50,8 @@ export function LearningPeriodView({ onCreate, onDelete, onEdit, onEditTask, onR
 
   return (
     <div className={styles.learningPeriodView}>
-      <div aria-label="学习周期列表" className={styles.periodCardList}>
+      {onCreate ? <button className={styles.createPeriodAction} onClick={onCreate} type="button"><Plus aria-hidden size={18} />新建学期或假期</button> : null}
+      <div aria-label="学期与假期列表" className={styles.periodCardList}>
         {sortedPeriods.map((period) => {
           const periodTasks = tasks.filter((task) => task.scheduledDate >= period.startDate && task.scheduledDate <= period.endDate)
           const periodProgress = getProgress(periodTasks)
@@ -65,8 +67,6 @@ export function LearningPeriodView({ onCreate, onDelete, onEdit, onEditTask, onR
           )
         })}
       </div>
-      {onCreate ? <button className={styles.secondaryPeriodAction} onClick={onCreate} type="button">新建周期</button> : null}
-
       {selectedPeriod ? (
         <section aria-labelledby="period-overview-heading" className={styles.periodOverview}>
           <div className={styles.periodOverviewHeader}>
@@ -75,14 +75,17 @@ export function LearningPeriodView({ onCreate, onDelete, onEdit, onEditTask, onR
               <h3 id="period-overview-heading">{selectedPeriod.name}</h3>
               <p>{selectedPeriod.startDate} 至 {selectedPeriod.endDate} · {progress.completed} / {progress.total} 项完成</p>
             </div>
-            {!isHistorical ? <div className={styles.periodActions}>
-              <button className={styles.secondaryPeriodAction} onClick={() => onEdit?.(selectedPeriod)} type="button">编辑周期</button>
-              {onDelete ? <button className={styles.dangerPeriodAction} onClick={() => onDelete(selectedPeriod)} type="button">删除周期</button> : null}
-              {onReopenMigration ? <button className={styles.secondaryPeriodAction} onClick={() => onReopenMigration(selectedPeriod)} type="button">处理上周期任务</button> : null}
-            </div> : null}
+            {!isHistorical ? <details className={styles.periodActionsMenu}>
+              <summary aria-label="更多学期操作" role="button"><MoreHorizontal aria-hidden size={20} /></summary>
+              <div className={styles.periodActions} role="menu">
+                <button className={styles.secondaryPeriodAction} onClick={() => onEdit?.(selectedPeriod)} role="menuitem" type="button">编辑学期或假期</button>
+                {onReopenMigration ? <button className={styles.secondaryPeriodAction} onClick={() => onReopenMigration(selectedPeriod)} role="menuitem" type="button">处理上学期任务</button> : null}
+                {onDelete ? <button className={styles.dangerPeriodAction} onClick={() => onDelete(selectedPeriod)} role="menuitem" type="button">删除学期或假期</button> : null}
+              </div>
+            </details> : null}
           </div>
           {selectedPeriod.goal ? <p className={styles.periodGoal}>目标：{selectedPeriod.goal}</p> : null}
-          <ul aria-label="周期任务" className={styles.periodTaskList}>
+          <ul aria-label="学期或假期任务" className={styles.periodTaskList}>
             {selectedTasks.map((task) => <li key={task.id}><button className={styles.periodTaskAction} onClick={() => onEditTask?.(task)} type="button">编辑任务：{task.title}</button></li>)}
           </ul>
         </section>
@@ -90,7 +93,7 @@ export function LearningPeriodView({ onCreate, onDelete, onEdit, onEditTask, onR
 
       {unassignedTasks.length ? (
         <section aria-labelledby="unassigned-period-heading" className={styles.unassignedPeriodTasks}>
-          <h3 id="unassigned-period-heading">未归属周期</h3>
+          <h3 id="unassigned-period-heading">未归属学期或假期</h3>
           <ul>{unassignedTasks.map((task) => <li key={task.id}>{task.title}</li>)}</ul>
         </section>
       ) : null}

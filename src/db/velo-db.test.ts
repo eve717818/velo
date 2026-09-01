@@ -73,6 +73,17 @@ const existingNote: NoteDocument = {
 }
 
 describe("VeloDB and seedHomeDemo", () => {
+  it("provides a range-plan table indexed by range and update time", async () => {
+    await withDatabase(async (db) => {
+      await db.open()
+
+      expect(db.rangePlans.schema.primKey.keyPath).toBe("id")
+      expect(db.rangePlans.schema.indexes.map((index) => index.name)).toEqual(
+        expect.arrayContaining(["kind", "rangeStart", "rangeEnd", "updatedAt"]),
+      )
+    })
+  })
+
   it("seeds the deterministic home demo into a fresh database", async () => {
     await withDatabase(async (db) => {
       await seedHomeDemo(db, seedDate)

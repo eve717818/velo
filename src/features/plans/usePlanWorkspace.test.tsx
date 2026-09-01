@@ -1,6 +1,6 @@
 import { renderHook, waitFor } from "@testing-library/react"
 import { describe, expect, it } from "vitest"
-import type { LearningPeriod, PlanTask, PlanTaskGroup } from "@/db/types"
+import type { LearningPeriod, PlanTask, PlanTaskGroup, RangePlan } from "@/db/types"
 import { VeloDB } from "@/db/velo-db"
 import { usePlanWorkspace, type PlanView } from "./usePlanWorkspace"
 
@@ -113,6 +113,33 @@ describe("usePlanWorkspace", () => {
       })
     } finally {
       rendered.unmount()
+      await db.delete()
+    }
+  })
+
+  it("returns the matching range plan only for week and month views", async () => {
+    const db = createDatabase()
+    const weekPlan: RangePlan = {
+      id: "week:2026-08-24",
+      kind: "week",
+      rangeStart: "2026-08-24",
+      rangeEnd: "2026-08-30",
+      theme: "开学准备",
+      goal: "完成预习",
+      focusItems: ["高等数学"],
+      createdAt: 1,
+      updatedAt: 1,
+    }
+    await db.rangePlans.add(weekPlan)
+    const week = renderWorkspace(db, "week")
+    const day = renderWorkspace(db, "day")
+
+    try {
+      await waitFor(() => expect(week.result.current?.rangePlan).toEqual(weekPlan))
+      await waitFor(() => expect(day.result.current?.rangePlan).toBeNull())
+    } finally {
+      week.unmount()
+      day.unmount()
       await db.delete()
     }
   })

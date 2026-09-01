@@ -1,8 +1,9 @@
 import { useLiveQuery } from "dexie-react-hooks"
-import type { LearningPeriod, PlanTask, PlanTaskGroup } from "@/db/types"
+import type { LearningPeriod, PlanTask, PlanTaskGroup, RangePlan } from "@/db/types"
 import type { VeloDB } from "@/db/velo-db"
 import { getMonthRange, getProgress, getWeekDates } from "./domain/plan-dates"
 import { groupOverlapsRange } from "./domain/task-group-status"
+import { getRangePlanId } from "./domain/range-plans"
 
 export type PlanView = "day" | "week" | "month" | "period"
 
@@ -14,6 +15,7 @@ export interface PlanWorkspaceSnapshot {
   taskGroupById: Record<string, PlanTaskGroup>
   periods: LearningPeriod[]
   selectedPeriod: LearningPeriod | null
+  rangePlan: RangePlan | null
   progress: { completed: number; total: number; ratio: number }
 }
 
@@ -62,6 +64,9 @@ export function usePlanWorkspace({ db, view, selectedDate, periodId }: UsePlanWo
     const range = getViewRange(view, selectedDate, selectedPeriod)
     const allTasks = await db.planTasks.toArray()
     const allTaskGroups = await db.planTaskGroups.toArray()
+    const rangePlan = view === "week" || view === "month"
+      ? await db.rangePlans.get(getRangePlanId(view, selectedDate)) ?? null
+      : null
     const tasks = range
       ? allTasks.filter((task) => task.scheduledDate >= range.startDate && task.scheduledDate <= range.endDate)
       : []
@@ -79,6 +84,7 @@ export function usePlanWorkspace({ db, view, selectedDate, periodId }: UsePlanWo
       taskGroupById: Object.fromEntries(allTaskGroups.map((group) => [group.id, group])),
       periods,
       selectedPeriod,
+      rangePlan,
       progress: getProgress(tasks),
     }
   }, [db, view, selectedDate, periodId])

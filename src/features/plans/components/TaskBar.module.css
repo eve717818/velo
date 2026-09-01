@@ -11,7 +11,7 @@
   cursor: pointer;
   display: grid;
   gap: 12px;
-  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-columns: 28px minmax(0, 1fr) auto;
   isolation: isolate;
   min-height: 54px;
   line-height: 1.2;
@@ -32,13 +32,18 @@
   z-index: -1;
 }
 
-.taskBar > svg {
-  color: white;
-  height: 28px;
-  left: 14px;
-  position: absolute;
-  top: calc(50% - 14px);
-  width: 28px;
+.swipeAffordance {
+  align-items: center;
+  color: color-mix(in srgb, var(--color-brand) 70%, var(--color-text-muted));
+  display: inline-flex;
+  justify-content: center;
+  opacity: calc(.44 + var(--swipe-progress) * .56);
+  transform: translateX(calc(var(--swipe-progress) * 8px));
+}
+
+.swipeAffordance svg {
+  height: 24px;
+  width: 24px;
 }
 
 .copy {
@@ -96,6 +101,14 @@
 .swiping .taskMeta,
 .swiping .trailing {
   color: rgb(255 255 255 / 84%);
+}
+
+.swiping .swipeAffordance {
+  color: white;
+}
+
+.completed {
+  grid-template-columns: minmax(0, 1fr) auto;
 }
 
 .completed {
@@ -168,7 +181,8 @@
 
 @media (prefers-reduced-motion: reduce) {
   .completionFill,
-  .copy {
+  .copy,
+  .swipeAffordance {
     transition: none;
   }
 

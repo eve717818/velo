@@ -84,7 +84,7 @@ function LearningPeriodForm({ db, onClose, period, periods, requestSession }: Le
         const conflict = error.field === "startDate" ? conflictingPeriodName(submittedValues, periods, period?.id) : undefined
         setErrors({ [error.field]: conflict ? `${error.message}：${conflict}` : error.message })
       } else {
-        setSaveError(error instanceof Error ? error.message : "保存周期失败，请重试")
+        setSaveError(error instanceof Error ? error.message : "保存学期或假期失败，请重试")
       }
     } finally {
       if (requestSession.isCurrent(requestToken)) setSaving(false)
@@ -94,17 +94,17 @@ function LearningPeriodForm({ db, onClose, period, periods, requestSession }: Le
   return (
     <form aria-busy={saving} className={styles.form} noValidate onSubmit={(event) => { event.preventDefault(); void submit() }}>
       <div className={styles.dialogHeader}>
-        <div><p className={styles.eyebrow}>学习周期</p><h2 id="learning-period-editor-heading">{period ? "编辑学习周期" : "新建学习周期"}</h2></div>
-        <button aria-label="关闭周期编辑" className={styles.iconButton} onClick={onClose} type="button">×</button>
+        <div><p className={styles.eyebrow}>学期与假期</p><h2 id="learning-period-editor-heading">{period ? "编辑学期或假期" : "新建学期或假期"}</h2></div>
+        <button aria-label="关闭学期编辑" className={styles.iconButton} onClick={onClose} type="button">×</button>
       </div>
-      <label className={styles.field} htmlFor="period-kind"><span>周期类型</span><select aria-label="周期类型" id="period-kind" onChange={(event) => setValue("kind", event.target.value as LearningPeriodKind)} value={values.kind}><option value="semester">学期</option><option value="winter-break">寒假</option><option value="summer-break">暑假</option><option value="custom-break">自定义假期</option></select></label>
-      <label className={styles.field} htmlFor="period-name"><span>周期名称 <em>必填</em></span><input aria-invalid={Boolean(errors.name)} aria-label="周期名称" id="period-name" onChange={(event) => setValue("name", event.target.value)} value={values.name} />{errors.name ? <small role="alert">{errors.name}</small> : null}</label>
+      <label className={styles.field} htmlFor="period-kind"><span>类型</span><select aria-label="学期或假期类型" id="period-kind" onChange={(event) => setValue("kind", event.target.value as LearningPeriodKind)} value={values.kind}><option value="semester">学期</option><option value="winter-break">寒假</option><option value="summer-break">暑假</option><option value="custom-break">自定义假期</option></select></label>
+      <label className={styles.field} htmlFor="period-name"><span>学期或假期名称 <em>必填</em></span><input aria-invalid={Boolean(errors.name)} aria-label="学期或假期名称" id="period-name" onChange={(event) => setValue("name", event.target.value)} value={values.name} />{errors.name ? <small role="alert">{errors.name}</small> : null}</label>
       <div className={styles.fieldGrid}>
         <label className={styles.field} htmlFor="period-start"><span>开始日期 <em>必填</em></span><input aria-invalid={Boolean(errors.startDate)} aria-label="开始日期" id="period-start" onChange={(event) => setValue("startDate", event.target.value)} type="date" value={values.startDate} />{errors.startDate ? <small role="alert">{errors.startDate}</small> : null}</label>
         <label className={styles.field} htmlFor="period-end"><span>结束日期 <em>必填</em></span><input aria-invalid={Boolean(errors.endDate)} aria-label="结束日期" id="period-end" onChange={(event) => setValue("endDate", event.target.value)} type="date" value={values.endDate} />{errors.endDate ? <small role="alert">{errors.endDate}</small> : null}</label>
       </div>
       <label className={styles.field} htmlFor="period-goal"><span>学习目标 <em>可选</em></span><textarea aria-label="学习目标" id="period-goal" onChange={(event) => setValue("goal", event.target.value)} rows={3} value={values.goal} /></label>
-      <div className={styles.actions}>{saveError ? <PlanErrorState error={saveError} onRetry={() => { if (lastValuesRef.current) void submit(lastValuesRef.current) }} /> : null}<button className={styles.secondaryButton} onClick={onClose} type="button">取消</button><button className={styles.primaryButton} disabled={saving} type="submit">{saving ? "正在保存" : "保存周期"}</button></div>
+      <div className={styles.actions}>{saveError ? <PlanErrorState error={saveError} onRetry={() => { if (lastValuesRef.current) void submit(lastValuesRef.current) }} /> : null}<button className={styles.secondaryButton} onClick={onClose} type="button">取消</button><button className={styles.primaryButton} disabled={saving} type="submit">{saving ? "正在保存" : "保存"}</button></div>
     </form>
   )
 }

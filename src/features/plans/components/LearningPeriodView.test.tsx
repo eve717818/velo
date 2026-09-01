@@ -59,7 +59,7 @@ describe("LearningPeriodView", () => {
     expect(screen.getByText("自定义假期")).toBeInTheDocument()
     expect(screen.getByText(/完成微积分基础/)).toBeInTheDocument()
     expect(screen.getByText("1 / 2")).toBeInTheDocument()
-    expect(screen.getByText("未归属周期")).toBeInTheDocument()
+    expect(screen.getByText("未归属学期或假期")).toBeInTheDocument()
     expect(screen.getAllByText("复习导数").length).toBeGreaterThan(0)
     expect(screen.getAllByTestId("learning-period-card").map((card) => card.getAttribute("data-period-id"))).toEqual([
       "semester", "winter", "custom", "summer",
@@ -89,17 +89,18 @@ describe("LearningPeriodView", () => {
       />,
     )
 
-    expect(screen.queryByRole("button", { name: "编辑周期" })).not.toBeInTheDocument()
-    expect(screen.queryByRole("button", { name: "删除周期" })).not.toBeInTheDocument()
+    expect(screen.queryByRole("button", { name: "更多学期操作" })).not.toBeInTheDocument()
     await user.click(screen.getByRole("button", { name: "编辑任务：复习导数" }))
     expect(onEditTask).toHaveBeenCalledWith(expect.objectContaining({ id: "history-task" }))
     expect(onEdit).not.toHaveBeenCalled()
     expect(onDelete).not.toHaveBeenCalled()
   })
 
-  it("treats a period ending today as current and leaves period management available", () => {
+  it("moves current-period actions into one accessible menu and keeps creation prominent", async () => {
+    const user = userEvent.setup()
     render(
       <LearningPeriodView
+        onCreate={vi.fn()}
         onDelete={vi.fn()}
         onEdit={vi.fn()}
         periods={[period({ id: "today", endDate: "2027-01-16" })]}
@@ -109,7 +110,9 @@ describe("LearningPeriodView", () => {
       />,
     )
 
-    expect(screen.getByRole("button", { name: "编辑周期" })).toBeInTheDocument()
-    expect(screen.getByRole("button", { name: "删除周期" })).toBeInTheDocument()
+    expect(screen.getByRole("button", { name: "新建学期或假期" })).toBeInTheDocument()
+    await user.click(screen.getByRole("button", { name: "更多学期操作" }))
+    expect(screen.getByRole("menuitem", { name: "编辑学期或假期" })).toBeInTheDocument()
+    expect(screen.getByRole("menuitem", { name: "删除学期或假期" })).toBeInTheDocument()
   })
 })

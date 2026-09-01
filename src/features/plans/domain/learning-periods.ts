@@ -21,7 +21,7 @@ export function validateLearningPeriod(
   existingPeriods: LearningPeriod[],
 ): PeriodValidation {
   if (candidate.name.trim().length === 0) {
-    return { ok: false, field: "name", message: "请填写周期名称" }
+    return { ok: false, field: "name", message: "请填写学期或假期名称" }
   }
 
   try {
@@ -49,7 +49,7 @@ export function validateLearningPeriod(
   })
 
   if (overlap) {
-    return { ok: false, field: "startDate", message: "学习周期不能重叠" }
+    return { ok: false, field: "startDate", message: "学期与假期不能重叠" }
   }
 
   return { ok: true }

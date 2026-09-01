@@ -88,9 +88,9 @@ function PeriodMigrationPanelSession({ db, onClose, sourcePeriod, targetPeriod, 
   }
 
   return (
-    <aside aria-label="上周期任务迁移" className={styles.periodMigrationPanel}>
-      <p className={styles.metaLabel}>学习周期衔接</p>
-      <h3>上一学习周期还有 {tasks.length} 个任务未完成</h3>
+    <aside aria-label="上学期任务迁移" className={styles.periodMigrationPanel}>
+      <p className={styles.metaLabel}>学期与假期衔接</p>
+      <h3>上一个学期或假期还有 {tasks.length} 个任务未完成</h3>
       <p>选择需要复制到“{targetPeriod.name}”的任务；原任务会保留不变。</p>
       <p className={styles.migrationSelection}>已选择 {selectedIds.length} 项</p>
       <ul className={styles.migrationTaskList}>{tasks.map((task) => <li key={task.id}><label><input aria-label={`选择${task.title}`} checked={selectedIds.includes(task.id)} onChange={() => toggle(task.id)} type="checkbox" /> <span>{task.title}</span></label></li>)}</ul>

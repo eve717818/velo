@@ -47,3 +47,35 @@
 - P3: the tablet vertical logo renders approximately 5–10% smaller than the raster reference; keeping it avoids displacing the already aligned promise block and does not affect recognition.
 
 Final result: passed
+
+---
+
+# Responsive learning-plan workspace QA
+
+## Verified behavior
+
+- Weekly and monthly overall plans are local-first range notes containing a theme, goal, up to five focus items, and an optional note. They never copy or own dated tasks.
+- The month calendar uses seven equal-width columns and stays inside its surface. On phone and portrait tablet the selected-day panel stacks below; at 1024px and above it becomes the secondary 35% column.
+- Selected-day task lists preview two items before an explicit expand control and scroll internally when long, preventing the month page from becoming an unbounded task feed.
+- Incomplete task bars always show a decorative flow arrow. A slow right swipe completes at 45% width; a fast flick completes after 20% width at 0.65px/ms or faster. Vertical intent keeps page scrolling available.
+- Completed cards use a saturated purple-gray glass state with text status and undo. No checkbox or thin per-task progress bar is used.
+- User-facing navigation and controls use “学期” or “学期与假期”; view-specific progress copy distinguishes today, week, month, and semester completion.
+- Weekly/monthly plan editing is a bottom drawer below 768px and a right drawer at 768px and above. Focus is trapped while open, Escape/cancel protects dirty drafts, and focus returns to the originating control.
+- Nonessential transitions are disabled by `prefers-reduced-motion: reduce`; keyboard completion and explicit action menus remain available without gestures.
+
+## Responsive matrix
+
+| Width | Expected composition | Result |
+| --- | --- | --- |
+| 375 / 390px | Bottom navigation, contained seven-column calendar, selected-day preview below, bottom range-plan drawer | Passed |
+| 768 / 834px | Navigation rail, full-width calendar with stacked selected-day panel, right range-plan drawer | Passed |
+| 1024px | Full-width month surface, approximately 65/35 calendar/task split, equal secondary cards below | Passed |
+| 1366 / 1440px | Expanded workspace with the same hierarchy and no page-level horizontal overflow | Passed |
+
+## Known limitations
+
+- Range plans are stored on the current device and do not yet sync across devices or accounts.
+- Right-swipe completion is intended for pointer/touch input; keyboard users complete with Enter or Space, and all users retain explicit task actions.
+- Very long selected-day lists are deliberately contained in their own scroll region rather than expanding the full month page.
+
+Plan-workspace result: passed

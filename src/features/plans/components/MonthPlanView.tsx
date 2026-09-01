@@ -34,11 +34,14 @@ function sortTasks(tasks: PlanTask[]) {
 
 export function MonthPlanView({ tasks, allTasks = tasks, db, onMoved, onOpen, onOpenGroup, selectedDate, taskGroups = [], today = selectedDate }: MonthPlanViewProps) {
   const [selection, setSelection] = useState({ date: selectedDate, sourceDate: selectedDate })
+  const [expandedDate, setExpandedDate] = useState<string | null>(null)
   const activeDate = selection.sourceDate === selectedDate ? selection.date : selectedDate
   const dates = getMonthGridDates(selectedDate)
   const weeks = Array.from({ length: dates.length / 7 }, (_, index) => dates.slice(index * 7, index * 7 + 7))
   const selectedMonth = parseLocalDate(selectedDate).getMonth()
   const activeTasks = sortTasks(tasks.filter((task) => task.scheduledDate === activeDate))
+  const isExpanded = expandedDate === activeDate
+  const visibleTasks = isExpanded ? activeTasks : activeTasks.slice(0, 2)
   const groupById = new Map(taskGroups.map((group) => [group.id, group]))
   const groupLabel = (task: PlanTask) => {
     const group = task.groupId ? groupById.get(task.groupId) : undefined
@@ -67,7 +70,7 @@ export function MonthPlanView({ tasks, allTasks = tasks, db, onMoved, onOpen, on
                       className={`${styles.monthDay} ${value.getMonth() === selectedMonth ? "" : styles.outsideMonth}`}
                       data-drop-date={date}
                       key={date}
-                      onClick={() => setSelection({ date, sourceDate: selectedDate })}
+                      onClick={() => { setSelection({ date, sourceDate: selectedDate }); setExpandedDate(null) }}
                       type="button"
                     >
                       <span className={styles.monthDateNumber}>{value.getDate()}</span>
@@ -107,9 +110,19 @@ export function MonthPlanView({ tasks, allTasks = tasks, db, onMoved, onOpen, on
         </div>
         {activeTasks.length ? (
           <ul className={styles.untimedTaskList}>
-            {activeTasks.map((task) => <li key={task.id}><TaskBar db={db} groupLabel={groupLabel(task)} onMoved={onMoved} onOpen={onOpen} task={task} /></li>)}
+            {visibleTasks.map((task) => <li key={task.id}><TaskBar db={db} groupLabel={groupLabel(task)} onMoved={onMoved} onOpen={onOpen} task={task} /></li>)}
           </ul>
         ) : <p className={styles.emptyLaneCopy}>当天还没有任务。</p>}
+        {activeTasks.length > 2 ? (
+          <button
+            aria-expanded={isExpanded}
+            className={styles.monthTaskToggle}
+            onClick={() => setExpandedDate(isExpanded ? null : activeDate)}
+            type="button"
+          >
+            {isExpanded ? "收起任务列表" : `展开另外 ${activeTasks.length - 2} 项任务`}
+          </button>
+        ) : null}
       </section>
     </div>
   )

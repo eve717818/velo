@@ -83,4 +83,29 @@ describe("MonthPlanView", () => {
       void db.delete()
     }
   })
+
+  it("previews two selected-day tasks and expands the remaining list on demand", async () => {
+    const db = new VeloDB(`month-view-${crypto.randomUUID()}`)
+    const user = userEvent.setup()
+    const tasks = [
+      task({ id: "one", title: "任务一", scheduledDate: "2026-09-01" }),
+      task({ id: "two", title: "任务二", scheduledDate: "2026-09-01", order: 2 }),
+      task({ id: "three", title: "任务三", scheduledDate: "2026-09-01", order: 3 }),
+      task({ id: "four", title: "任务四", scheduledDate: "2026-09-01", order: 4 }),
+    ]
+    const rendered = render(<MonthPlanView db={db} selectedDate="2026-09-01" tasks={tasks} />)
+
+    try {
+      const panel = screen.getByLabelText("2026年9月1日任务")
+      expect(panel).toHaveTextContent("任务一")
+      expect(panel).toHaveTextContent("任务二")
+      expect(panel).not.toHaveTextContent("任务三")
+      await user.click(screen.getByRole("button", { name: "展开另外 2 项任务" }))
+      expect(panel).toHaveTextContent("任务三")
+      expect(screen.getByRole("button", { name: "收起任务列表" })).toBeInTheDocument()
+    } finally {
+      rendered.unmount()
+      await db.delete()
+    }
+  })
 })

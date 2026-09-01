@@ -1,9 +1,10 @@
 import Dexie, { type Table } from "dexie"
-import type { AppMeta, KnowledgeNode, LearningPeriod, LegacyPlanTask, NoteDocument, PlanTask, PlanTaskGroup } from "./types"
+import type { AppMeta, KnowledgeNode, LearningPeriod, LegacyPlanTask, NoteDocument, PlanTask, PlanTaskGroup, RangePlan } from "./types"
 
 export class VeloDB extends Dexie {
   planTasks!: Table<PlanTask, string>
   planTaskGroups!: Table<PlanTaskGroup, string>
+  rangePlans!: Table<RangePlan, string>
   learningPeriods!: Table<LearningPeriod, string>
   legacyPlanTasks!: Table<LegacyPlanTask, string>
   knowledgeNodes!: Table<KnowledgeNode, string>
@@ -57,6 +58,17 @@ export class VeloDB extends Dexie {
     this.version(3).stores({
       planTasks: "id, scheduledDate, [scheduledDate+isCompleted], [scheduledDate+startMinutes], groupId, [groupId+stepIndex], isCompleted, updatedAt",
       planTaskGroups: "id, startDate, endDate, updatedAt",
+      learningPeriods: "id, kind, startDate, endDate, updatedAt",
+      legacyPlanTasks: "id, scope, periodKey, updatedAt",
+      knowledgeNodes: "id, parentId, type, order, updatedAt",
+      notes: "id, nodeId, title, updatedAt",
+      appMeta: "key, updatedAt",
+    })
+
+    this.version(4).stores({
+      planTasks: "id, scheduledDate, [scheduledDate+isCompleted], [scheduledDate+startMinutes], groupId, [groupId+stepIndex], isCompleted, updatedAt",
+      planTaskGroups: "id, startDate, endDate, updatedAt",
+      rangePlans: "&id, kind, rangeStart, rangeEnd, updatedAt",
       learningPeriods: "id, kind, startDate, endDate, updatedAt",
       legacyPlanTasks: "id, scope, periodKey, updatedAt",
       knowledgeNodes: "id, parentId, type, order, updatedAt",

@@ -90,7 +90,7 @@ describe("PlansPage", () => {
 
     try {
       expect(await screen.findByText("0 / 0")).toBeInTheDocument()
-      for (const label of ["日", "周", "月", "周期"]) {
+      for (const label of ["日", "周", "月", "学期"]) {
         expect(screen.getByRole("button", { name: label })).toBeInTheDocument()
       }
 
@@ -98,6 +98,21 @@ describe("PlansPage", () => {
 
       expect(screen.getByLabelText("当前位置")).toHaveTextContent("/plans?view=month&date=2026-08-28")
       expect(screen.getByRole("button", { name: "月" })).toHaveAttribute("aria-pressed", "true")
+    } finally {
+      rendered.unmount()
+      await db.delete()
+    }
+  })
+
+  it("opens the weekly overall-plan drawer from the range summary", async () => {
+    const db = createDatabase()
+    const user = userEvent.setup()
+    const rendered = renderPlansPage("/plans?view=week&date=2026-09-02", db)
+
+    try {
+      await user.click(await screen.findByRole("button", { name: "制定本周计划" }))
+      expect(screen.getByRole("dialog", { name: "制定本周计划" })).toBeInTheDocument()
+      expect(screen.getByText("本周任务 0 项 · 已完成 0 项")).toBeInTheDocument()
     } finally {
       rendered.unmount()
       await db.delete()
@@ -176,8 +191,8 @@ describe("PlansPage", () => {
     const rendered = renderPlansPage("/plans?view=period&period=fall&date=2026-09-02", db, new Date(2026, 8, 2, 9, 0))
 
     try {
-      await user.click(await screen.findByRole("button", { name: "新建周期" }))
-      expect(screen.getByRole("dialog", { name: "新建学习周期" })).toBeInTheDocument()
+      await user.click(await screen.findByRole("button", { name: "新建学期或假期" }))
+      expect(screen.getByRole("dialog", { name: "新建学期或假期" })).toBeInTheDocument()
     } finally {
       rendered.unmount()
       await db.delete()
@@ -205,7 +220,7 @@ describe("PlansPage", () => {
       expect(screen.getByRole("heading", { name: "编辑学习任务" })).toBeInTheDocument()
       expect(screen.queryByRole("button", { name: "编辑周期" })).not.toBeInTheDocument()
       expect(screen.queryByRole("button", { name: "删除周期" })).not.toBeInTheDocument()
-      expect(screen.queryByText(/上一学习周期还有/)).not.toBeInTheDocument()
+      expect(screen.queryByText(/上一个学期或假期还有/)).not.toBeInTheDocument()
       expect(screen.queryByRole("button", { name: "处理上周期任务" })).not.toBeInTheDocument()
     } finally {
       rendered.unmount()
@@ -228,12 +243,13 @@ describe("PlansPage", () => {
     const rendered = renderPlansPage("/plans?view=period&period=spring&date=2027-01-18", db, new Date(2027, 0, 18, 9, 0))
 
     try {
-      await user.click(await screen.findByRole("button", { name: "处理上周期任务" }))
+      await user.click(await screen.findByRole("button", { name: "更多学期操作" }))
+      await user.click(screen.getByRole("menuitem", { name: "处理上学期任务" }))
       expect(await screen.findByRole("alert")).toHaveTextContent("保存失败，请重试")
       await user.click(screen.getByRole("button", { name: "重试" }))
 
       await waitFor(async () => expect(await db.appMeta.get("periodMigrationDismissed:source:spring")).toBeUndefined())
-      expect(await screen.findByRole("complementary", { name: "上周期任务迁移" })).toBeInTheDocument()
+      expect(await screen.findByRole("complementary", { name: "上学期任务迁移" })).toBeInTheDocument()
       expect(reopenSpy).toHaveBeenNthCalledWith(1, db, "source", "spring")
       expect(reopenSpy).toHaveBeenNthCalledWith(2, db, "source", "spring")
     } finally {
@@ -260,7 +276,8 @@ describe("PlansPage", () => {
     const rendered = renderPlansPage("/plans?view=period&period=first-target&date=2027-01-18", db, new Date(2027, 0, 18, 9, 0))
 
     try {
-      await user.click(await screen.findByRole("button", { name: "处理上周期任务" }))
+      await user.click(await screen.findByRole("button", { name: "更多学期操作" }))
+      await user.click(screen.getByRole("menuitem", { name: "处理上学期任务" }))
       await user.click(screen.getByRole("button", { name: /春季学期.*2027-02-22/ }))
       await act(async () => {
         pendingReopen.resolve()
@@ -269,7 +286,7 @@ describe("PlansPage", () => {
 
       expect(screen.getByRole("heading", { name: "春季学期", level: 3 })).toBeInTheDocument()
       expect(screen.queryByRole("alert")).not.toBeInTheDocument()
-      expect(screen.queryByRole("complementary", { name: "上周期任务迁移" })).not.toBeInTheDocument()
+      expect(screen.queryByRole("complementary", { name: "上学期任务迁移" })).not.toBeInTheDocument()
     } finally {
       reopenSpy.mockRestore()
       rendered.unmount()
@@ -546,8 +563,9 @@ describe("PlansPage", () => {
     const rendered = renderPlansPage("/plans?view=period&period=spring&date=2027-03-01", db, new Date(2027, 2, 1, 9, 0))
 
     try {
-      await user.click(await screen.findByRole("button", { name: "删除周期" }))
-      await user.click(within(screen.getByRole("dialog", { name: "删除“春季学期”？" })).getByRole("button", { name: "删除周期" }))
+      await user.click(await screen.findByRole("button", { name: "更多学期操作" }))
+      await user.click(screen.getByRole("menuitem", { name: "删除学期或假期" }))
+      await user.click(within(screen.getByRole("dialog", { name: "删除“春季学期”？" })).getByRole("button", { name: "确认删除" }))
 
       expect(await screen.findByRole("alert")).toHaveTextContent("保存失败，请重试")
       await user.click(screen.getByRole("button", { name: "重试" }))
@@ -575,11 +593,13 @@ describe("PlansPage", () => {
     const rendered = renderPlansPage("/plans?view=period&period=spring&date=2027-03-01", db, new Date(2027, 2, 1, 9, 0))
 
     try {
-      await user.click(await screen.findByRole("button", { name: "删除周期" }))
-      await user.click(within(screen.getByRole("dialog", { name: "删除“春季学期”？" })).getByRole("button", { name: "删除周期" }))
+      await user.click(await screen.findByRole("button", { name: "更多学期操作" }))
+      await user.click(screen.getByRole("menuitem", { name: "删除学期或假期" }))
+      await user.click(within(screen.getByRole("dialog", { name: "删除“春季学期”？" })).getByRole("button", { name: "确认删除" }))
       await user.click(within(screen.getByRole("dialog", { name: "删除“春季学期”？" })).getByRole("button", { name: "取消" }))
       await user.click(screen.getByRole("button", { name: /暑假.*2027-07-01/ }))
-      await user.click(screen.getByRole("button", { name: "删除周期" }))
+      await user.click(screen.getByRole("button", { name: "更多学期操作" }))
+      await user.click(screen.getByRole("menuitem", { name: "删除学期或假期" }))
 
       await act(async () => {
         firstDelete.resolve({ affectedTaskCount: 0 })

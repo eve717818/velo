@@ -99,7 +99,7 @@ describe("learning period service", () => {
         ),
         {
         field: "startDate",
-        message: "学习周期不能重叠",
+        message: "学期与假期不能重叠",
         },
       )
 
@@ -122,7 +122,7 @@ describe("learning period service", () => {
         ),
         {
         field: "name",
-        message: "请填写周期名称",
+        message: "请填写学期或假期名称",
         },
       )
     })
@@ -185,7 +185,7 @@ describe("learning period service", () => {
         ),
         {
         field: "startDate",
-        message: "学习周期不能重叠",
+        message: "学期与假期不能重叠",
         },
       )
 

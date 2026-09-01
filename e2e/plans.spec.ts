@@ -8,7 +8,7 @@ const semesterEnd = "2027-01-16"
 const overlappingWinterStart = "2027-01-10"
 const winterStart = "2027-01-17"
 const winterEnd = "2027-02-21"
-const widths = [375, 390, 768, 834, 1024, 1440]
+const widths = [375, 390, 768, 834, 1024, 1366, 1440]
 type MockDateArgs =
   | []
   | [string | number | Date]
@@ -91,7 +91,7 @@ async function waitForPlanSeed(page: Page) {
   await expect(page.getByRole("button", { name: "打开任务操作：高等数学 · 导数复习" })).toBeVisible()
 }
 
-function viewButton(page: Page, name: "日" | "周" | "月" | "周期") {
+function viewButton(page: Page, name: "日" | "周" | "月" | "学期") {
   return page.getByRole("group", { name: "计划视图" }).getByRole("button", { name, exact: true })
 }
 
@@ -134,17 +134,17 @@ async function createPeriod(page: Page, input: {
   endDate: string
   goal?: string
 }) {
-  const trigger = page.getByRole("button", { name: "创建第一个学期或假期" }).or(page.getByRole("button", { name: "新建周期" }))
+  const trigger = page.getByRole("button", { name: "创建第一个学期或假期" }).or(page.getByRole("button", { name: "新建学期或假期" }))
   await trigger.click()
 
-  const dialog = page.getByRole("dialog", { name: "新建学习周期" })
+  const dialog = page.getByRole("dialog", { name: "新建学期或假期" })
   await expect(dialog).toBeVisible()
-  await dialog.getByLabel("周期类型").selectOption(input.kind)
-  await dialog.getByLabel("周期名称").fill(input.name)
+  await dialog.getByLabel("学期或假期类型").selectOption(input.kind)
+  await dialog.getByLabel("学期或假期名称").fill(input.name)
   await dialog.getByLabel("开始日期").fill(input.startDate)
   await dialog.getByLabel("结束日期").fill(input.endDate)
   if (input.goal) await dialog.getByLabel("学习目标").fill(input.goal)
-  await dialog.getByRole("button", { name: "保存周期" }).click()
+  await dialog.getByRole("button", { name: "保存" }).click()
   return dialog
 }
 
@@ -166,6 +166,7 @@ async function swipeToComplete(page: Page, taskTitle: string) {
 
 async function longPressDragToDate(page: Page, taskTitle: string, dropTarget: Locator, targetDate: string) {
   const task = page.getByRole("button", { name: `打开任务操作：${taskTitle}` })
+  await task.scrollIntoViewIfNeeded()
   const taskBox = await task.boundingBox()
   if (!taskBox) throw new Error(`Task bar bounds missing for ${taskTitle}`)
 
@@ -214,6 +215,7 @@ test("plans happy path supports day week month, swipe undo, drag to tomorrow, an
   await viewButton(page, "周").click()
   await expect(page.getByRole("button", { name: "打开任务操作：复习导数" })).toBeVisible()
   await viewButton(page, "月").click()
+  await page.getByRole("button", { name: /展开另外 \d+ 项任务/ }).click()
   await expect(page.getByRole("button", { name: "打开任务操作：复习导数" })).toBeVisible()
   await page.goto(`/plans?view=day&date=${fixedToday}`)
   await expect(page.getByRole("button", { name: "打开任务操作：复习导数" })).toBeVisible()
@@ -226,6 +228,7 @@ test("plans happy path supports day week month, swipe undo, drag to tomorrow, an
 
   await page.setViewportSize({ width: 1024, height: 900 })
   await page.goto(`/plans?view=month&date=${fixedToday}`)
+  await page.getByRole("button", { name: /展开另外 \d+ 项任务/ }).click()
   const tomorrowMonthCell = monthDropTarget(page, fixedTomorrow)
   await longPressDragToDate(page, "复习导数", tomorrowMonthCell, fixedTomorrow)
   await expect(statusByText(page, "已移动到目标位置")).toBeVisible()
@@ -266,7 +269,7 @@ test("plans support semester and winter-break workflows with overlap validation 
     endDate: semesterEnd,
     goal: "完成微积分基础",
   })
-  await expect(page.getByRole("dialog", { name: "新建学习周期" })).toBeHidden()
+  await expect(page.getByRole("dialog", { name: "新建学期或假期" })).toBeHidden()
 
   await page.goto(`/plans?view=day&date=2027-01-10`)
   await createTask(page, { title: "整理线代错题", scheduledDate: "2027-01-10" })
@@ -280,10 +283,10 @@ test("plans support semester and winter-break workflows with overlap validation 
     startDate: overlappingWinterStart,
     endDate: winterEnd,
   })
-  await expect(invalidWinter.getByRole("alert")).toContainText("学习周期不能重叠")
+  await expect(invalidWinter.getByRole("alert")).toContainText("学期与假期不能重叠")
   await expect(invalidWinter.getByRole("alert")).toContainText("2026 秋季学期")
   await invalidWinter.getByLabel("开始日期").fill(winterStart)
-  await invalidWinter.getByRole("button", { name: "保存周期" }).click()
+  await invalidWinter.getByRole("button", { name: "保存" }).click()
   await expect(invalidWinter).toBeHidden()
 
   await page.goto(`/plans?view=day&date=${winterStart}`)
@@ -298,14 +301,14 @@ test("plans support semester and winter-break workflows with overlap validation 
   await page.goto(`/plans?view=period&date=${winterStart}`)
   await page.getByRole("button", { name: /2027 寒假.*2027-01-17.*2027-02-21/ }).click()
   await expect(page.getByRole("button", { name: "编辑任务：寒假刷题" })).toBeVisible()
-  await expect(page.getByText("上一学习周期还有 2 个任务未完成")).toBeVisible()
+  await expect(page.getByText("上一学期或假期还有 2 个任务未完成")).toBeVisible()
 
   await page.getByRole("button", { name: "查看并复制" }).click()
-  await expect(page.getByLabel("上周期任务迁移")).toBeVisible()
+  await expect(page.getByLabel("上学期任务迁移")).toBeVisible()
   await page.getByLabel("选择整理线代错题").check()
   await page.getByLabel("选择完成英语精读").check()
   await page.getByRole("button", { name: "复制 2 项任务" }).click()
-  await expect(page.getByLabel("上周期任务迁移")).toBeHidden()
+  await expect(page.getByLabel("上学期任务迁移")).toBeHidden()
 
   await page.goto(`/plans?view=day&date=${winterStart}`)
   await expect(page.getByRole("button", { name: "打开任务操作：寒假刷题" })).toBeVisible()
@@ -336,7 +339,7 @@ test("plans stay responsive across milestone widths with semantic colors and unc
       viewButton(page, "日"),
       viewButton(page, "周"),
       viewButton(page, "月"),
-      viewButton(page, "周期"),
+      viewButton(page, "学期"),
     ]) {
       const box = await readBox(target)
       expect(box.width).toBeGreaterThanOrEqual(44)
@@ -540,6 +543,52 @@ test("long task titles stay ellipsized at normal and 200% text size", async ({ p
   expect(zoomedTextState.overlaps).toBe(false)
 })
 
+test("month workspace and range-plan drawer adapt across phone and tablet layouts", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 })
+  await waitForPlanSeed(page)
+  await page.goto(`/plans?view=month&date=${fixedToday}`)
+
+  await page.getByRole("button", { name: "制定本月计划" }).click()
+  const mobileDrawer = page.getByRole("dialog", { name: "制定本月计划" })
+  await expect(mobileDrawer).toBeVisible()
+  const mobileDrawerBox = await readBox(mobileDrawer)
+  expect(Math.abs(mobileDrawerBox.width - 390)).toBeLessThanOrEqual(2)
+  expect(mobileDrawerBox.y + mobileDrawerBox.height).toBeGreaterThanOrEqual(840)
+  await mobileDrawer.getByLabel("计划主题").fill("九月线代冲刺")
+  await mobileDrawer.getByLabel("总体目标").fill("完成矩阵与秩的复习")
+  await mobileDrawer.getByLabel("重点事项 1").fill("矩阵乘法")
+  await mobileDrawer.getByRole("button", { name: "保存本月计划" }).click()
+  await expect(mobileDrawer).toBeHidden()
+  await expect(page.getByText("九月线代冲刺")).toBeVisible()
+
+  for (const width of widths) {
+    const height = width < 768 ? 900 : width < 1024 ? 1112 : 900
+    await page.setViewportSize({ width, height })
+    await page.goto(`/plans?view=month&date=${fixedToday}`)
+    await expectNoHorizontalOverflow(page)
+
+    const calendarBox = await readBox(page.getByLabel("月度日历"))
+    const taskPanelBox = await readBox(page.getByRole("region", { name: `${calendarDayLabel(fixedToday)}任务` }))
+    if (width < 1024) {
+      expect(taskPanelBox.y).toBeGreaterThan(calendarBox.y + calendarBox.height - 2)
+    } else {
+      expect(taskPanelBox.x).toBeGreaterThan(calendarBox.x + calendarBox.width - 2)
+      expect(calendarBox.width).toBeGreaterThan(taskPanelBox.width * 1.45)
+    }
+  }
+
+  await page.setViewportSize({ width: 834, height: 1112 })
+  await page.goto(`/plans?view=month&date=${fixedToday}`)
+  await page.getByRole("button", { name: "查看或编辑本月计划" }).click()
+  const tabletDrawer = page.getByRole("dialog", { name: "编辑本月计划" })
+  const tabletDrawerBox = await readBox(tabletDrawer)
+  expect(tabletDrawerBox.x).toBeGreaterThanOrEqual(834 - 380)
+  expect(tabletDrawerBox.height).toBeGreaterThanOrEqual(1100)
+  const drawerAxe = await new AxeBuilder({ page }).include("dialog").analyze()
+  expect(drawerAxe.violations).toEqual([])
+  await tabletDrawer.getByRole("button", { name: "关闭总计划设置" }).click()
+})
+
 test("plans remain accessible through day, month, editor, delete, migration, keyboard, focus, reduced motion, and backdrop flows", async ({ page }) => {
   await page.setViewportSize({ width: 834, height: 1112 })
   await waitForPlanSeed(page)
@@ -606,7 +655,7 @@ test("plans remain accessible through day, month, editor, delete, migration, key
   await expect(winterDialog).toBeHidden()
   await page.getByRole("button", { name: /2027 寒假.*2027-01-17.*2027-02-21/ }).click()
   await page.getByRole("button", { name: "查看并复制" }).click()
-  const migrationPanel = page.getByLabel("上周期任务迁移")
+  const migrationPanel = page.getByLabel("上学期任务迁移")
   await expect(migrationPanel).toBeVisible()
   const migrationAxe = await new AxeBuilder({ page }).include("aside").analyze()
   expect(migrationAxe.violations).toEqual([])

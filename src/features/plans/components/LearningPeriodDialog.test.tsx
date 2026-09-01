@@ -51,14 +51,14 @@ describe("LearningPeriodDialog", () => {
     const rendered = render(<LearningPeriodDialog db={db} onClose={onClose} open periods={[existingPeriod()]} />)
 
     try {
-      await user.selectOptions(screen.getByLabelText("周期类型"), "winter-break")
-      await user.type(screen.getByLabelText("周期名称"), "寒假")
+      await user.selectOptions(screen.getByLabelText("学期或假期类型"), "winter-break")
+      await user.type(screen.getByLabelText("学期或假期名称"), "寒假")
       await user.clear(screen.getByLabelText("开始日期"))
       await user.type(screen.getByLabelText("开始日期"), "2027-06-15")
       await user.clear(screen.getByLabelText("结束日期"))
       await user.type(screen.getByLabelText("结束日期"), "2027-07-15")
       await user.type(screen.getByLabelText("学习目标"), "复习线性代数")
-      await user.click(screen.getByRole("button", { name: "保存周期" }))
+      await user.click(screen.getByRole("button", { name: "保存" }))
 
       expect(await screen.findByText(/春季学期/)).toBeInTheDocument()
       expect(onClose).not.toHaveBeenCalled()
@@ -79,13 +79,13 @@ describe("LearningPeriodDialog", () => {
     const rendered = render(<LearningPeriodDialog db={db} onClose={onClose} open periods={[]} />)
 
     try {
-      await user.type(screen.getByLabelText("周期名称"), "寒假")
+      await user.type(screen.getByLabelText("学期或假期名称"), "寒假")
       await user.type(screen.getByLabelText("开始日期"), "2027-01-17")
       await user.type(screen.getByLabelText("结束日期"), "2027-02-21")
-      await user.click(screen.getByRole("button", { name: "保存周期" }))
+      await user.click(screen.getByRole("button", { name: "保存" }))
 
       expect(await screen.findByRole("alert")).toHaveTextContent("保存失败，请重试")
-      await user.clear(screen.getByLabelText("周期名称"))
+      await user.clear(screen.getByLabelText("学期或假期名称"))
       await user.click(screen.getByRole("button", { name: "重试" }))
 
       await waitFor(async () => expect(await db.learningPeriods.toArray()).toMatchObject([{ name: "寒假" }]))
@@ -109,15 +109,15 @@ describe("LearningPeriodDialog", () => {
 
     try {
       await user.click(screen.getByRole("button", { name: "新建周期" }))
-      await user.type(screen.getByLabelText("周期名称"), "旧会话")
+      await user.type(screen.getByLabelText("学期或假期名称"), "旧会话")
       await user.type(screen.getByLabelText("开始日期"), "2027-01-17")
       await user.type(screen.getByLabelText("结束日期"), "2027-02-21")
-      await user.click(screen.getByRole("button", { name: "保存周期" }))
+      await user.click(screen.getByRole("button", { name: "保存" }))
       fireEvent.keyDown(screen.getByRole("dialog"), { key: "Escape" })
       await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument())
 
       await user.click(screen.getByRole("button", { name: "新建周期" }))
-      await user.type(screen.getByLabelText("周期名称"), "新会话")
+      await user.type(screen.getByLabelText("学期或假期名称"), "新会话")
 
       await act(async () => {
         firstSave.resolve({
@@ -132,8 +132,8 @@ describe("LearningPeriodDialog", () => {
         await firstSave.promise
       })
 
-      expect(screen.getByRole("dialog", { name: "新建学习周期" })).toBeInTheDocument()
-      expect(screen.getByLabelText("周期名称")).toHaveValue("新会话")
+      expect(screen.getByRole("dialog", { name: "新建学期或假期" })).toBeInTheDocument()
+      expect(screen.getByLabelText("学期或假期名称")).toHaveValue("新会话")
     } finally {
       createSpy.mockRestore()
       rendered.unmount()

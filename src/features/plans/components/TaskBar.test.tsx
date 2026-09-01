@@ -38,6 +38,18 @@ function deferred<T>() {
 }
 
 describe("TaskBar", () => {
+  it("keeps a designed right-swipe arrow visible before interaction", async () => {
+    const db = createDatabase()
+    const rendered = render(<TaskBar db={db} task={task()} />)
+
+    try {
+      expect(screen.getByTestId("swipe-completion-arrow")).toBeInTheDocument()
+    } finally {
+      rendered.unmount()
+      await db.delete()
+    }
+  })
+
   it("has no checkbox and completes a focused task with Enter", async () => {
     const db = createDatabase()
     const currentTask = task()

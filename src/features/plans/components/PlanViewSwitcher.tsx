@@ -10,7 +10,7 @@ const views: Array<{ value: PlanView; label: string }> = [
   { value: "day", label: "日" },
   { value: "week", label: "周" },
   { value: "month", label: "月" },
-  { value: "period", label: "周期" },
+  { value: "period", label: "学期" },
 ]
 
 export function PlanViewSwitcher({ value, onChange }: PlanViewSwitcherProps) {
