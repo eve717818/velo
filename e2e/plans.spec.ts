@@ -127,6 +127,28 @@ async function createTask(page: Page, input: {
   await expect(dialog).toBeHidden()
 }
 
+async function createMultiDayTask(page: Page, input: {
+  title: string
+  startDate: string
+  endDate: string
+  sessionCount: string
+  subject?: string
+}) {
+  const createTrigger = page.getByRole("link", { name: "新建任务" }).or(page.getByRole("button", { name: "新建任务" }))
+  await createTrigger.click()
+
+  const dialog = page.getByRole("dialog", { name: "新建学习任务" })
+  await expect(dialog).toBeVisible()
+  await dialog.getByRole("button", { name: "跨日任务" }).click()
+  await dialog.getByLabel("任务名称").fill(input.title)
+  if (input.subject) await dialog.getByLabel("科目").fill(input.subject)
+  await dialog.getByLabel("开始日期").fill(input.startDate)
+  await dialog.getByLabel("截止日期").fill(input.endDate)
+  await dialog.getByLabel("学习次数").fill(input.sessionCount)
+  await dialog.getByRole("button", { name: "保存跨日任务" }).click()
+  await expect(dialog).toBeHidden()
+}
+
 async function createPeriod(page: Page, input: {
   kind: "semester" | "winter-break"
   name: string
@@ -587,6 +609,60 @@ test("month workspace and range-plan drawer adapt across phone and tablet layout
   const drawerAxe = await new AxeBuilder({ page }).include("dialog").analyze()
   expect(drawerAxe.violations).toEqual([])
   await tabletDrawer.getByRole("button", { name: "关闭总计划设置" }).click()
+})
+
+test("week and month calendars omit spanning bars while keeping multi-day steps readable", async ({ page }) => {
+  await page.setViewportSize({ width: 834, height: 1112 })
+  await waitForPlanSeed(page)
+  await page.goto(`/plans?view=day&date=${semesterStart}`)
+  await createMultiDayTask(page, {
+    title: "线性代数",
+    subject: "线性代数",
+    startDate: "2026-09-01",
+    endDate: "2026-09-06",
+    sessionCount: "3",
+  })
+  await page.goto(`/plans?view=week&date=${semesterStart}`)
+
+  await expect(page.getByRole("group", { name: "选择周内日期" })).toBeVisible()
+  await expect(page.getByLabel("本周排程")).toBeHidden()
+  const portraitTasks = page.getByRole("region", { name: /2026年9月1日，星期二任务/ })
+  await expect(portraitTasks).toBeVisible()
+  await expect(portraitTasks.getByRole("button", { name: "打开任务操作：线性代数" })).toBeVisible()
+  await expect(page.getByLabel("本周跨日任务")).toHaveCount(0)
+  await expectNoHorizontalOverflow(page)
+
+  await page.setViewportSize({ width: 1180, height: 820 })
+  await page.goto(`/plans?view=week&date=${semesterStart}`)
+  const schedule = page.getByLabel("本周排程")
+  await expect(schedule).toBeVisible()
+  await expect(page.getByRole("group", { name: "选择周内日期" })).toBeHidden()
+  await expect(page.getByLabel("本周跨日任务")).toHaveCount(0)
+  await expectNoHorizontalOverflow(page)
+
+  const layout = await page.evaluate(() => {
+    const weekGrid = document.querySelector<HTMLElement>("[aria-label='本周排程']")
+    if (!weekGrid) throw new Error("Week grid is missing")
+    const columns = [...weekGrid.querySelectorAll<HTMLElement>("section[data-drop-date]")]
+    const taskBars = columns.flatMap((column) => [...column.querySelectorAll<HTMLElement>("button[class*='taskBar']")].map((taskBar) => {
+      const columnBox = column.getBoundingClientRect()
+      const taskBox = taskBar.getBoundingClientRect()
+      return {
+        leftInside: taskBox.left >= columnBox.left - 1,
+        rightInside: taskBox.right <= columnBox.right + 1,
+      }
+    }))
+    return {
+      taskBars,
+    }
+  })
+
+  expect(layout.taskBars.length).toBeGreaterThan(0)
+  expect(layout.taskBars.every((taskBar) => taskBar.leftInside && taskBar.rightInside)).toBe(true)
+
+  await page.goto(`/plans?view=month&date=${semesterStart}`)
+  await expect(page.getByTestId("month-task-group-segment")).toHaveCount(0)
+  await expect(page.getByRole("region", { name: "2026年9月1日任务" }).getByRole("button", { name: "打开任务操作：线性代数" })).toBeVisible()
 })
 
 test("plans remain accessible through day, month, editor, delete, migration, keyboard, focus, reduced motion, and backdrop flows", async ({ page }) => {

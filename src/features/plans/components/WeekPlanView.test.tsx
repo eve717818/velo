@@ -20,7 +20,7 @@ function task(overrides: Partial<PlanTask> = {}): PlanTask {
 }
 
 describe("WeekPlanView", () => {
-  it("renders an accessible multi-day band with progress and scheduled nodes", () => {
+  it("keeps multi-day steps as regular week tasks without a spanning calendar band", () => {
     const db = new VeloDB(`week-view-${crypto.randomUUID()}`)
     const group: PlanTaskGroup = {
       id: "calculus-group",
@@ -37,12 +37,14 @@ describe("WeekPlanView", () => {
       task({ groupId: group.id, id: "step-3", scheduledDate: "2026-09-07", stepIndex: 3 }),
     ]
     const rendered = render(
-      <WeekPlanView allTasks={tasks} db={db} selectedDate="2026-09-03" taskGroups={[group]} tasks={tasks} today="2026-09-03" />,
+      <WeekPlanView db={db} selectedDate="2026-09-03" taskGroups={[group]} tasks={tasks} />,
     )
 
     try {
-      expect(screen.getByRole("button", { name: /高数第三章.*9月1日至9月7日.*1\/3/ })).toBeInTheDocument()
-      expect(screen.getAllByTestId("task-group-step-node")).toHaveLength(3)
+      expect(screen.queryByTestId("week-task-group-segment")).not.toBeInTheDocument()
+      expect(screen.queryByRole("button", { name: /高数第三章.*9月1日至9月7日.*1\/3/ })).not.toBeInTheDocument()
+      expect(screen.getAllByRole("button", { name: "打开任务操作：跨年复习" }).length).toBeGreaterThanOrEqual(1)
+      expect(screen.getByLabelText("2026年9月3日，星期四任务")).toHaveTextContent("第 2/3 次")
     } finally {
       rendered.unmount()
       void db.delete()

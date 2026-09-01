@@ -3,22 +3,17 @@ import { useState } from "react"
 import type { PlanTask, PlanTaskGroup } from "@/db/types"
 import type { VeloDB } from "@/db/velo-db"
 import { getWeekDates, parseLocalDate } from "@/features/plans/domain/plan-dates"
-import { groupOverlapsRange } from "@/features/plans/domain/task-group-status"
 
 import { TaskBar, type TaskPosition } from "./TaskBar"
-import { TaskGroupBand } from "./TaskGroupBand"
 import styles from "../PlansPage.module.css"
 
 interface WeekPlanViewProps {
-  allTasks?: PlanTask[]
   db: VeloDB
-  onOpenGroup?: (group: PlanTaskGroup, trigger: HTMLButtonElement) => void
   onOpen?: (task: PlanTask, trigger: HTMLButtonElement) => void
   onMoved?: (task: PlanTask, previous: TaskPosition) => void
   selectedDate: string
   taskGroups?: PlanTaskGroup[]
   tasks: PlanTask[]
-  today?: string
 }
 
 const weekdayNames = ["星期日", "星期一", "星期二", "星期三", "星期四", "星期五", "星期六"]
@@ -32,14 +27,11 @@ function sortTasks(tasks: PlanTask[]) {
   return [...tasks].sort((left, right) => (left.startMinutes ?? Number.MAX_SAFE_INTEGER) - (right.startMinutes ?? Number.MAX_SAFE_INTEGER) || left.order - right.order)
 }
 
-export function WeekPlanView({ tasks, allTasks = tasks, db, onMoved, onOpen, onOpenGroup, selectedDate, taskGroups = [], today = selectedDate }: WeekPlanViewProps) {
+export function WeekPlanView({ tasks, db, onMoved, onOpen, selectedDate, taskGroups = [] }: WeekPlanViewProps) {
   const dates = getWeekDates(selectedDate)
-  const rangeStart = dates[0]
-  const rangeEnd = dates[dates.length - 1]
   const [selection, setSelection] = useState({ date: selectedDate, sourceDate: selectedDate })
   const activeDate = selection.sourceDate === selectedDate ? selection.date : selectedDate
   const tasksForDate = (date: string) => sortTasks(tasks.filter((task) => task.scheduledDate === date))
-  const visibleGroups = taskGroups.filter((group) => groupOverlapsRange(group, rangeStart, rangeEnd))
   const groupById = new Map(taskGroups.map((group) => [group.id, group]))
   const groupLabel = (task: PlanTask) => {
     const group = task.groupId ? groupById.get(task.groupId) : undefined
@@ -64,24 +56,6 @@ export function WeekPlanView({ tasks, allTasks = tasks, db, onMoved, onOpen, onO
           </button>
         ))}
       </div>
-      {visibleGroups.length ? (
-        <div aria-label="本周跨日任务" className={styles.weekGroupScroller} role="region">
-          <div className={styles.weekGroupBands}>
-            {visibleGroups.map((group) => (
-              <TaskGroupBand
-                group={group}
-                key={group.id}
-                onOpen={onOpenGroup}
-                rangeEnd={rangeEnd}
-                rangeStart={rangeStart}
-                tasks={allTasks}
-                today={today}
-                variant="week"
-              />
-            ))}
-          </div>
-        </div>
-      ) : null}
       <section aria-label={`${formatDateLabel(activeDate)}任务`} className={styles.weekMobileList}>
         <div className={styles.weekListHeading}>
           <h3>{formatDateLabel(activeDate)}</h3>

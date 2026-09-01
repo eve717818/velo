@@ -634,23 +634,8 @@
 
 @media (min-width: 768px) {
   .dayLane,
-  .weekMobileList,
   .monthTaskPanel,
   .viewEmptyState { padding: 18px; }
-
-  .weekDateStrip,
-  .weekMobileList { display: none; }
-
-  .weekGroupScroller { margin-inline: 0; overflow: visible; padding: 0; }
-  .weekGroupBands { grid-template-columns: repeat(7, minmax(0, 1fr)); min-width: 0; }
-
-  .weekGrid { display: grid; gap: 8px; grid-template-columns: repeat(7, minmax(0, 1fr)); }
-
-  .weekDayColumn { background: var(--color-surface-muted); border: 1px solid var(--color-border); border-radius: 14px; min-height: 238px; padding: 10px; }
-  .weekDayColumn header { align-items: baseline; color: #44578e; display: flex; justify-content: space-between; }
-  .weekDayColumn header span { font-size: 12px; font-weight: 700; }
-  .weekDayColumn header strong { font-size: 16px; }
-  .weekDayColumn ul { gap: 8px; }
 
   .monthPlan { grid-template-columns: minmax(0, 1fr); }
   .monthWeekdays,
@@ -665,6 +650,29 @@
 }
 
 @media (min-width: 1024px) and (orientation: landscape) {
+  .weekDateStrip,
+  .weekMobileList { display: none; }
+
+  .weekGrid { display: grid; gap: 8px; grid-template-columns: repeat(7, minmax(0, 1fr)); }
+
+  .weekDayColumn {
+    background: var(--color-surface-muted);
+    border: 1px solid var(--color-border);
+    border-radius: 14px;
+    box-sizing: border-box;
+    min-height: 238px;
+    min-width: 0;
+    overflow: hidden;
+    padding: 10px;
+  }
+
+  .weekDayColumn header { align-items: baseline; color: #44578e; display: flex; justify-content: space-between; }
+  .weekDayColumn header span { font-size: 12px; font-weight: 700; }
+  .weekDayColumn header strong { font-size: 16px; }
+  .weekDayColumn ul,
+  .weekDayColumn li { min-width: 0; }
+  .weekDayColumn ul { gap: 8px; }
+
   .monthPlan { grid-template-columns: minmax(0, 1.85fr) minmax(232px, 1fr); }
   .monthWeekdays,
   .monthGrid { grid-column: 1; }
@@ -675,6 +683,15 @@
   }
 
   .workspaceGrid[data-view="month"] .viewSurface {
+    grid-column: 1 / -1;
+    grid-row: auto;
+  }
+
+  .workspaceGrid[data-view="week"] {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .workspaceGrid[data-view="week"] .viewSurface {
     grid-column: 1 / -1;
     grid-row: auto;
   }

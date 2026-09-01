@@ -21,7 +21,7 @@ function task(overrides: Partial<PlanTask> = {}): PlanTask {
 }
 
 describe("MonthPlanView", () => {
-  it("splits a cross-week task band into two segments while announcing progress once", () => {
+  it("keeps multi-day steps in the selected-day task list without calendar bands", () => {
     const db = new VeloDB(`month-view-${crypto.randomUUID()}`)
     const group: PlanTaskGroup = {
       id: "reading-group",
@@ -39,12 +39,13 @@ describe("MonthPlanView", () => {
       task({ groupId: group.id, id: "step-4", scheduledDate: "2026-09-24", stepIndex: 4 }),
     ]
     const rendered = render(
-      <MonthPlanView allTasks={tasks} db={db} selectedDate="2026-09-20" taskGroups={[group]} tasks={tasks} today="2026-09-20" />,
+      <MonthPlanView db={db} selectedDate="2026-09-19" taskGroups={[group]} tasks={tasks} />,
     )
 
     try {
-      expect(screen.getAllByTestId("month-task-group-segment")).toHaveLength(2)
-      expect(screen.getAllByText("1/4")).toHaveLength(1)
+      expect(screen.queryByTestId("month-task-group-segment")).not.toBeInTheDocument()
+      expect(screen.getByLabelText("2026年9月19日任务")).toHaveTextContent("不应塞入单元格的完整标题")
+      expect(screen.getByLabelText("2026年9月19日任务")).toHaveTextContent("第 2/4 次")
     } finally {
       rendered.unmount()
       void db.delete()

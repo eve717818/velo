@@ -335,9 +335,14 @@ export function PlansPage({ db = veloDb, now }: PlansPageProps) {
   createParams.set("date", selectedDate)
   createParams.set("new", "1")
 
-  function openTaskGroup(group: PlanTaskGroup, trigger: HTMLButtonElement) {
-    setTaskTrigger(trigger)
-    setEditorTaskGroup(group)
+  function editActionTask(task: PlanTask) {
+    const taskGroup = task.groupId ? snapshot?.taskGroupById[task.groupId] : undefined
+    if (taskGroup) {
+      setEditorTaskGroup(taskGroup)
+    } else {
+      setEditorTask(task)
+    }
+    setIsActionDialogOpen(false)
   }
 
   return (
@@ -370,8 +375,8 @@ export function PlansPage({ db = veloDb, now }: PlansPageProps) {
           <SwipeDiscoveryHint visible={Boolean(snapshot?.tasks.some((task) => task.isCompleted === 0)) && view !== "period"} />
           {snapshot ? (
             view === "day" ? <DayPlanView db={db} onCreate={openCreate} onMoved={handleTaskMoved} onOpen={openTask} selectedDate={selectedDate} taskGroups={snapshot.taskGroups} tasks={snapshot.tasks} today={fallbackDate} />
-              : view === "week" ? <WeekPlanView allTasks={snapshot.allTasks} db={db} onMoved={handleTaskMoved} onOpen={openTask} onOpenGroup={openTaskGroup} selectedDate={selectedDate} taskGroups={snapshot.taskGroups} tasks={snapshot.tasks} today={fallbackDate} />
-                : view === "month" ? <MonthPlanView allTasks={snapshot.allTasks} db={db} onMoved={handleTaskMoved} onOpen={openTask} onOpenGroup={openTaskGroup} selectedDate={selectedDate} taskGroups={snapshot.taskGroups} tasks={snapshot.tasks} today={fallbackDate} />
+              : view === "week" ? <WeekPlanView db={db} onMoved={handleTaskMoved} onOpen={openTask} selectedDate={selectedDate} taskGroups={snapshot.taskGroups} tasks={snapshot.tasks} />
+                : view === "month" ? <MonthPlanView db={db} onMoved={handleTaskMoved} onOpen={openTask} selectedDate={selectedDate} taskGroups={snapshot.taskGroups} tasks={snapshot.tasks} />
                   : <LearningPeriodView
                     onCreate={() => openPeriodEditor()}
                     onDelete={(period) => setPeriodToDelete(period)}
@@ -415,7 +420,7 @@ export function PlansPage({ db = veloDb, now }: PlansPageProps) {
           completionSaving={completionSaving}
           onClose={closeTaskActions}
           onDelete={() => { setDeleteTask(actionTask); setIsActionDialogOpen(false); setIsDeleteDialogOpen(true) }}
-          onEdit={() => { setEditorTask(actionTask); setIsActionDialogOpen(false) }}
+          onEdit={() => editActionTask(actionTask)}
           onMove={() => { setEditorTask(actionTask); setIsActionDialogOpen(false) }}
           onRetryCompletion={() => { if (completionIntent.current) void toggleTaskCompletion(completionIntent.current.nextValue, completionIntent.current.taskId) }}
           onStartFocus={(href) => { setIsActionDialogOpen(false); void navigate(href) }}

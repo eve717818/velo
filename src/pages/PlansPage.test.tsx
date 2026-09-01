@@ -51,7 +51,7 @@ function deferred<T>() {
 }
 
 describe("PlansPage", () => {
-  it("keeps overall progress based on task instances when a multi-day band is present", async () => {
+  it("keeps overall progress based on multi-day task instances without a calendar band", async () => {
     const db = createDatabase()
     const user = userEvent.setup()
     await db.planTaskGroups.add({
@@ -75,7 +75,13 @@ describe("PlansPage", () => {
       const progressPanel = progressHeading.closest("section")
       expect(progressPanel).not.toBeNull()
       await waitFor(() => expect(within(progressPanel!).getByText("1 / 3")).toBeInTheDocument())
-      await user.click(screen.getByRole("button", { name: /高数第三章.*1\/3/ }))
+      expect(screen.queryByTestId("week-task-group-segment")).not.toBeInTheDocument()
+      const selectedDay = screen.getByLabelText("2026年9月2日，星期三任务")
+      const groupStep = within(selectedDay).getByRole("button", { name: "打开任务操作：高数第三章" })
+      expect(groupStep).toBeInTheDocument()
+      expect(selectedDay).toHaveTextContent("第 2/3 次")
+      await user.click(groupStep)
+      await user.click(screen.getByRole("button", { name: "编辑" }))
       expect(screen.getByRole("dialog", { name: "编辑跨日任务" })).toBeInTheDocument()
     } finally {
       rendered.unmount()
