@@ -549,7 +549,7 @@ Render one semantic `<section>` and one `<ul>`, reusing `TaskBar` for every item
 
 Remove task-group labels from `DayPlanView`; continue rendering timed and untimed day tasks, overdue status, and the current-plan drop zone. Update tests to use `scope: "day"` and `periodKey` fixtures.
 
-Keep the old week/month/multi-day source files physically present for rollback, but detach them from active routes. Mechanically change their dated task fixtures and helpers from `scheduledDate` to day-scoped `periodKey`; where a retained helper creates a task, it must set `scope: "day"`. These compatibility modules must never query `rangePlans`, and active `PlansPage` code must not import them. Their tests remain as compile/regression coverage only; add an import-boundary assertion in `PlansPage.test.tsx` that the active page renders none of their landmarks.
+Keep the old week/month/multi-day source files physically present for rollback, but detach them from active routes. Mechanically change their dated display fixtures and pure helpers from `scheduledDate` to day-scoped `periodKey`. Retire every exported mutation in `plan-task-group-service.ts` with the deterministic error `跨日任务已停用`; its tests must assert the rejection and prove both `planTaskGroups` and `planTasks` remain unchanged. These compatibility modules must never query or write `rangePlans` or `planTaskGroups`, and active `PlansPage` code must not import them. Their remaining tests are compile/regression coverage only; add an import-boundary assertion in `PlansPage.test.tsx` that the active page renders none of their landmarks.
 
 - [ ] **Step 7: Run component tests**
 
