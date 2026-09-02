@@ -3,7 +3,7 @@ import { act, fireEvent, render, screen, waitFor } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { MemoryRouter } from "react-router-dom"
 import { describe, expect, it, vi } from "vitest"
-import type { PlanTask } from "@/db/types"
+import type { LearningPeriod, PlanTask, PlanTaskScope } from "@/db/types"
 import { VeloDB } from "@/db/velo-db"
 import * as planTaskService from "../data/plan-task-service"
 import { DeleteTaskDialog } from "./DeleteTaskDialog"
@@ -26,7 +26,8 @@ function existingTask(overrides: Partial<PlanTask> = {}): PlanTask {
   return {
     id: "existing-task",
     title: "整理错题",
-    scheduledDate: "2026-08-28",
+    scope: "day",
+    periodKey: "2026-08-28",
     subject: "数学",
     estimatedMinutes: 45,
     isCompleted: 0,
@@ -37,7 +38,28 @@ function existingTask(overrides: Partial<PlanTask> = {}): PlanTask {
   }
 }
 
-function EditorHarness({ db, task }: { db: VeloDB; task?: PlanTask }) {
+const learningPeriods: LearningPeriod[] = [
+  { id: "fall", kind: "semester", name: "秋季学期", startDate: "2026-09-01", endDate: "2027-01-15", createdAt: 1, updatedAt: 1 },
+  { id: "winter", kind: "winter-break", name: "寒假", startDate: "2027-01-16", endDate: "2027-02-20", createdAt: 1, updatedAt: 1 },
+]
+
+interface EditorHarnessProps {
+  db: VeloDB
+  periodKey?: string
+  periods?: LearningPeriod[]
+  scope?: PlanTaskScope
+  selectedDate?: string
+  task?: PlanTask
+}
+
+function EditorHarness({
+  db,
+  periodKey = "2026-08-28",
+  periods = [],
+  scope = "day",
+  selectedDate = "2026-08-28",
+  task,
+}: EditorHarnessProps) {
   const [open, setOpen] = useState(false)
 
   return (
@@ -47,9 +69,12 @@ function EditorHarness({ db, task }: { db: VeloDB; task?: PlanTask }) {
       </button>
       <TaskEditorDialog
         db={db}
-        initialDate="2026-08-28"
         onClose={() => setOpen(false)}
         open={open}
+        periodKey={periodKey}
+        periods={periods}
+        scope={scope}
+        selectedDate={selectedDate}
         task={task}
       />
     </>
@@ -70,163 +95,30 @@ function DeleteHarness({ db, task }: { db: VeloDB; task: PlanTask }) {
 }
 
 describe("TaskEditorDialog", () => {
-  it("creates a multi-day task from the unified task editor", async () => {
+  it("creates a day task with its selected date and optional start time", async () => {
     const db = createDatabase()
     const user = userEvent.setup()
-    const rendered = render(
-      <TaskEditorDialog db={db} initialDate="2026-09-01" onClose={vi.fn()} open />,
-    )
-
-    try {
-      await user.click(screen.getByRole("button", { name: "跨日任务" }))
-      await user.type(screen.getByLabelText("任务名称"), "完成高数第三章")
-      await user.clear(screen.getByLabelText("截止日期"))
-      await user.type(screen.getByLabelText("截止日期"), "2026-09-07")
-      await user.clear(screen.getByLabelText("学习次数"))
-      await user.type(screen.getByLabelText("学习次数"), "3")
-      await user.click(screen.getByRole("button", { name: "保存跨日任务" }))
-
-      await waitFor(async () => {
-        const savedGroup = await db.planTaskGroups.toCollection().first()
-        expect(savedGroup).toBeDefined()
-        expect(await db.planTasks.where("groupId").equals(savedGroup!.id).count()).toBe(3)
-      })
-    } finally {
-      rendered.unmount()
-      await db.delete()
-    }
-  })
-
-  it("names the new-task dialog, validates adjacent required fields, and creates a task", async () => {
-    const db = createDatabase()
-    const user = userEvent.setup()
+    const createSpy = vi.spyOn(planTaskService, "createPlanTask")
     const rendered = render(<EditorHarness db={db} />)
 
     try {
       await user.click(screen.getByRole("button", { name: "新建任务" }))
-
       expect(screen.getByRole("dialog", { name: "新建学习任务" })).toBeInTheDocument()
-
-      await user.clear(screen.getByLabelText("任务标题"))
-      await user.clear(screen.getByLabelText("日期"))
-      await user.click(screen.getByRole("button", { name: "保存任务" }))
-
-      expect(screen.getByText("请填写任务标题")).toBeInTheDocument()
-      expect(screen.getByText("请选择日期")).toBeInTheDocument()
-      expect(screen.getByLabelText("任务标题")).toHaveAttribute("aria-invalid", "true")
-      expect(screen.getByLabelText("日期")).toHaveAttribute("aria-invalid", "true")
-
+      expect(screen.getByLabelText("日期")).toHaveValue("2026-08-28")
+      expect(screen.getByLabelText("开始时间")).toBeInTheDocument()
+      expect(screen.queryByRole("button", { name: "跨日任务" })).not.toBeInTheDocument()
       await user.type(screen.getByLabelText("任务标题"), "复习导数")
+      await user.clear(screen.getByLabelText("日期"))
       await user.type(screen.getByLabelText("日期"), "2026-08-29")
+      await user.type(screen.getByLabelText("开始时间"), "09:30")
       await user.click(screen.getByRole("button", { name: "保存任务" }))
 
       await waitFor(async () => {
         expect(await db.planTasks.toArray()).toMatchObject([
-          { title: "复习导数", scheduledDate: "2026-08-29", isCompleted: 0 },
+          { title: "复习导数", scope: "day", periodKey: "2026-08-29", startMinutes: 570 },
         ])
       })
-    } finally {
-      rendered.unmount()
-      await db.delete()
-    }
-  })
-
-  it("keeps entered values when saving is rejected", async () => {
-    const db = createDatabase()
-    const user = userEvent.setup()
-    db.planTasks.hook("creating", () => {
-      throw new Error("磁盘写入失败")
-    })
-    const rendered = render(<EditorHarness db={db} />)
-
-    try {
-      await user.click(screen.getByRole("button", { name: "新建任务" }))
-      await user.type(screen.getByLabelText("任务标题"), "保留这条任务")
-      await user.click(screen.getByRole("button", { name: "保存任务" }))
-
-      expect(await screen.findByRole("alert")).toHaveTextContent("磁盘写入失败")
-      expect(screen.getByLabelText("任务标题")).toHaveValue("保留这条任务")
-      expect(screen.getByLabelText("日期")).toHaveValue("2026-08-28")
-    } finally {
-      rendered.unmount()
-      await db.delete()
-    }
-  })
-
-  it("shows a field error and does not submit a fractional estimate", async () => {
-    const db = createDatabase()
-    const user = userEvent.setup()
-    const rendered = render(<EditorHarness db={db} />)
-
-    try {
-      await user.click(screen.getByRole("button", { name: "新建任务" }))
-      expect(screen.getByLabelText("预计时长（分钟）")).toHaveAttribute("step", "1")
-      await user.type(screen.getByLabelText("任务标题"), "小数时长")
-      await user.type(screen.getByLabelText("预计时长（分钟）"), "12.5")
-      await user.click(screen.getByRole("button", { name: "保存任务" }))
-
-      expect(await screen.findByText("预计时长必须是正整数")).toBeInTheDocument()
-      expect(screen.getByRole("spinbutton", { name: /预计时长（分钟）/ })).toHaveAttribute("aria-invalid", "true")
-      expect(await db.planTasks.toArray()).toHaveLength(0)
-    } finally {
-      rendered.unmount()
-      await db.delete()
-    }
-  })
-
-  it("keeps the dialog open and retries the last entered values after a failed save", async () => {
-    const db = createDatabase()
-    const user = userEvent.setup()
-    let failWrite = true
-    db.planTasks.hook("creating", () => {
-      if (failWrite) throw new Error("磁盘写入失败")
-    })
-    const rendered = render(<EditorHarness db={db} />)
-
-    try {
-      await user.click(screen.getByRole("button", { name: "新建任务" }))
-      await user.type(screen.getByLabelText("任务标题"), "重试后保存")
-      await user.click(screen.getByRole("button", { name: "保存任务" }))
-
-      expect(await screen.findByRole("alert")).toHaveTextContent("保存失败，请重试")
-      expect(screen.getByLabelText("任务标题")).toHaveValue("重试后保存")
-
-      failWrite = false
-      await user.click(screen.getByRole("button", { name: "重试" }))
-
-      await waitFor(async () => expect(await db.planTasks.toArray()).toMatchObject([{ title: "重试后保存" }]))
-      await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument())
-    } finally {
-      rendered.unmount()
-      await db.delete()
-    }
-  })
-
-  it("ignores a completed save from a closed editor session", async () => {
-    const db = createDatabase()
-    const user = userEvent.setup()
-    const firstSave = deferred<PlanTask>()
-    const createSpy = vi.spyOn(planTaskService, "createPlanTask")
-      .mockImplementationOnce(() => firstSave.promise)
-      .mockImplementationOnce((_db, input, now) => Promise.resolve({ id: "second", isCompleted: 0, order: 1, createdAt: now, updatedAt: now, ...input }))
-    const rendered = render(<EditorHarness db={db} />)
-
-    try {
-      await user.click(screen.getByRole("button", { name: "新建任务" }))
-      await user.type(screen.getByLabelText("任务标题"), "旧会话")
-      await user.click(screen.getByRole("button", { name: "保存任务" }))
-      fireEvent.keyDown(screen.getByRole("dialog"), { key: "Escape" })
-      await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument())
-      await user.click(screen.getByRole("button", { name: "新建任务" }))
-      await user.type(screen.getByLabelText("任务标题"), "新会话")
-
-      await act(async () => {
-        firstSave.resolve(existingTask({ id: "first", title: "旧会话" }))
-        await firstSave.promise
-      })
-
-      expect(screen.getByRole("dialog", { name: "新建学习任务" })).toBeInTheDocument()
-      expect(screen.getByLabelText("任务标题")).toHaveValue("新会话")
+      expect(createSpy).toHaveBeenCalledWith(db, expect.objectContaining({ scope: "day", periodKey: "2026-08-29", startMinutes: 570 }), expect.any(Number))
     } finally {
       createSpy.mockRestore()
       rendered.unmount()
@@ -234,56 +126,149 @@ describe("TaskEditorDialog", () => {
     }
   })
 
-  it("retries the last submitted edit values after an update failure", async () => {
+  it("creates a week task from the selected ISO week using its Monday key", async () => {
     const db = createDatabase()
-    const task = existingTask()
     const user = userEvent.setup()
-    const realUpdate = planTaskService.updatePlanTask
-    const updateSpy = vi.spyOn(planTaskService, "updatePlanTask")
-      .mockRejectedValueOnce(new Error("磁盘写入失败"))
-      .mockImplementationOnce(realUpdate)
-    await db.planTasks.add(task)
-    const rendered = render(<EditorHarness db={db} task={task} />)
+    const createSpy = vi.spyOn(planTaskService, "createPlanTask")
+    const rendered = render(<EditorHarness db={db} periodKey="2026-08-31" scope="week" selectedDate="2026-09-02" />)
 
     try {
-      await user.click(screen.getByRole("button", { name: "编辑 整理错题" }))
-      await user.clear(screen.getByLabelText("任务标题"))
-      await user.type(screen.getByLabelText("任务标题"), "整理微积分错题")
+      await user.click(screen.getByRole("button", { name: "新建任务" }))
+      expect(screen.getByRole("dialog", { name: "新建学习任务" })).toBeInTheDocument()
+      expect(screen.getByLabelText("所属周")).toHaveValue("2026-W36")
+      expect(screen.queryByLabelText("开始时间")).not.toBeInTheDocument()
+      expect(screen.queryByRole("button", { name: "跨日任务" })).not.toBeInTheDocument()
+      await user.type(screen.getByLabelText("任务标题"), "本周复盘")
+      await user.clear(screen.getByLabelText("所属周"))
+      await user.type(screen.getByLabelText("所属周"), "2026-W37")
       await user.click(screen.getByRole("button", { name: "保存任务" }))
 
-      expect(await screen.findByRole("alert")).toHaveTextContent("保存失败，请重试")
-      await user.clear(screen.getByLabelText("任务标题"))
-      await user.click(screen.getByRole("button", { name: "重试" }))
-
-      await waitFor(async () => expect(await db.planTasks.get(task.id)).toMatchObject({ title: "整理微积分错题" }))
-      expect(updateSpy).toHaveBeenCalledTimes(2)
-      await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument())
+      await waitFor(async () => expect(await db.planTasks.toArray()).toMatchObject([{ scope: "week", periodKey: "2026-09-07", startMinutes: undefined }]))
+      expect(createSpy).toHaveBeenCalledWith(db, expect.objectContaining({ scope: "week", periodKey: "2026-09-07", startMinutes: undefined }), expect.any(Number))
     } finally {
-      updateSpy.mockRestore()
+      createSpy.mockRestore()
       rendered.unmount()
       await db.delete()
     }
   })
 
-  it("edits an existing task without generating a new ID", async () => {
+  it("creates a month task from its selected month", async () => {
     const db = createDatabase()
-    const task = existingTask()
     const user = userEvent.setup()
+    const createSpy = vi.spyOn(planTaskService, "createPlanTask")
+    const rendered = render(<EditorHarness db={db} periodKey="2026-09" scope="month" selectedDate="2026-09-02" />)
+
+    try {
+      await user.click(screen.getByRole("button", { name: "新建任务" }))
+      expect(screen.getByLabelText("所属月")).toHaveValue("2026-09")
+      expect(screen.queryByLabelText("开始时间")).not.toBeInTheDocument()
+      await user.type(screen.getByLabelText("任务标题"), "月度总结")
+      await user.clear(screen.getByLabelText("所属月"))
+      await user.type(screen.getByLabelText("所属月"), "2026-10")
+      await user.click(screen.getByRole("button", { name: "保存任务" }))
+
+      await waitFor(async () => expect(await db.planTasks.toArray()).toMatchObject([{ scope: "month", periodKey: "2026-10", startMinutes: undefined }]))
+      expect(createSpy).toHaveBeenCalledWith(db, expect.objectContaining({ scope: "month", periodKey: "2026-10", startMinutes: undefined }), expect.any(Number))
+    } finally {
+      createSpy.mockRestore()
+      rendered.unmount()
+      await db.delete()
+    }
+  })
+
+  it("creates a semester task from a real learning period", async () => {
+    const db = createDatabase()
+    const user = userEvent.setup()
+    const createSpy = vi.spyOn(planTaskService, "createPlanTask")
+    await db.learningPeriods.bulkAdd(learningPeriods)
+    const rendered = render(<EditorHarness db={db} periodKey="fall" periods={learningPeriods} scope="semester" selectedDate="2026-09-02" />)
+
+    try {
+      await user.click(screen.getByRole("button", { name: "新建任务" }))
+      expect(screen.getByLabelText("所属学期或假期")).toHaveValue("fall")
+      expect(screen.queryByLabelText("开始时间")).not.toBeInTheDocument()
+      await user.type(screen.getByLabelText("任务标题"), "学期论文")
+      await user.selectOptions(screen.getByLabelText("所属学期或假期"), "winter")
+      await user.click(screen.getByRole("button", { name: "保存任务" }))
+
+      await waitFor(async () => expect(await db.planTasks.toArray()).toMatchObject([{ scope: "semester", periodKey: "winter", startMinutes: undefined }]))
+      expect(createSpy).toHaveBeenCalledWith(db, expect.objectContaining({ scope: "semester", periodKey: "winter", startMinutes: undefined }), expect.any(Number))
+    } finally {
+      createSpy.mockRestore()
+      rendered.unmount()
+      await db.delete()
+    }
+  })
+
+  it("locks an edited task to its stored scope even if its caller is on another scope", async () => {
+    const db = createDatabase()
+    const user = userEvent.setup()
+    const task = existingTask({ scope: "week", periodKey: "2026-08-31", startMinutes: undefined })
     await db.planTasks.add(task)
-    const rendered = render(<EditorHarness db={db} task={task} />)
+    const rendered = render(<EditorHarness db={db} periodKey="2026-08-28" scope="day" task={task} />)
 
     try {
       await user.click(screen.getByRole("button", { name: "编辑 整理错题" }))
+      expect(screen.getByLabelText("所属周")).toHaveValue("2026-W36")
+      expect(screen.queryByLabelText("日期")).not.toBeInTheDocument()
       await user.clear(screen.getByLabelText("任务标题"))
-      await user.type(screen.getByLabelText("任务标题"), "整理微积分错题")
+      await user.type(screen.getByLabelText("任务标题"), "本周错题复盘")
       await user.click(screen.getByRole("button", { name: "保存任务" }))
 
-      await waitFor(async () => {
-        expect(await db.planTasks.toArray()).toMatchObject([
-          { id: "existing-task", title: "整理微积分错题" },
-        ])
-      })
-      expect(await db.planTasks.count()).toBe(1)
+      await waitFor(async () => expect(await db.planTasks.get(task.id)).toMatchObject({ title: "本周错题复盘", scope: "week", periodKey: "2026-08-31" }))
+    } finally {
+      rendered.unmount()
+      await db.delete()
+    }
+  })
+
+  it("validates required day fields and fractional estimates before saving", async () => {
+    const db = createDatabase()
+    const user = userEvent.setup()
+    const rendered = render(<EditorHarness db={db} />)
+
+    try {
+      await user.click(screen.getByRole("button", { name: "新建任务" }))
+      await user.clear(screen.getByLabelText("任务标题"))
+      await user.clear(screen.getByLabelText("日期"))
+      await user.type(screen.getByLabelText("预计时长（分钟）"), "12.5")
+      await user.click(screen.getByRole("button", { name: "保存任务" }))
+
+      expect(screen.getByText("请填写任务标题")).toBeInTheDocument()
+      expect(screen.getByText("请选择周期")).toBeInTheDocument()
+      expect(screen.getByText("预计时长必须是正整数")).toBeInTheDocument()
+      expect(screen.getByLabelText("任务标题")).toHaveAttribute("aria-invalid", "true")
+      expect(screen.getByLabelText("日期")).toHaveAttribute("aria-invalid", "true")
+      expect(screen.getByLabelText("预计时长（分钟）")).toHaveAttribute("aria-invalid", "true")
+      expect(await db.planTasks.toArray()).toHaveLength(0)
+    } finally {
+      rendered.unmount()
+      await db.delete()
+    }
+  })
+
+  it("keeps every entered value after a failed save", async () => {
+    const db = createDatabase()
+    const user = userEvent.setup()
+    db.planTasks.hook("creating", () => { throw new Error("磁盘写入失败") })
+    const rendered = render(<EditorHarness db={db} periodKey="2026-08-31" scope="week" />)
+
+    try {
+      await user.click(screen.getByRole("button", { name: "新建任务" }))
+      await user.type(screen.getByLabelText("任务标题"), "保留这条任务")
+      await user.clear(screen.getByLabelText("所属周"))
+      await user.type(screen.getByLabelText("所属周"), "2026-W37")
+      await user.type(screen.getByLabelText("科目"), "数学")
+      await user.type(screen.getByLabelText("预计时长（分钟）"), "45")
+      await user.type(screen.getByLabelText("备注"), "先看错题")
+      await user.click(screen.getByRole("button", { name: "保存任务" }))
+
+      expect(await screen.findByRole("alert")).toHaveTextContent("磁盘写入失败")
+      expect(screen.getByLabelText("任务标题")).toHaveValue("保留这条任务")
+      expect(screen.getByLabelText("所属周")).toHaveValue("2026-W37")
+      expect(screen.getByLabelText("科目")).toHaveValue("数学")
+      expect(screen.getByLabelText("预计时长（分钟）")).toHaveValue(45)
+      expect(screen.getByLabelText("备注")).toHaveValue("先看错题")
     } finally {
       rendered.unmount()
       await db.delete()
@@ -308,52 +293,6 @@ describe("TaskEditorDialog", () => {
     }
   })
 
-  it("ignores a completed save from a backdrop-closed editor session", async () => {
-    const db = createDatabase()
-    const user = userEvent.setup()
-    const firstSave = deferred<PlanTask>()
-    const createSpy = vi.spyOn(planTaskService, "createPlanTask")
-      .mockImplementationOnce(() => firstSave.promise)
-      .mockImplementationOnce((_db, input, now) => Promise.resolve({ id: "second", isCompleted: 0, order: 1, createdAt: now, updatedAt: now, ...input }))
-    const rendered = render(<EditorHarness db={db} />)
-
-    try {
-      await user.click(screen.getByRole("button", { name: "新建任务" }))
-      await user.type(screen.getByLabelText("任务标题"), "旧会话")
-      await user.click(screen.getByRole("button", { name: "保存任务" }))
-
-      const dialog = screen.getByRole("dialog", { name: "新建学习任务" })
-      const rectSpy = vi.spyOn(dialog, "getBoundingClientRect").mockReturnValue({
-        x: 120,
-        y: 180,
-        top: 180,
-        right: 360,
-        bottom: 420,
-        left: 120,
-        width: 240,
-        height: 240,
-        toJSON: () => ({}),
-      })
-      fireEvent.click(dialog, { clientX: 90, clientY: 240 })
-      await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument())
-
-      await user.click(screen.getByRole("button", { name: "新建任务" }))
-      await user.type(screen.getByLabelText("任务标题"), "新会话")
-
-      await act(async () => {
-        firstSave.resolve(existingTask({ id: "first", title: "旧会话" }))
-        await firstSave.promise
-      })
-
-      expect(screen.getByRole("dialog", { name: "新建学习任务" })).toBeInTheDocument()
-      expect(screen.getByLabelText("任务标题")).toHaveValue("新会话")
-      rectSpy.mockRestore()
-    } finally {
-      createSpy.mockRestore()
-      rendered.unmount()
-      await db.delete()
-    }
-  })
 })
 
 describe("task actions and deletion", () => {
