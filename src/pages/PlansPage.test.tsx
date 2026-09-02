@@ -51,38 +51,34 @@ function deferred<T>() {
 }
 
 describe("PlansPage", () => {
-  it("keeps overall progress based on multi-day task instances without a calendar band", async () => {
+  it.each([
+    ["week", "2026-09-02", "2026-08-31", "本周任务"],
+    ["month", "2026-09-02", "2026-09", "本月任务"],
+  ] as const)("renders the %s workspace as the shared task-list boundary", async (view, date, periodKey, regionName) => {
     const db = createDatabase()
-    const user = userEvent.setup()
-    await db.planTaskGroups.add({
-      id: "group-progress",
-      title: "高数第三章",
-      startDate: "2026-09-01",
-      endDate: "2026-09-03",
-      sessionCount: 3,
+    const title = `${view} 任务`
+    await db.planTasks.add({
+      id: `${view}-task`,
+      title,
+      scope: view,
+      periodKey,
+      isCompleted: 0,
+      order: 1,
       createdAt: 1,
       updatedAt: 1,
     })
-    await db.planTasks.bulkAdd([
-      { id: "step-1", title: "高数第三章", scheduledDate: "2026-09-01", groupId: "group-progress", stepIndex: 1, stepTitleMode: "inherit", isCompleted: 1, order: 1, createdAt: 1, updatedAt: 1 },
-      { id: "step-2", title: "高数第三章", scheduledDate: "2026-09-02", groupId: "group-progress", stepIndex: 2, stepTitleMode: "inherit", isCompleted: 0, order: 1, createdAt: 1, updatedAt: 1 },
-      { id: "step-3", title: "高数第三章", scheduledDate: "2026-09-03", groupId: "group-progress", stepIndex: 3, stepTitleMode: "inherit", isCompleted: 0, order: 1, createdAt: 1, updatedAt: 1 },
-    ])
-    const rendered = renderPlansPage("/plans?view=week&date=2026-09-02", db, new Date(2026, 8, 2, 9, 0))
+    const rendered = renderPlansPage(`/plans?view=${view}&date=${date}`, db, new Date(2026, 8, 2, 9, 0))
 
     try {
-      const progressHeading = await screen.findByRole("heading", { name: "完成进度" })
-      const progressPanel = progressHeading.closest("section")
-      expect(progressPanel).not.toBeNull()
-      await waitFor(() => expect(within(progressPanel!).getByText("1 / 3")).toBeInTheDocument())
+      expect(await screen.findByRole("region", { name: regionName })).toHaveTextContent(title)
+      expect(screen.getByRole("button", { name: `打开任务操作：${title}` })).toBeInTheDocument()
+      expect(screen.queryByLabelText("月度日历")).not.toBeInTheDocument()
+      expect(screen.queryByLabelText("本周排程")).not.toBeInTheDocument()
       expect(screen.queryByTestId("week-task-group-segment")).not.toBeInTheDocument()
-      const selectedDay = screen.getByLabelText("2026年9月2日，星期三任务")
-      const groupStep = within(selectedDay).getByRole("button", { name: "打开任务操作：高数第三章" })
-      expect(groupStep).toBeInTheDocument()
-      expect(selectedDay).toHaveTextContent("第 2/3 次")
-      await user.click(groupStep)
-      await user.click(screen.getByRole("button", { name: "编辑" }))
-      expect(screen.getByRole("dialog", { name: "编辑跨日任务" })).toBeInTheDocument()
+      expect(screen.queryByTestId("month-task-group-segment")).not.toBeInTheDocument()
+      expect(screen.queryByText(/第 \d+\/\d+ 次/)).not.toBeInTheDocument()
+      expect(document.querySelector("[data-drop-date]")).not.toBeInTheDocument()
+      expect(screen.queryByRole("button", { name: "跨日任务" })).not.toBeInTheDocument()
     } finally {
       rendered.unmount()
       await db.delete()
@@ -141,12 +137,13 @@ describe("PlansPage", () => {
     }
   })
 
-  it("exposes the current shell task lane as an untimed date drop zone", async () => {
+  it("exposes the current shell task lane with its scoped period key", async () => {
     const db = createDatabase()
     await db.planTasks.add({
       id: "drop-zone-task",
       title: "复习导数",
-      scheduledDate: "2026-08-29",
+      scope: "day",
+      periodKey: "2026-08-29",
       isCompleted: 0,
       order: 1,
       createdAt: 1,
@@ -156,7 +153,8 @@ describe("PlansPage", () => {
 
     try {
       expect(await screen.findByText("复习导数")).toBeInTheDocument()
-      expect(screen.getByTestId("current-plan-drop-zone")).toHaveAttribute("data-drop-date", "2026-08-29")
+      expect(screen.getByTestId("current-plan-drop-zone")).toHaveAttribute("data-drop-period-key", "2026-08-29")
+      expect(screen.getByTestId("current-plan-drop-zone")).not.toHaveAttribute("data-drop-date")
       expect(screen.getByTestId("current-plan-drop-zone")).not.toHaveAttribute("data-start-minutes")
     } finally {
       rendered.unmount()
