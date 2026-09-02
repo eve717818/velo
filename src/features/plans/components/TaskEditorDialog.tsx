@@ -127,7 +127,10 @@ function TaskEditorForm({ db, onClose, periodKey, periods, requestSession, scope
     const input = retryInput ?? toTaskInput()
     const nextErrors: FieldErrors = {}
     if (!input.title.trim()) nextErrors.title = "请填写任务标题"
-    if (!input.periodKey) nextErrors.periodKey = scope === "semester" ? "请选择学期或假期" : "请选择周期"
+    if (!input.periodKey) nextErrors.periodKey = scope === "semester" ? "请选择有效的学期或假期" : "请选择周期"
+    if (scope === "semester" && !periods.some((period) => period.id === input.periodKey)) {
+      nextErrors.periodKey = "请选择有效的学期或假期"
+    }
     if (input.estimatedMinutes !== undefined && (!Number.isFinite(input.estimatedMinutes) || input.estimatedMinutes <= 0)) {
       nextErrors.estimatedMinutes = "预计时长必须大于 0"
     } else if (input.estimatedMinutes !== undefined && !Number.isInteger(input.estimatedMinutes)) {

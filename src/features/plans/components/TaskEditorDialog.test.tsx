@@ -200,6 +200,54 @@ describe("TaskEditorDialog", () => {
     }
   })
 
+  it("rejects a semester create when the current period list is empty", async () => {
+    const db = createDatabase()
+    const user = userEvent.setup()
+    const createSpy = vi.spyOn(planTaskService, "createPlanTask")
+    await db.learningPeriods.add(learningPeriods[0])
+    const rendered = render(<EditorHarness db={db} periodKey="fall" periods={[]} scope="semester" selectedDate="2026-09-02" />)
+
+    try {
+      await user.click(screen.getByRole("button", { name: "新建任务" }))
+      await user.type(screen.getByLabelText("任务标题"), "不可见学期任务")
+      await user.click(screen.getByRole("button", { name: "保存任务" }))
+
+      expect(await screen.findByText("请选择有效的学期或假期")).toBeInTheDocument()
+      expect(screen.getByLabelText("所属学期或假期")).toHaveAttribute("aria-invalid", "true")
+      expect(createSpy).not.toHaveBeenCalled()
+      expect(screen.getByRole("dialog", { name: "新建学习任务" })).toBeInTheDocument()
+    } finally {
+      createSpy.mockRestore()
+      rendered.unmount()
+      await db.delete()
+    }
+  })
+
+  it("rejects an edited semester task whose stored key is no longer in the current period list", async () => {
+    const db = createDatabase()
+    const user = userEvent.setup()
+    const task = existingTask({ scope: "semester", periodKey: "winter", startMinutes: undefined })
+    const updateSpy = vi.spyOn(planTaskService, "updatePlanTask")
+    await db.learningPeriods.bulkAdd(learningPeriods)
+    await db.planTasks.add(task)
+    const rendered = render(<EditorHarness db={db} periodKey="fall" periods={[learningPeriods[0]]} scope="day" task={task} />)
+
+    try {
+      await user.click(screen.getByRole("button", { name: "编辑 整理错题" }))
+      await user.click(screen.getByRole("button", { name: "保存任务" }))
+
+      expect(await screen.findByText("请选择有效的学期或假期")).toBeInTheDocument()
+      expect(screen.getByLabelText("所属学期或假期")).toHaveAttribute("aria-invalid", "true")
+      expect(updateSpy).not.toHaveBeenCalled()
+      expect(screen.getByRole("dialog", { name: "编辑学习任务" })).toBeInTheDocument()
+      expect(await db.planTasks.get(task.id)).toMatchObject({ scope: "semester", periodKey: "winter" })
+    } finally {
+      updateSpy.mockRestore()
+      rendered.unmount()
+      await db.delete()
+    }
+  })
+
   it("locks an edited task to its stored scope even if its caller is on another scope", async () => {
     const db = createDatabase()
     const user = userEvent.setup()
