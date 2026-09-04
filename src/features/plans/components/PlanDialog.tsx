@@ -97,7 +97,8 @@ export function PlanDialog({ children, labelledBy, onRequestClose, open, returnF
       className={styles.dialog}
       onCancel={closeFromDialog}
       onClick={onClick}
-      onClose={() => { if (open) onRequestClose() }}
+      // StrictMode cleanup can queue a close event that arrives after reopening.
+      onClose={(event) => { if (open && !event.currentTarget.open) onRequestClose() }}
       onKeyDown={onKeyDown}
       ref={dialogRef}
     >

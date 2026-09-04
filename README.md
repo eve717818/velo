@@ -55,7 +55,7 @@ pnpm test:pwa-lifecycle
 ```
 
 - `pnpm verify`：类型、单元 / 组件测试、lint 与生产构建
-- `pnpm test:e2e`：学习计划创建、四视图、真实指针手势、跨学期任务复制、响应式、无障碍、减弱动画与离线持久化
+- `pnpm test:e2e`：四个独立计划工作区的创建、真实指针手势、失败重试、焦点恢复、响应式、无障碍、减弱动画与离线持久化；同时验证开发 StrictMode 下的原生弹窗生命周期
 - `pnpm test:pwa-lifecycle`：验证 `pwa-v1` → `pwa-v2` 的更新发现、刷新与新版本激活链路
 
 ## 设计与实施资料
