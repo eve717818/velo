@@ -1,9 +1,10 @@
 import styles from "../PlansPage.module.css"
 import type { PlanView } from "../usePlanWorkspace"
+import { getProgress } from "../domain/plan-dates"
+import type { PlanTask } from "@/db/types"
 
 interface PlanProgressProps {
-  completed: number
-  total: number
+  tasks: PlanTask[]
   view: PlanView
 }
 
@@ -14,7 +15,9 @@ const completedCopy: Record<PlanView, string> = {
   period: "本学期任务已全部完成",
 }
 
-export function PlanProgress({ completed, total, view }: PlanProgressProps) {
+export function PlanProgress({ tasks, view }: PlanProgressProps) {
+  const { completed, total } = getProgress(tasks)
+
   return (
     <section aria-labelledby="plan-progress-heading" className={styles.progressPanel}>
       <div className={styles.progressCopy}>

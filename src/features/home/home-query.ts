@@ -10,8 +10,8 @@ export interface HomeSnapshot {
 }
 
 export async function loadHomeSnapshot(db: VeloDB, now: Date): Promise<HomeSnapshot> {
-  const scheduledDate = formatLocalDate(now)
-  const tasks = await db.planTasks.where("scheduledDate").equals(scheduledDate).sortBy("order")
+  const periodKey = formatLocalDate(now)
+  const tasks = await db.planTasks.where("[scope+periodKey]").equals(["day", periodKey]).sortBy("order")
   const recentNote = (await db.notes.orderBy("updatedAt").reverse().limit(1).toArray())[0] ?? null
 
   return {

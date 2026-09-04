@@ -59,6 +59,6 @@ export function findPeriodForDate(periods: LearningPeriod[], value: string): Lea
   return periods.find((period) => value >= period.startDate && value <= period.endDate)
 }
 
-export function countTasksInPeriod(tasks: Pick<PlanTask, "scheduledDate">[], period: Pick<LearningPeriod, "startDate" | "endDate">) {
-  return tasks.filter((task) => task.scheduledDate >= period.startDate && task.scheduledDate <= period.endDate).length
+export function countTasksForPeriod(tasks: Pick<PlanTask, "scope" | "periodKey">[], periodId: string) {
+  return tasks.filter((task) => task.scope === "semester" && task.periodKey === periodId).length
 }

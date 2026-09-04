@@ -649,6 +649,8 @@ git commit -m "feat: lock task editor to plan scope"
 ### Task 7: Integrate four independent workspaces in PlansPage
 
 **Files:**
+- Modify: `src/features/home/home-query.ts`
+- Modify: `src/features/home/home-query.test.ts`
 - Modify: `src/pages/PlansPage.tsx`
 - Modify: `src/pages/PlansPage.test.tsx`
 - Modify: `src/features/plans/components/PlanHeader.tsx`

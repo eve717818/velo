@@ -14,7 +14,7 @@ const source: LearningPeriod = { id: "source", kind: "semester", name: "秋季�
 const target: LearningPeriod = { id: "target", kind: "winter-break", name: "寒假", startDate: "2027-01-17", endDate: "2027-02-21", createdAt: 1, updatedAt: 1 }
 
 function task(id: string): PlanTask {
-  return { id, title: `任务 ${id}`, scheduledDate: "2027-01-16", isCompleted: 0, order: 1, createdAt: 1, updatedAt: 1 }
+  return { id, title: `任务 ${id}`, scope: "semester", periodKey: source.id, isCompleted: 0, order: 1, createdAt: 1, updatedAt: 1 }
 }
 
 describe("PeriodMigrationPanel", () => {
@@ -23,6 +23,7 @@ describe("PeriodMigrationPanel", () => {
     const user = userEvent.setup()
     const onClose = vi.fn()
     const rows = [task("one"), task("two"), task("three"), task("four")]
+    await db.learningPeriods.bulkAdd([source, target])
     await db.planTasks.bulkAdd(rows)
     const rendered = render(<PeriodMigrationPanel db={db} onClose={onClose} open sourcePeriod={source} targetPeriod={target} tasks={rows} today="2027-01-18" />)
 
@@ -32,7 +33,7 @@ describe("PeriodMigrationPanel", () => {
       for (const id of ["one", "two", "three"]) await user.click(screen.getByLabelText(`选择任务 ${id}`))
       await user.click(screen.getByRole("button", { name: "复制 3 项任务" }))
 
-      await waitFor(async () => expect((await db.planTasks.toArray()).filter((row) => row.scheduledDate === "2027-01-18")).toHaveLength(3))
+      await waitFor(async () => expect((await db.planTasks.toArray()).filter((row) => row.scope === "semester" && row.periodKey === target.id)).toHaveLength(3))
       expect(await db.planTasks.bulkGet(["one", "two", "three", "four"])).toEqual(rows)
       expect(onClose).toHaveBeenCalled()
     } finally {
@@ -87,6 +88,7 @@ describe("PeriodMigrationPanel", () => {
     const copySpy = vi.spyOn(planTaskService, "copyTasksToPeriodAndDismiss")
       .mockRejectedValueOnce(new Error("磁盘写入失败"))
       .mockImplementationOnce(realCopy)
+    await db.learningPeriods.bulkAdd([source, target])
     await db.planTasks.bulkAdd(rows)
     const rendered = render(<PeriodMigrationPanel db={db} onClose={onClose} open sourcePeriod={source} targetPeriod={target} tasks={rows} today="2027-01-18" />)
 
@@ -100,7 +102,7 @@ describe("PeriodMigrationPanel", () => {
       await user.click(screen.getByLabelText("选择任务 two"))
       await user.click(screen.getByRole("button", { name: "重试" }))
 
-      await waitFor(async () => expect((await db.planTasks.toArray()).filter((row) => row.scheduledDate === "2027-01-18")).toHaveLength(2))
+      await waitFor(async () => expect((await db.planTasks.toArray()).filter((row) => row.scope === "semester" && row.periodKey === target.id)).toHaveLength(2))
       expect(copySpy).toHaveBeenCalledTimes(2)
       expect(onClose).toHaveBeenCalledTimes(1)
     } finally {
@@ -119,6 +121,7 @@ describe("PeriodMigrationPanel", () => {
     const copySpy = vi.spyOn(planTaskService, "copyTasksToPeriodAndDismiss")
       .mockRejectedValueOnce(new Error("磁盘写入失败"))
       .mockImplementationOnce(realCopy)
+    await db.learningPeriods.bulkAdd([source, target])
     await db.planTasks.bulkAdd(rows)
     const rendered = render(<PeriodMigrationPanel db={db} onClose={onClose} open sourcePeriod={source} targetPeriod={target} tasks={rows} today="2027-01-18" />)
 
@@ -143,8 +146,7 @@ describe("PeriodMigrationPanel", () => {
       await user.click(screen.getByLabelText("选择任务 two"))
       await user.click(screen.getByRole("button", { name: "重试" }))
 
-      await waitFor(async () => expect((await db.planTasks.toArray()).filter((row) => row.scheduledDate === "2027-01-18")).toHaveLength(2))
-      expect((await db.planTasks.toArray()).filter((row) => row.scheduledDate === "2027-03-05")).toHaveLength(0)
+      await waitFor(async () => expect((await db.planTasks.toArray()).filter((row) => row.scope === "semester" && row.periodKey === target.id)).toHaveLength(2))
       expect(copySpy).toHaveBeenNthCalledWith(1, db, ["one", "two"], target, source.id, "2027-01-18", expect.any(Number))
       expect(copySpy).toHaveBeenNthCalledWith(2, db, ["one", "two"], target, source.id, "2027-01-18", expect.any(Number))
     } finally {

@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest"
 
 import type { LearningPeriod, PlanTask } from "@/db/types"
 
-import { countTasksInPeriod, findPeriodForDate, validateLearningPeriod } from "./learning-periods"
+import { countTasksForPeriod, findPeriodForDate, validateLearningPeriod } from "./learning-periods"
 
 function period(overrides: Partial<LearningPeriod> = {}): LearningPeriod {
   return {
@@ -21,7 +21,8 @@ function task(overrides: Partial<PlanTask> = {}): PlanTask {
   return {
     id: "task",
     title: "高等数学复习",
-    scheduledDate: "2026-10-12",
+    scope: "day",
+    periodKey: "2026-10-12",
     isCompleted: 0,
     order: 1,
     createdAt: 1,
@@ -128,18 +129,17 @@ describe("learning period domain rules", () => {
     ).toEqual({ ok: true })
   })
 
-  it("counts tasks scheduled within an inclusive period range", () => {
+  it("counts only semester tasks owned by the selected period id", () => {
     expect(
-      countTasksInPeriod(
+      countTasksForPeriod(
         [
-          task({ id: "before", scheduledDate: "2026-08-31" }),
-          task({ id: "start", scheduledDate: "2026-09-01" }),
-          task({ id: "middle", scheduledDate: "2026-11-10" }),
-          task({ id: "end", scheduledDate: "2027-01-16" }),
-          task({ id: "after", scheduledDate: "2027-01-17" }),
+          task({ id: "day-in-range", scope: "day", periodKey: "2026-10-12" }),
+          task({ id: "week-in-range", scope: "week", periodKey: "2026-10-12" }),
+          task({ id: "semester-owned", scope: "semester", periodKey: "period" }),
+          task({ id: "semester-other", scope: "semester", periodKey: "other" }),
         ],
-        period(),
+        "period",
       ),
-    ).toBe(3)
+    ).toBe(1)
   })
 })

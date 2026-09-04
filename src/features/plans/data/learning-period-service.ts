@@ -4,7 +4,7 @@ import type { VeloDB } from "@/db/velo-db"
 import {
   type LearningPeriodInput,
   type PeriodValidation,
-  countTasksInPeriod,
+  countTasksForPeriod,
   validateLearningPeriod,
 } from "../domain/learning-periods"
 
@@ -91,7 +91,7 @@ export async function deleteLearningPeriod(db: VeloDB, id: string): Promise<{ af
     }
 
     const tasks = await db.planTasks.toArray()
-    const affectedTaskCount = countTasksInPeriod(tasks, existing)
+    const affectedTaskCount = countTasksForPeriod(tasks, existing.id)
 
     await db.learningPeriods.delete(id)
 

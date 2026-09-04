@@ -36,7 +36,8 @@ function task(overrides: Partial<PlanTask> = {}): PlanTask {
   return {
     id: crypto.randomUUID(),
     title: "任务",
-    scheduledDate: "2026-10-01",
+    scope: "day",
+    periodKey: "2026-10-01",
     isCompleted: 0,
     order: 1,
     createdAt: 1,
@@ -242,18 +243,18 @@ describe("learning period service", () => {
     })
   })
 
-  it("deletes a period and reports how many tasks become unassigned", async () => {
+  it("deletes a period and reports only semester tasks owned by that period", async () => {
     await withDatabase(async (db) => {
       await db.learningPeriods.add(period())
       await db.planTasks.bulkAdd([
-        task({ id: "before", scheduledDate: "2026-08-31" }),
-        task({ id: "start", scheduledDate: "2026-09-01" }),
-        task({ id: "middle", scheduledDate: "2026-11-10" }),
-        task({ id: "end", scheduledDate: "2027-01-16" }),
-        task({ id: "after", scheduledDate: "2027-01-17" }),
+        task({ id: "day-in-range", scope: "day", periodKey: "2026-10-01" }),
+        task({ id: "week-in-range", scope: "week", periodKey: "2026-09-28" }),
+        task({ id: "month-in-range", scope: "month", periodKey: "2026-10" }),
+        task({ id: "semester-owned", scope: "semester", periodKey: "semester" }),
+        task({ id: "semester-other", scope: "semester", periodKey: "other" }),
       ])
 
-      await expect(deleteLearningPeriod(db, "semester")).resolves.toEqual({ affectedTaskCount: 3 })
+      await expect(deleteLearningPeriod(db, "semester")).resolves.toEqual({ affectedTaskCount: 1 })
       expect(await db.learningPeriods.get("semester")).toBeUndefined()
       expect(await db.planTasks.count()).toBe(5)
     })
