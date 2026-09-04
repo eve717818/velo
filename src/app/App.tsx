@@ -10,6 +10,7 @@ import { LaunchScreen } from "./LaunchScreen"
 const ONBOARDING_COMPLETE_KEY = "velow-notebook:onboarding-complete"
 
 function shouldShowLaunchScreen() {
+  if (new URLSearchParams(window.location.search).get("launch") === "1") return true
   try {
     return localStorage.getItem(ONBOARDING_COMPLETE_KEY) !== "1"
   } catch {

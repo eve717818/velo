@@ -11,6 +11,21 @@ afterEach(() => {
 })
 
 describe("App", () => {
+  it("can preview the launch screen without clearing existing onboarding state", async () => {
+    localStorage.setItem("velow-notebook:onboarding-complete", "1")
+    const originalPath = window.location.href
+    window.history.replaceState(null, "", "/?launch=1")
+    try {
+      render(<App />)
+      expect(screen.getByRole("region", { name: "Velow Notebook 欢迎页" })).toBeInTheDocument()
+      await userEvent.setup().click(screen.getByRole("button", { name: "Get started" }))
+      expect(screen.queryByRole("region", { name: "Velow Notebook 欢迎页" })).not.toBeInTheDocument()
+      expect(localStorage.getItem("velow-notebook:onboarding-complete")).toBe("1")
+    } finally {
+      window.history.replaceState(null, "", originalPath)
+    }
+  })
+
   it("exposes the Velow Notebook application root without nesting page landmarks", () => {
     const { container } = render(<App />)
     expect(container.querySelector('[data-app-name="Velow Notebook"]')).toBeInTheDocument()
