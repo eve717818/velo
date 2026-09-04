@@ -1,4 +1,5 @@
 import { useRef, useState } from "react"
+import { X } from "lucide-react"
 import type { LearningPeriod, PlanTask, PlanTaskScope } from "@/db/types"
 import type { VeloDB } from "@/db/velo-db"
 import { getWeekDates } from "../domain/plan-dates"
@@ -191,7 +192,7 @@ function TaskEditorForm({ db, onClose, periodKey, periods, requestSession, scope
           <p className={styles.eyebrow}>学习计划</p>
           <h2 id="task-editor-heading">{task ? "编辑学习任务" : "新建学习任务"}</h2>
         </div>
-        <button aria-label="关闭任务编辑" className={styles.iconButton} onClick={onClose} type="button">×</button>
+        <button aria-label="关闭任务编辑" className={styles.iconButton} onClick={onClose} type="button"><X aria-hidden="true" size={20} /></button>
       </div>
 
       <label className={styles.field} htmlFor="task-title">
