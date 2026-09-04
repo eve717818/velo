@@ -1,5 +1,6 @@
 import type { LearningPeriod, PlanTask, PlanTaskScope } from "@/db/types"
 import type { VeloDB } from "@/db/velo-db"
+import { createId } from "@/lib/create-id"
 
 import { assertValidPlanPeriodKey } from "../domain/plan-period-keys"
 import { getNextTaskOrder } from "./task-order"
@@ -120,7 +121,7 @@ export async function createPlanTask(db: VeloDB, input: CreatePlanTaskInput, now
   return db.transaction("rw", db.planTasks, db.learningPeriods, async () => {
     await assertSemesterPeriodExists(db, normalized.scope, normalized.periodKey)
     const created: PlanTask = {
-      id: crypto.randomUUID(),
+      id: createId(),
       title: normalized.title,
       scope: normalized.scope,
       periodKey: normalized.periodKey,
@@ -264,7 +265,7 @@ async function copyTasksToPeriodInTransaction(db: VeloDB, sourceIds: string[], p
 
   let nextOrder = await getNextTaskOrder(db, "semester", periodKey, undefined)
   const copiedTasks = sourceTasks.map((task) => ({
-    id: crypto.randomUUID(),
+    id: createId(),
     title: task!.title,
     scope: "semester" as const,
     periodKey,

@@ -1,5 +1,6 @@
 import type { PlanTask } from "@/db/types"
 import type { VeloDB } from "@/db/velo-db"
+import { createId } from "@/lib/create-id"
 
 import { parseLocalDate } from "../domain/plan-dates"
 import { getNextTaskOrder } from "./task-order"
@@ -22,7 +23,7 @@ export async function convertLegacyPlanTask(db: VeloDB, legacyId: string, schedu
     if (!legacy) throw new Error("旧计划任务不存在")
     const order = await getNextTaskOrder(db, "day", scheduledDate, undefined)
     const created: PlanTask = {
-      id: crypto.randomUUID(), title: legacy.title, scope: "day", periodKey: scheduledDate, subject: legacy.subject, estimatedMinutes: legacy.estimatedMinutes,
+      id: createId(), title: legacy.title, scope: "day", periodKey: scheduledDate, subject: legacy.subject, estimatedMinutes: legacy.estimatedMinutes,
       isCompleted: legacy.isCompleted, completedAt: legacy.isCompleted ? now : undefined, order, createdAt: now, updatedAt: now,
     }
     await db.planTasks.add(created)

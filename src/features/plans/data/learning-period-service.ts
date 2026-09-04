@@ -1,5 +1,6 @@
 import type { LearningPeriod } from "@/db/types"
 import type { VeloDB } from "@/db/velo-db"
+import { createId } from "@/lib/create-id"
 
 import {
   type LearningPeriodInput,
@@ -43,7 +44,7 @@ export async function createLearningPeriod(db: VeloDB, input: LearningPeriodInpu
     assertValidLearningPeriod(normalized, periods)
 
     const created: LearningPeriod = {
-      id: crypto.randomUUID(),
+      id: createId(),
       ...normalized,
       createdAt: now,
       updatedAt: now,

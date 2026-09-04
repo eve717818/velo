@@ -1,4 +1,5 @@
 import { formatLocalDate } from "../lib/local-date"
+import { createId } from "../lib/create-id"
 import type { KnowledgeNode, NoteDocument, PlanTask } from "./types"
 import { type VeloDB } from "./velo-db"
 
@@ -30,11 +31,11 @@ export async function seedHomeDemo(db: VeloDB, now: Date): Promise<void> {
       return
     }
 
-    const nodeId = crypto.randomUUID()
-    const noteId = crypto.randomUUID()
+    const nodeId = createId()
+    const noteId = createId()
     const tasks: PlanTask[] = [
       {
-        id: crypto.randomUUID(),
+        id: createId(),
         scope: "day",
         periodKey,
         title: "英语阅读 · Chapter 3",
@@ -44,7 +45,7 @@ export async function seedHomeDemo(db: VeloDB, now: Date): Promise<void> {
         updatedAt: timestamp,
       },
       {
-        id: crypto.randomUUID(),
+        id: createId(),
         scope: "day",
         periodKey,
         title: "线性代数 · 习题整理",
@@ -54,7 +55,7 @@ export async function seedHomeDemo(db: VeloDB, now: Date): Promise<void> {
         updatedAt: timestamp,
       },
       {
-        id: crypto.randomUUID(),
+        id: createId(),
         scope: "day",
         periodKey,
         title: "程序设计 · 函数与递归",
@@ -64,7 +65,7 @@ export async function seedHomeDemo(db: VeloDB, now: Date): Promise<void> {
         updatedAt: timestamp,
       },
       {
-        id: crypto.randomUUID(),
+        id: createId(),
         scope: "day",
         periodKey,
         title: "高等数学 · 导数复习",
@@ -74,7 +75,7 @@ export async function seedHomeDemo(db: VeloDB, now: Date): Promise<void> {
         updatedAt: timestamp,
       },
       {
-        id: crypto.randomUUID(),
+        id: createId(),
         scope: "day",
         periodKey,
         title: "物理实验报告 · 数据整理",
