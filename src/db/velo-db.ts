@@ -101,7 +101,10 @@ export class VeloDB extends Dexie {
       .upgrade(async (transaction) => {
         const tasks = transaction.table<VersionFourPlanTaskRow, string>("planTasks")
         for (const row of await tasks.toArray()) {
-          const { scheduledDate, groupId: _groupId, stepIndex: _stepIndex, stepTitleMode: _stepTitleMode, ...rest } = row
+          const { scheduledDate, ...rest } = row
+          delete rest.groupId
+          delete rest.stepIndex
+          delete rest.stepTitleMode
           if (typeof scheduledDate !== "string") throw new Error("v4 任务日期缺失")
           assertValidPlanPeriodKey("day", scheduledDate)
           await tasks.put({ ...rest, scope: "day", periodKey: scheduledDate, startMinutes: row.startMinutes })

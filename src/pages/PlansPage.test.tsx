@@ -1,7 +1,7 @@
 import { render, screen, waitFor } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { MemoryRouter, useLocation } from "react-router-dom"
-import { describe, expect, it } from "vitest"
+import { describe, expect, it, vi } from "vitest"
 
 import type { LearningPeriod, PlanTask } from "@/db/types"
 import { VeloDB } from "@/db/velo-db"
@@ -121,6 +121,79 @@ describe("PlansPage", () => {
       expect(screen.getByLabelText("当前位置")).toHaveTextContent("/plans?view=period&date=2026-09-02&period=fall")
       expect(await screen.findByRole("link", { name: "新建任务" })).toBeInTheDocument()
     } finally {
+      rendered.unmount()
+      await db.delete()
+    }
+  })
+
+  it("creates a learning period from the period manager", async () => {
+    const db = createDatabase()
+    const user = userEvent.setup()
+    await db.learningPeriods.add(period())
+    const rendered = renderPlansPage("/plans?view=period&date=2026-09-02&period=fall", db)
+
+    try {
+      await user.click(await screen.findByRole("button", { name: "管理学期与假期" }))
+      await user.click(screen.getByRole("button", { name: "新建学期或假期" }))
+
+      expect(screen.getByRole("dialog", { name: "新建学期或假期" })).toBeInTheDocument()
+      await user.clear(screen.getByLabelText("学期或假期名称"))
+      await user.type(screen.getByLabelText("学期或假期名称"), "2027 寒假")
+      await user.type(screen.getByLabelText("开始日期"), "2027-01-17")
+      await user.type(screen.getByLabelText("结束日期"), "2027-02-20")
+      await user.click(screen.getByRole("button", { name: "保存" }))
+
+      await waitFor(async () => expect(await db.learningPeriods.filter((row) => row.name === "2027 寒假").count()).toBe(1))
+    } finally {
+      rendered.unmount()
+      await db.delete()
+    }
+  })
+
+  it("returns focus to the task row after closing edit and delete dialogs", async () => {
+    const db = createDatabase()
+    const user = userEvent.setup()
+    await db.planTasks.add(task({ id: "week-task", title: "周任务", scope: "week", periodKey: "2026-08-31" }))
+    const rendered = renderPlansPage("/plans?view=week&date=2026-09-02", db)
+
+    try {
+      const taskButton = await screen.findByRole("button", { name: "打开任务操作：周任务" })
+      await user.click(taskButton)
+      await user.click(screen.getByRole("button", { name: "编辑" }))
+      await user.click(screen.getByRole("button", { name: "关闭任务编辑" }))
+      await waitFor(() => expect(taskButton).toHaveFocus())
+
+      await user.click(taskButton)
+      await user.click(screen.getByRole("button", { name: "删除" }))
+      await user.click(screen.getByRole("button", { name: "取消" }))
+      await waitFor(() => expect(taskButton).toHaveFocus())
+    } finally {
+      rendered.unmount()
+      await db.delete()
+    }
+  })
+
+  it("shows a recoverable error when reopening period migration fails", async () => {
+    const db = createDatabase()
+    const user = userEvent.setup()
+    const source = period({ id: "spring", name: "2026 春季学期", startDate: "2026-02-20", endDate: "2026-07-10" })
+    const target = period({ id: "fall", name: "2026 秋季学期", startDate: "2026-09-01", endDate: "2027-01-16" })
+    await db.learningPeriods.bulkAdd([source, target])
+    const deleteSpy = vi.spyOn(db.appMeta, "delete").mockRejectedValueOnce(new Error("写入失败"))
+    const rendered = renderPlansPage("/plans?view=period&date=2026-09-02&period=fall", db)
+
+    try {
+      await user.click(await screen.findByRole("button", { name: "管理学期与假期" }))
+      await user.click(screen.getByRole("button", { name: "更多学期操作" }))
+      await user.click(screen.getByRole("menuitem", { name: "处理上学期任务" }))
+
+      expect(await screen.findByRole("alert")).toHaveTextContent("写入失败")
+      deleteSpy.mockResolvedValueOnce(undefined)
+      await user.click(screen.getByRole("button", { name: "重试" }))
+
+      await waitFor(() => expect(screen.queryByRole("alert")).not.toBeInTheDocument())
+    } finally {
+      deleteSpy.mockRestore()
       rendered.unmount()
       await db.delete()
     }

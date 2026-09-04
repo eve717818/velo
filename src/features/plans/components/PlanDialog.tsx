@@ -43,7 +43,7 @@ export function PlanDialog({ children, labelledBy, onRequestClose, open, returnF
     }
 
     if (dialog.open) dialog.close()
-    triggerRef.current?.focus()
+    if (triggerRef.current?.isConnected) triggerRef.current.focus()
   }, [open, returnFocusTo])
 
   function closeFromDialog(event: SyntheticEvent<HTMLDialogElement>) {

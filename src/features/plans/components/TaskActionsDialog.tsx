@@ -15,14 +15,15 @@ interface TaskActionsDialogProps {
   completionError?: string
   completionSaving?: boolean
   open: boolean
+  returnFocusTo?: HTMLElement | null
   task: PlanTask
 }
 
-export function TaskActionsDialog({ completionError, completionSaving, onClose, onDelete, onEdit, onMove, onRetryCompletion, onStartFocus, onToggleCompletion, open, task }: TaskActionsDialogProps) {
+export function TaskActionsDialog({ completionError, completionSaving, onClose, onDelete, onEdit, onMove, onRetryCompletion, onStartFocus, onToggleCompletion, open, returnFocusTo, task }: TaskActionsDialogProps) {
   const headingId = "task-actions-heading"
 
   return (
-    <PlanDialog labelledBy={headingId} onRequestClose={onClose} open={open}>
+    <PlanDialog labelledBy={headingId} onRequestClose={onClose} open={open} returnFocusTo={returnFocusTo}>
       <div className={styles.actionDialog}>
         <div className={styles.dialogHeader}>
           <div>

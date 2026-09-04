@@ -105,9 +105,13 @@ export function PlansPage({ db = veloDb, now }: PlansPageProps) {
   const [deleteTask, setDeleteTask] = useState<PlanTask | null>(null)
   const [editorTask, setEditorTask] = useState<PlanTask | null>(null)
   const [editingPeriod, setEditingPeriod] = useState<LearningPeriod | undefined>()
+  const [isPeriodDialogOpen, setIsPeriodDialogOpen] = useState(false)
   const [periodToDelete, setPeriodToDelete] = useState<LearningPeriod | null>(null)
   const [isPeriodManagerOpen, setIsPeriodManagerOpen] = useState(false)
   const [isMigrationOpen, setIsMigrationOpen] = useState(false)
+  const [migrationReopenError, setMigrationReopenError] = useState("")
+  const [migrationRetryPeriod, setMigrationRetryPeriod] = useState<LearningPeriod | null>(null)
+  const [taskTrigger, setTaskTrigger] = useState<HTMLElement | null>(null)
   const [completionError, setCompletionError] = useState("")
   const [completionSaving, setCompletionSaving] = useState(false)
   const isCreating = searchParams.get("new") === "1"
@@ -153,9 +157,25 @@ export function PlansPage({ db = veloDb, now }: PlansPageProps) {
     updateParameters({ view: "period", period: nextPeriodId })
   }
 
-  function openTask(task: PlanTask) {
+  function openTask(task: PlanTask, trigger?: HTMLElement) {
     setActionTask(task)
+    setTaskTrigger(trigger ?? null)
     setCompletionError("")
+  }
+
+  function focusTaskTrigger() {
+    const trigger = taskTrigger
+    if (trigger?.isConnected) queueMicrotask(() => trigger.focus())
+  }
+
+  function closeTaskActions() {
+    setActionTask(null)
+    focusTaskTrigger()
+  }
+
+  function closeDeleteTask() {
+    setDeleteTask(null)
+    focusTaskTrigger()
   }
 
   async function toggleCompletion(nextValue: boolean) {
@@ -175,9 +195,16 @@ export function PlansPage({ db = veloDb, now }: PlansPageProps) {
   async function reopenMigration(period: LearningPeriod) {
     const source = snapshot?.periods.filter((candidate) => candidate.endDate < period.startDate).sort((left, right) => right.endDate.localeCompare(left.endDate))[0]
     if (!source) return
-    await reopenPeriodMigration(db, source.id, period.id)
-    selectPeriod(period.id)
-    setIsMigrationOpen(true)
+    setMigrationRetryPeriod(period)
+    setMigrationReopenError("")
+    try {
+      await reopenPeriodMigration(db, source.id, period.id)
+      setMigrationRetryPeriod(null)
+      selectPeriod(period.id)
+      setIsMigrationOpen(true)
+    } catch (reason) {
+      setMigrationReopenError(reason instanceof Error ? reason.message : "无法重新打开迁移任务")
+    }
   }
 
   const createParams = new URLSearchParams({ view, date: selectedDate, new: "1" })
@@ -209,9 +236,9 @@ export function PlansPage({ db = veloDb, now }: PlansPageProps) {
           </div>
           {snapshot ? (
             isPeriodManagerOpen ? <LearningPeriodView
-              onCreate={() => setEditingPeriod(undefined)}
+              onCreate={() => { setEditingPeriod(undefined); setIsPeriodDialogOpen(true) }}
               onDelete={setPeriodToDelete}
-              onEdit={setEditingPeriod}
+              onEdit={(period) => { setEditingPeriod(period); setIsPeriodDialogOpen(true) }}
               onReopenMigration={(period) => { void reopenMigration(period) }}
               onSelect={(period) => { selectPeriod(period.id); setIsPeriodManagerOpen(false) }}
               periods={snapshot.periods}
@@ -220,6 +247,7 @@ export function PlansPage({ db = veloDb, now }: PlansPageProps) {
               : snapshot.periodKey ? <PlanTaskListView db={db} onCreate={openCreate} onOpen={openTask} periodKey={snapshot.periodKey} scope={scope} tasks={snapshot.tasks} />
                 : <section aria-label="未选择学期或假期"><h3>选择一个学期或假期</h3><p>请从上方选择器中选择一个有效学习周期后再新建任务。</p></section>
           ) : null}
+          {migrationReopenError ? <PlanErrorState error={migrationReopenError} onRetry={() => { if (migrationRetryPeriod) void reopenMigration(migrationRetryPeriod) }} /> : null}
         </section>
         <PlanProgress tasks={snapshot?.tasks ?? []} view={view} />
       </div>
@@ -229,6 +257,7 @@ export function PlansPage({ db = veloDb, now }: PlansPageProps) {
         open={Boolean(snapshot?.periodKey) && (isCreating || editorTask !== null)}
         periodKey={snapshot?.periodKey ?? ""}
         periods={snapshot?.periods ?? []}
+        returnFocusTo={taskTrigger?.isConnected ? taskTrigger : null}
         scope={scope}
         selectedDate={selectedDate}
         task={editorTask ?? undefined}
@@ -236,7 +265,7 @@ export function PlansPage({ db = veloDb, now }: PlansPageProps) {
       {actionTask ? <TaskActionsDialog
         completionError={completionError}
         completionSaving={completionSaving}
-        onClose={() => setActionTask(null)}
+        onClose={closeTaskActions}
         onDelete={() => { setDeleteTask(actionTask); setActionTask(null) }}
         onEdit={() => { setEditorTask(actionTask); setActionTask(null) }}
         onMove={() => { setEditorTask(actionTask); setActionTask(null) }}
@@ -244,16 +273,17 @@ export function PlansPage({ db = veloDb, now }: PlansPageProps) {
         onStartFocus={(href) => { setActionTask(null); void navigate(href) }}
         onToggleCompletion={(nextValue) => { void toggleCompletion(nextValue) }}
         open
+        returnFocusTo={taskTrigger?.isConnected ? taskTrigger : null}
         task={actionTask}
       /> : null}
-      {deleteTask ? <DeleteTaskDialog db={db} onClose={() => setDeleteTask(null)} open returnFocusTo={null} task={deleteTask} /> : null}
-      {editingPeriod !== undefined || isPeriodManagerOpen ? <LearningPeriodDialog
+      {deleteTask ? <DeleteTaskDialog db={db} onClose={closeDeleteTask} open returnFocusTo={taskTrigger?.isConnected ? taskTrigger : null} task={deleteTask} /> : null}
+      <LearningPeriodDialog
         db={db}
-        onClose={() => setEditingPeriod(undefined)}
-        open={editingPeriod !== undefined}
+        onClose={() => { setEditingPeriod(undefined); setIsPeriodDialogOpen(false) }}
+        open={isPeriodDialogOpen}
         period={editingPeriod}
         periods={snapshot?.periods ?? []}
-      /> : null}
+      />
       {periodToDelete ? <DeletePeriodDialog db={db} onClose={() => setPeriodToDelete(null)} onDeleted={(deletedPeriodId) => { setPeriodToDelete(null); if (periodId === deletedPeriodId) updateParameters({ period: undefined }) }} period={periodToDelete} taskCount={periodTaskCount ?? 0} /> : null}
       {migrationSource && activePeriod && migrationTasks && migrationTasks.length > 0 && !migrationDismissal ? <div className={styles.migrationBanner}><span>上一学期或假期还有 {migrationTasks.length} 个任务未完成</span><button onClick={() => setIsMigrationOpen(true)} type="button">查看并复制</button></div> : null}
       {migrationSource && activePeriod ? <PeriodMigrationPanel db={db} onClose={() => setIsMigrationOpen(false)} open={isMigrationOpen} sourcePeriod={migrationSource} targetPeriod={activePeriod} tasks={migrationTasks ?? []} today={selectedDate} /> : null}
