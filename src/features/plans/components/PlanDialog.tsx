@@ -39,7 +39,13 @@ export function PlanDialog({ children, labelledBy, onRequestClose, open, returnF
       triggerRef.current = returnFocusTo ?? (document.activeElement instanceof HTMLElement ? document.activeElement : null)
       if (!dialog.open) dialog.showModal()
       queueMicrotask(() => getFocusableElements(dialog)[0]?.focus())
-      return
+      return () => {
+        const trigger = triggerRef.current
+        if (dialog.open) dialog.close()
+        queueMicrotask(() => {
+          if (trigger?.isConnected && !document.querySelector("dialog[open]")) trigger.focus()
+        })
+      }
     }
 
     if (dialog.open) dialog.close()

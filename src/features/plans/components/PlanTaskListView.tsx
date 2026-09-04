@@ -2,6 +2,7 @@ import type { PlanTask } from "@/db/types"
 import type { VeloDB } from "@/db/velo-db"
 
 import { TaskBar, type TaskPosition } from "./TaskBar"
+import styles from "../PlansPage.module.css"
 
 export interface PlanTaskListViewProps {
   db: VeloDB
@@ -24,11 +25,14 @@ export function PlanTaskListView({ db, onCreate, onMoved, onOpen, periodKey, sco
   const orderedTasks = [...tasks].sort((left, right) => left.order - right.order)
 
   return (
-    <section aria-label={copy.region} data-period-key={periodKey}>
+    <section aria-label={copy.region} className={styles.planListSurface} data-period-key={periodKey}>
       {orderedTasks.length === 0 ? (
-        <div>
-          <p>{copy.empty}</p>
-          <button onClick={onCreate} type="button">新建任务</button>
+        <div className={styles.viewEmptyState}>
+          <div>
+            <h3>还没有任务</h3>
+            <p>{copy.empty}</p>
+          </div>
+          <button className={styles.emptyCreateAction} onClick={onCreate} type="button">新建任务</button>
         </div>
       ) : (
         <ul>

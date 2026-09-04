@@ -163,19 +163,28 @@ export function PlansPage({ db = veloDb, now }: PlansPageProps) {
     setCompletionError("")
   }
 
-  function focusTaskTrigger() {
+  function focusTaskTrigger(taskId?: string) {
     const trigger = taskTrigger
-    if (trigger?.isConnected) queueMicrotask(() => trigger.focus())
+    const restoreFocus = () => {
+      const target = trigger?.isConnected
+        ? trigger
+        : taskId
+          ? document.querySelector<HTMLButtonElement>(`[data-task-id="${CSS.escape(taskId)}"]`)
+          : null
+      target?.focus()
+    }
+    window.setTimeout(restoreFocus, 0)
   }
 
   function closeTaskActions() {
+    const taskId = actionTask?.id
     setActionTask(null)
-    focusTaskTrigger()
+    focusTaskTrigger(taskId)
   }
 
   function closeDeleteTask() {
     setDeleteTask(null)
-    focusTaskTrigger()
+    focusTaskTrigger(deleteTask?.id)
   }
 
   async function toggleCompletion(nextValue: boolean) {
@@ -183,8 +192,10 @@ export function PlansPage({ db = veloDb, now }: PlansPageProps) {
     setCompletionSaving(true)
     setCompletionError("")
     try {
-      await setTaskCompletion(db, actionTask.id, nextValue, Date.now())
+      const taskId = actionTask.id
+      await setTaskCompletion(db, taskId, nextValue, Date.now())
       setActionTask(null)
+      focusTaskTrigger(taskId)
     } catch (reason) {
       setCompletionError(reason instanceof Error ? reason.message : "更新任务状态失败")
     } finally {
@@ -245,7 +256,7 @@ export function PlansPage({ db = veloDb, now }: PlansPageProps) {
               selectedPeriodId={activePeriod?.id}
             /> : scope === "day" ? <DayPlanView db={db} onCreate={openCreate} onOpen={openTask} selectedDate={selectedDate} tasks={snapshot.tasks} today={selectedDate} />
               : snapshot.periodKey ? <PlanTaskListView db={db} onCreate={openCreate} onOpen={openTask} periodKey={snapshot.periodKey} scope={scope} tasks={snapshot.tasks} />
-                : <section aria-label="未选择学期或假期"><h3>选择一个学期或假期</h3><p>请从上方选择器中选择一个有效学习周期后再新建任务。</p></section>
+                : <section aria-label="未选择学期或假期" className={styles.viewEmptyState}><div><h3>选择一个学期或假期</h3><p>请从上方选择器中选择一个有效学习周期后再新建任务。</p></div></section>
           ) : null}
           {migrationReopenError ? <PlanErrorState error={migrationReopenError} onRetry={() => { if (migrationRetryPeriod) void reopenMigration(migrationRetryPeriod) }} /> : null}
         </section>
@@ -257,7 +268,7 @@ export function PlansPage({ db = veloDb, now }: PlansPageProps) {
         open={Boolean(snapshot?.periodKey) && (isCreating || editorTask !== null)}
         periodKey={snapshot?.periodKey ?? ""}
         periods={snapshot?.periods ?? []}
-        returnFocusTo={taskTrigger?.isConnected ? taskTrigger : null}
+        returnFocusTo={editorTask && taskTrigger?.isConnected ? taskTrigger : null}
         scope={scope}
         selectedDate={selectedDate}
         task={editorTask ?? undefined}

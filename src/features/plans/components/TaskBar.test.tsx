@@ -39,6 +39,28 @@ function deferred<T>() {
 }
 
 describe("TaskBar", () => {
+  it("accepts external completion changes after a local completion and undo", async () => {
+    const db = createDatabase()
+    const currentTask = task()
+    const user = userEvent.setup()
+    await db.planTasks.add(currentTask)
+    const rendered = render(<TaskBar db={db} task={currentTask} />)
+    try {
+      screen.getByRole("button", { name: "打开任务操作：复习导数" }).focus()
+      await user.keyboard("{Enter}")
+      await screen.findByRole("status")
+      rendered.rerender(<TaskBar db={db} task={{ ...currentTask, isCompleted: 1, completedAt: 2 }} />)
+      await user.click(screen.getByRole("button", { name: "撤销" }))
+      await waitFor(() => expect(screen.queryByRole("status")).not.toBeInTheDocument())
+      rendered.rerender(<TaskBar db={db} task={{ ...currentTask, isCompleted: 0 }} />)
+      rendered.rerender(<TaskBar db={db} task={{ ...currentTask, isCompleted: 1, completedAt: 3 }} />)
+      expect(screen.getByRole("button", { name: "已完成：复习导数" })).toBeInTheDocument()
+    } finally {
+      rendered.unmount()
+      await db.delete()
+    }
+  })
+
   it("keeps a designed right-swipe arrow visible before interaction", async () => {
     const db = createDatabase()
     const rendered = render(<TaskBar db={db} task={task()} />)

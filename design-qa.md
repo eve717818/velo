@@ -54,28 +54,35 @@ Final result: passed
 
 ## Verified behavior
 
-- Weekly and monthly overall plans are local-first range notes containing a theme, goal, up to five focus items, and an optional note. They never copy or own dated tasks.
-- The month calendar uses seven equal-width columns and stays inside its surface. On phone and portrait tablet the selected-day panel stacks below; at 1024px and above it becomes the secondary 35% column.
-- Selected-day task lists preview two items before an explicit expand control and scroll internally when long, preventing the month page from becoming an unbounded task feed.
+- Day, week, month, and semester are independent task workspaces. Each row belongs to exactly one scope and period; progress never aggregates another scope.
+- Day retains timed and unscheduled lanes. Week, month, and semester reuse one ordered task list; there are no seven-column calendars, selected-day panels, or range-plan drawers.
+- The existing quiet workspace style, brand purple, cool-blue navigation and teal progress are retained. Task lists take the available width; at 1024px and above the workspace is centered within 1040px, with secondary progress beside it on large desktops.
 - Incomplete task bars always show a decorative flow arrow. A slow right swipe completes at 45% width; a fast flick completes after 20% width at 0.65px/ms or faster. Vertical intent keeps page scrolling available.
 - Completed cards use a saturated purple-gray glass state with text status and undo. No checkbox or thin per-task progress bar is used.
 - User-facing navigation and controls use “学期” or “学期与假期”; view-specific progress copy distinguishes today, week, month, and semester completion.
-- Weekly/monthly plan editing is a bottom drawer below 768px and a right drawer at 768px and above. Focus is trapped while open, Escape/cancel protects dirty drafts, and focus returns to the originating control.
+- Task creation locks scope to the current workspace. Invalid semester links show a recoverable selector and cannot open a save form. Injected IndexedDB failures preserve title, period, subject, estimate and notes; retry succeeds and restores the create/edit trigger focus.
+- Task-menu completion restores the same row's focus after native dialog teardown. Error/retry occupies a full-width row above equal-height cancel/save controls.
 - Nonessential transitions are disabled by `prefers-reduced-motion: reduce`; keyboard completion and explicit action menus remain available without gestures.
 
 ## Responsive matrix
 
 | Width | Expected composition | Result |
 | --- | --- | --- |
-| 375 / 390px | Bottom navigation, contained seven-column calendar, selected-day preview below, bottom range-plan drawer | Passed |
-| 768 / 834px | Navigation rail, full-width calendar with stacked selected-day panel, right range-plan drawer | Passed |
-| 1024px | Full-width month surface, approximately 65/35 calendar/task split, equal secondary cards below | Passed |
-| 1366 / 1440px | Expanded workspace with the same hierarchy and no page-level horizontal overflow | Passed |
+| 375×900 / 390×844 | Bottom navigation; compact previous/picker/next row; full-width task list and stacked progress | Passed |
+| 768×1024 / 834×1112 | Navigation rail; readable single-list workspace with stacked progress | Passed |
+| 1024×820 | Centered workspace within 1040px; task list above progress | Passed |
+| 1366×900 / 1440×900 | Centered task surface beside progress | Passed |
+
+The matrix checks all four scopes at every size, both normal and 200% root text size: no page-level horizontal overflow, cards inside their nearest list surface, growing task height, doubled task text, and no title/metadata/status overlap. Previous/next, picker, management, create and view controls expose at least 44×44 CSS pixels. Screenshots are produced in `test-results/plans-independent-plan-wor-34714-ccessible-and-offline-ready-chromium/` using `<width>-<view>[-text200].png`, plus `invalid-semester.png` and `failed-save.png`.
 
 ## Known limitations
 
-- Range plans are stored on the current device and do not yet sync across devices or accounts.
+- Tasks are stored on the current device and do not yet sync across devices or accounts.
 - Right-swipe completion is intended for pointer/touch input; keyboard users complete with Enter or Space, and all users retain explicit task actions.
-- Very long selected-day lists are deliberately contained in their own scroll region rather than expanding the full month page.
+- Automated axe scans and keyboard checks do not constitute screen-reader or full WCAG certification; physical-device touch and screen-reader review remain manual acceptance items. Root-text scaling exercises rem-based task text; browser page zoom is not claimed as tested.
 
-Plan-workspace result: passed
+Verification on 2026-09-04: `pnpm verify` passed typecheck, lint, all 51 Vitest files / 223 tests, and build. `pnpm exec playwright test` passed all 16 tests, including unchanged home and PWA suites. `pnpm test:pwa-lifecycle` verified `pwa-v1 → prompt → pwa-v2`. `git diff --check` passed. The existing production bundle-size warning remains (approximately 535 kB minified main JS); runtime dependencies are unchanged.
+
+All 58 screenshots were generated; representative screenshots across every width, normal/200% mobile text, invalid selection and failed save were visually inspected. Compact mobile navigation, timed-day layout and full-width retry/error layout were rechecked in final captures. Full-page phone screenshots include the fixed bottom navigation at its viewport position; the underlying content is reachable by scrolling.
+
+Plan-workspace result: automated and rendered verification passed; ready for manual acceptance of the four independent workspaces.

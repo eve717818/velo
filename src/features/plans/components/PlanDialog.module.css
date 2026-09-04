@@ -345,6 +345,10 @@
   padding-top: 4px;
 }
 
+.actions > .saveError {
+  grid-column: 1 / -1;
+}
+
 .primaryButton,
 .dangerButton {
   border: 0;

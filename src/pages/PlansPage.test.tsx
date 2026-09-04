@@ -54,6 +54,21 @@ function task(overrides: Partial<PlanTask> = {}): PlanTask {
 }
 
 describe("PlansPage", () => {
+  it("restores task-row focus after action-menu completion", async () => {
+    const db = createDatabase()
+    const user = userEvent.setup()
+    await db.planTasks.add(task({ title: "周任务", scope: "week", periodKey: "2026-08-31" }))
+    const rendered = renderPlansPage("/plans?view=week&date=2026-09-02", db)
+    try {
+      await user.click(await screen.findByRole("button", { name: "打开任务操作：周任务" }))
+      await user.click(screen.getByRole("button", { name: "标记为完成" }))
+      await waitFor(() => expect(screen.getByRole("button", { name: "已完成：周任务" })).toHaveFocus())
+    } finally {
+      rendered.unmount()
+      await db.delete()
+    }
+  })
+
   it.each([
     ["day", "2026-09-02", undefined, "日任务", "待安排任务"],
     ["week", "2026-09-02", undefined, "周任务", "本周任务"],

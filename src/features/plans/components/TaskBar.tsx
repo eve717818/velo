@@ -62,6 +62,12 @@ function TaskBarSession({ db, groupLabel, onMoved, onOpen, task }: TaskBarProps)
     }
   }, [])
 
+  const [completionSource, setCompletionSource] = useState({ isCompleted: task.isCompleted, completedAt: task.completedAt })
+  if (completionSource.isCompleted !== task.isCompleted || completionSource.completedAt !== task.completedAt) {
+    setCompletionSource({ isCompleted: task.isCompleted, completedAt: task.completedAt })
+    setCompletionOverride(null)
+  }
+
   function clearUndoTimer() {
     if (!undoTimer.current) return
     clearTimeout(undoTimer.current)
@@ -304,6 +310,7 @@ function TaskBarSession({ db, groupLabel, onMoved, onOpen, task }: TaskBarProps)
       <button
         aria-label={isCompleted ? `已完成：${task.title}` : `打开任务操作：${task.title}`}
         className={className}
+        data-task-id={task.id}
         onClick={(event) => {
           if (suppressClick.current) {
             suppressClick.current = false

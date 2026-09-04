@@ -148,6 +148,8 @@
 .workspaceGrid {
   display: grid;
   gap: 18px;
+  min-width: 0;
+  width: 100%;
 }
 
 .progressPanel,
@@ -161,83 +163,14 @@
 .surfaceHeading {
   align-items: flex-start;
   display: flex;
+  flex-wrap: wrap;
   gap: 20px;
   justify-content: space-between;
-}
-
-.rangePlanSummary {
-  align-items: flex-start;
-  background:
-    linear-gradient(135deg, rgb(255 255 255 / 86%), rgb(244 239 246 / 72%)),
-    radial-gradient(circle at 90% 5%, rgb(155 27 130 / 18%), transparent 45%);
-  border: 1px solid rgb(255 255 255 / 80%);
-  border-radius: 20px;
-  box-shadow: inset 0 1px 0 rgb(255 255 255 / 88%), 0 12px 32px rgb(76 52 80 / 8%);
-  display: grid;
-  gap: 14px;
-  margin: 14px 0 18px;
-  padding: 16px;
-}
-
-.rangePlanCopy {
-  display: grid;
-  gap: 5px;
   min-width: 0;
 }
 
-.rangePlanCopy h3 {
-  font-size: 1rem;
-  line-height: 1.25;
-}
-
-.rangePlanCopy > p:not(.metaLabel) {
-  color: var(--color-text-muted);
-  font-size: .8125rem;
-  line-height: 1.55;
-}
-
-.rangePlanCopy ul {
-  display: flex;
+.progressCopy {
   flex-wrap: wrap;
-  gap: 6px;
-  list-style: none;
-  margin: 6px 0 0;
-  padding: 0;
-}
-
-.rangePlanCopy li {
-  background: rgb(103 157 179 / 12%);
-  border-radius: 999px;
-  color: #315f70;
-  font-size: .6875rem;
-  font-weight: 700;
-  padding: 6px 9px;
-}
-
-.rangePlanButton {
-  align-items: center;
-  align-self: start;
-  background: var(--color-brand);
-  border: 0;
-  border-radius: 13px;
-  color: white;
-  cursor: pointer;
-  display: inline-flex;
-  font: inherit;
-  font-size: .8125rem;
-  font-weight: 750;
-  gap: 7px;
-  min-height: 44px;
-  padding: 0 14px;
-}
-
-.rangePlanButton:active {
-  transform: scale(.98);
-}
-
-.rangePlanButton:focus-visible {
-  outline: 3px solid var(--color-cool-blue);
-  outline-offset: 3px;
 }
 
 .swipeDiscoveryHint {
@@ -272,13 +205,6 @@
 .swipeDiscoveryHint small { color: var(--color-text-muted); font-size: .6875rem; }
 .swipeDiscoveryHint button { background: transparent; border: 0; color: var(--color-brand); cursor: pointer; font: inherit; font-size: .75rem; font-weight: 760; min-height: 44px; padding: 0 6px; }
 .swipeDiscoveryHint button:focus-visible { outline: 3px solid var(--color-cool-blue); outline-offset: 2px; }
-
-@media (min-width: 640px) {
-  .rangePlanSummary {
-    align-items: center;
-    grid-template-columns: minmax(0, 1fr) auto;
-  }
-}
 
 .metaLabel {
   color: var(--color-text-muted);
@@ -335,6 +261,7 @@
 
 .viewSurface {
   min-height: 230px;
+  min-width: 0;
 }
 
 .surfaceHeading p {
@@ -380,6 +307,101 @@
   padding: 0;
 }
 
+.periodNavigator {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 18px;
+  min-width: 0;
+  width: 100%;
+}
+
+.periodNavigatorTitle,
+.periodNavigatorPicker {
+  display: grid;
+  flex: 1 1 160px;
+  gap: 5px;
+  min-width: 0;
+}
+
+.periodNavigatorTitle h2 {
+  font-size: 17px;
+  font-weight: 760;
+  letter-spacing: -.02em;
+}
+
+.periodNavigatorPicker > span {
+  color: var(--color-text-muted);
+  font-size: 12px;
+  font-weight: 720;
+}
+
+.periodPicker {
+  background: var(--color-cool-blue-soft);
+  border: 1px solid transparent;
+  border-radius: 12px;
+  box-sizing: border-box;
+  color: #29365f;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 680;
+  min-height: 44px;
+  min-width: 0;
+  padding: 0 12px;
+  width: 100%;
+}
+
+.periodNavigatorControl {
+  align-items: center;
+  background: var(--color-surface-muted);
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  box-sizing: border-box;
+  color: var(--color-text);
+  cursor: pointer;
+  display: inline-flex;
+  flex: 0 0 auto;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 740;
+  gap: 7px;
+  justify-content: center;
+  min-height: 44px;
+  min-width: 44px;
+  padding: 0 12px;
+}
+
+.periodNavigatorControl svg {
+  height: 18px;
+  width: 18px;
+}
+
+.planListSurface {
+  background: var(--color-surface-muted);
+  border: 1px solid var(--color-border);
+  border-radius: 16px;
+  box-sizing: border-box;
+  margin-top: 20px;
+  min-width: 0;
+  padding: 16px;
+  width: 100%;
+}
+
+.planListSurface > ul {
+  display: grid;
+  gap: 10px;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.planListSurface > ul > li {
+  box-sizing: border-box;
+  min-width: 0;
+  width: 100%;
+}
+
 .srOnly {
   height: 1px;
   margin: -1px;
@@ -400,8 +422,6 @@
 }
 
 .dayLane,
-.weekMobileList,
-.monthTaskPanel,
 .viewEmptyState {
   background: var(--color-surface-muted);
   border: 1px solid var(--color-border);
@@ -427,7 +447,6 @@
 
 .laneHeading span,
 .weekListHeading span,
-.monthCounts,
 .emptyLaneCopy,
 .viewEmptyState p {
   color: var(--color-text-muted);
@@ -436,8 +455,7 @@
 }
 
 .timedTaskList,
-.untimedTaskList,
-.weekDayColumn ul {
+.untimedTaskList {
   display: grid;
   gap: 10px;
   list-style: none;
@@ -507,193 +525,20 @@
   padding: 0 14px;
 }
 
-.weekDateStrip {
-  display: grid;
-  gap: 6px;
-  grid-template-columns: repeat(4, minmax(44px, 1fr));
-}
-
-.weekDateButton {
-  background: var(--color-cool-blue-soft);
-  border: 1px solid transparent;
-  border-radius: 12px;
-  color: #334377;
-  cursor: pointer;
-  display: grid;
-  font: inherit;
-  justify-items: center;
-  min-height: 44px;
-  min-width: 44px;
-  padding: 5px 2px;
-}
-
-.weekDateButton > span:first-child { font-size: 16px; font-weight: 790; line-height: 1; }
-.weekDateButton small { font-size: 12px; font-weight: 680; margin-top: 3px; white-space: nowrap; }
-.weekDateButton[aria-pressed="true"] { background: var(--color-brand); color: white; }
-
-.weekGroupScroller {
-  margin-inline: -4px;
-  overflow-x: auto;
-  overscroll-behavior-inline: contain;
-  padding: 4px;
-  scrollbar-width: thin;
-}
-
-.weekGroupBands,
-.monthGroupBands {
-  display: grid;
-  gap: 7px;
-  grid-template-columns: repeat(7, minmax(72px, 1fr));
-}
-
-.weekGroupBands {
-  min-width: 640px;
-}
-
-.weekGrid { display: none; }
-
-.monthWeekdays,
-.monthWeekDays {
-  display: grid;
-  grid-template-columns: repeat(7, minmax(0, 1fr));
-  min-width: 0;
-}
-
-.monthWeekdays { color: var(--color-text-muted); font-size: 12px; font-weight: 720; text-align: center; }
-
-.monthGrid {
-  border-left: 1px solid var(--color-border);
-  border-top: 1px solid var(--color-border);
-  display: grid;
-  min-width: 0;
-  overflow: hidden;
-  width: 100%;
-}
-
-.monthWeekRow { min-width: 0; }
-
-.monthGroupBands {
-  background: linear-gradient(90deg, rgb(246 234 242 / 64%), rgb(220 229 246 / 58%));
-  border-bottom: 1px solid var(--color-border);
-  border-right: 1px solid var(--color-border);
-  grid-template-columns: repeat(7, minmax(0, 1fr));
-  padding: 6px;
-}
-
-.monthDay {
-  background: var(--color-surface);
-  border: 0;
-  border-bottom: 1px solid var(--color-border);
-  border-right: 1px solid var(--color-border);
-  color: var(--color-text);
-  cursor: pointer;
-  display: grid;
-  font: inherit;
-  gap: 4px;
-  min-height: 44px;
-  min-width: 0;
-  padding: 8px 5px;
-  text-align: left;
-}
-
-.monthDateNumber { font-size: 14px; font-weight: 780; }
-.monthCounts { font-size: 12px; line-height: 1.25; }
-.monthDay[aria-pressed="true"] { background: var(--color-brand); color: white; }
-.monthDay[aria-pressed="true"] .monthCounts { color: rgb(255 255 255 / 82%); }
-.outsideMonth { background: var(--color-surface-muted); color: var(--color-text-muted); }
-
-.monthTaskPanel {
-  background: linear-gradient(145deg, rgb(250 248 251 / 94%), rgb(241 244 248 / 90%));
-  max-height: 45vh;
-  overflow: auto;
-  overscroll-behavior: contain;
-  position: static;
-}
-
-.monthTaskToggle {
-  background: rgb(101 151 174 / 12%);
-  border: 1px solid rgb(101 151 174 / 20%);
-  border-radius: 12px;
-  color: #315f70;
-  cursor: pointer;
-  font: inherit;
-  font-size: 12px;
-  font-weight: 740;
-  margin-top: 12px;
-  min-height: 44px;
-  width: 100%;
-}
-
 .emptyCreateAction:focus-visible,
-.weekDateButton:focus-visible,
-.monthDay:focus-visible { outline: 3px solid var(--color-cool-blue); outline-offset: 3px; }
-
-@media (min-width: 480px) {
-  .weekDateStrip { grid-template-columns: repeat(7, minmax(44px, 1fr)); }
-}
+.periodNavigatorControl:focus-visible,
+.periodPicker:focus-visible { outline: 3px solid var(--color-cool-blue); outline-offset: 3px; }
 
 @media (min-width: 768px) {
   .dayLane,
-  .monthTaskPanel,
+  .planListSurface,
   .viewEmptyState { padding: 18px; }
-
-  .monthPlan { grid-template-columns: minmax(0, 1fr); }
-  .monthWeekdays,
-  .monthGrid { grid-column: 1; margin-left: 0; margin-right: 0; width: auto; }
-  .monthTaskPanel { grid-column: 1; max-height: 45vh; }
-  .monthDay { min-height: 78px; padding: 9px; }
 }
 
-@media (min-width: 768px) and (orientation: portrait) {
-  .monthPlan { grid-template-columns: minmax(0, 1fr); }
-  .monthTaskPanel { grid-column: 1; grid-row: auto; }
-}
-
-@media (min-width: 1024px) and (orientation: landscape) {
-  .weekDateStrip,
-  .weekMobileList { display: none; }
-
-  .weekGrid { display: grid; gap: 8px; grid-template-columns: repeat(7, minmax(0, 1fr)); }
-
-  .weekDayColumn {
-    background: var(--color-surface-muted);
-    border: 1px solid var(--color-border);
-    border-radius: 14px;
-    box-sizing: border-box;
-    min-height: 238px;
-    min-width: 0;
-    overflow: hidden;
-    padding: 10px;
-  }
-
-  .weekDayColumn header { align-items: baseline; color: #44578e; display: flex; justify-content: space-between; }
-  .weekDayColumn header span { font-size: 12px; font-weight: 700; }
-  .weekDayColumn header strong { font-size: 16px; }
-  .weekDayColumn ul,
-  .weekDayColumn li { min-width: 0; }
-  .weekDayColumn ul { gap: 8px; }
-
-  .monthPlan { grid-template-columns: minmax(0, 1.85fr) minmax(232px, 1fr); }
-  .monthWeekdays,
-  .monthGrid { grid-column: 1; }
-  .monthTaskPanel { grid-column: 2; grid-row: 1 / span 2; max-height: 560px; }
-
-  .workspaceGrid[data-view="month"] {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  .workspaceGrid[data-view="month"] .viewSurface {
-    grid-column: 1 / -1;
-    grid-row: auto;
-  }
-
-  .workspaceGrid[data-view="week"] {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  .workspaceGrid[data-view="week"] .viewSurface {
-    grid-column: 1 / -1;
-    grid-row: auto;
+@media (min-width: 1024px) {
+  .workspaceGrid {
+    margin-inline: auto;
+    max-width: 1040px;
   }
 }
 
