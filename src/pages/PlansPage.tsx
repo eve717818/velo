@@ -230,6 +230,7 @@ export function PlansPage({ db = veloDb, now }: PlansPageProps) {
       <div aria-label="计划工作区" className={styles.workspaceGrid} data-view={view} role="region">
         <section className={styles.viewSurface}>
           <PlanPeriodNavigator
+            onCreatePeriod={() => { setEditingPeriod(undefined); setIsPeriodDialogOpen(true) }}
             onDateChange={(date) => updateParameters({ date, new: undefined })}
             onManagePeriods={() => setIsPeriodManagerOpen(true)}
             onPeriodChange={selectPeriod}
@@ -256,7 +257,7 @@ export function PlansPage({ db = veloDb, now }: PlansPageProps) {
               selectedPeriodId={activePeriod?.id}
             /> : scope === "day" ? <DayPlanView db={db} onCreate={openCreate} onOpen={openTask} selectedDate={selectedDate} tasks={snapshot.tasks} today={selectedDate} />
               : snapshot.periodKey ? <PlanTaskListView db={db} onCreate={openCreate} onOpen={openTask} periodKey={snapshot.periodKey} scope={scope} tasks={snapshot.tasks} />
-                : <section aria-label="未选择学期或假期" className={styles.viewEmptyState}><div><h3>选择一个学期或假期</h3><p>请从上方选择器中选择一个有效学习周期后再新建任务。</p></div></section>
+                : <section aria-label="未选择学期或假期" className={styles.viewEmptyState}><div><h3>{snapshot.periods.length ? "选择一个学期或假期" : "开始安排学期计划"}</h3><p>{snapshot.periods.length ? "请从上方选择器中选择一个有效学习周期后再新建任务。" : "点击上方新建按钮，填写名称和起止日期后即可安排任务。"}</p></div></section>
           ) : null}
           {migrationReopenError ? <PlanErrorState error={migrationReopenError} onRetry={() => { if (migrationRetryPeriod) void reopenMigration(migrationRetryPeriod) }} /> : null}
         </section>

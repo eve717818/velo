@@ -39,6 +39,21 @@ function deferred<T>() {
 }
 
 describe("TaskBar", () => {
+  it("keeps the task row concise without a second metadata line", async () => {
+    const db = createDatabase()
+    const view = render(<TaskBar db={db} task={task()} />)
+    try {
+      expect(screen.getByText("复习导数")).toBeVisible()
+      expect(screen.queryByText(/高等数学.*45 分钟/)).not.toBeInTheDocument()
+      view.rerender(<TaskBar db={db} task={task({ subject: undefined, estimatedMinutes: undefined, isCompleted: 1 })} />)
+      expect(screen.queryByText(/未分类|未估时/)).not.toBeInTheDocument()
+      expect(screen.getByText("已完成")).toBeVisible()
+    } finally {
+      view.unmount()
+      await db.delete()
+    }
+  })
+
   it("accepts external completion changes after a local completion and undo", async () => {
     const db = createDatabase()
     const currentTask = task()

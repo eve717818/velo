@@ -12,6 +12,13 @@ const periods: LearningPeriod[] = [
 ]
 
 describe("PlanPeriodNavigator", () => {
+  it("offers creation instead of an empty semester selector", () => {
+    render(<PlanPeriodNavigator scope="semester" selectedDate="2026-09-04" periods={[]} />)
+    expect(screen.queryByRole("combobox")).not.toBeInTheDocument()
+    expect(screen.getByRole("button", { name: "新建学期或假期" })).toBeVisible()
+    expect(screen.getByText("还没有学期或假期，请先新建。" )).toBeVisible()
+  })
+
   it.each([
     ["day", "上一日", "下一日", "2026-09-02"],
     ["week", "上一周", "下一周", "2026-09-08"],

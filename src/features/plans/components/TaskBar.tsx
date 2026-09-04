@@ -29,7 +29,7 @@ export function TaskBar({ db, groupLabel, onMoved, onOpen, task }: TaskBarProps)
   return <TaskBarSession db={db} groupLabel={groupLabel} key={sessionKey} onMoved={onMoved} onOpen={onOpen} task={task} />
 }
 
-function TaskBarSession({ db, groupLabel, onMoved, onOpen, task }: TaskBarProps) {
+function TaskBarSession({ db, onMoved, onOpen, task }: TaskBarProps) {
   const [completionOverride, setCompletionOverride] = useState<boolean | null>(null)
   const [isSaving, setIsSaving] = useState(false)
   const [showUndo, setShowUndo] = useState(false)
@@ -328,13 +328,9 @@ function TaskBarSession({ db, groupLabel, onMoved, onOpen, task }: TaskBarProps)
         type="button"
       >
         <span aria-hidden="true" className={styles.completionFill} />
-        {!isCompleted ? <span className={styles.swipeAffordance} data-testid="swipe-completion-arrow"><FlowArrowIcon /></span> : null}
+        {!isCompleted ? <span className={styles.swipeAffordance} data-testid="swipe-completion-arrow"><FlowArrowIcon /></span> : <span aria-hidden="true" />}
         <span className={styles.copy}>
           <span className={styles.taskTitle}>{task.title}</span>
-          <span className={styles.taskMeta}>
-            {groupLabel ? <span className={styles.groupLabel}>{groupLabel}</span> : null}
-            {task.subject ?? "未分类"} · {task.estimatedMinutes ? `${task.estimatedMinutes} 分钟` : "未估时"}
-          </span>
         </span>
         <span className={styles.trailing}>{isCompleted ? "已完成" : task.startMinutes === undefined ? "未定时" : `${String(Math.floor(task.startMinutes / 60)).padStart(2, "0")}:${String(task.startMinutes % 60).padStart(2, "0")}`}</span>
       </button>

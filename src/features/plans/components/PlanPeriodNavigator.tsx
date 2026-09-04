@@ -1,4 +1,4 @@
-import { CalendarDays, ChevronLeft, ChevronRight } from "lucide-react"
+import { CalendarDays, ChevronLeft, ChevronRight, Plus } from "lucide-react"
 
 import type { LearningPeriod, PlanTaskScope } from "@/db/types"
 import { formatPlanPeriodLabel, shiftPlanPeriod } from "@/features/plans/domain/plan-period-keys"
@@ -12,6 +12,7 @@ export interface PlanPeriodNavigatorProps {
   onDateChange?: (date: string) => void
   onPeriodChange?: (periodId: string) => void
   onManagePeriods?: () => void
+  onCreatePeriod?: () => void
 }
 
 const navigationCopy = {
@@ -23,6 +24,7 @@ const navigationCopy = {
 export function PlanPeriodNavigator({
   onDateChange,
   onManagePeriods,
+  onCreatePeriod,
   onPeriodChange,
   period,
   periods = [],
@@ -30,6 +32,14 @@ export function PlanPeriodNavigator({
   selectedDate,
 }: PlanPeriodNavigatorProps) {
   if (scope === "semester") {
+    if (periods.length === 0) {
+      return (
+        <section aria-label="学期与假期导航" className={styles.periodNavigator}>
+          <p>还没有学期或假期，请先新建。</p>
+          <button className={styles.periodNavigatorControl} onClick={onCreatePeriod ?? onManagePeriods} type="button"><Plus aria-hidden="true" />新建学期或假期</button>
+        </section>
+      )
+    }
     return (
       <section aria-label="学期与假期导航" className={styles.periodNavigator}>
         <label className={styles.periodNavigatorPicker}>
