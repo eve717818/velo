@@ -454,6 +454,15 @@
   .editor { padding: 22px; }
 }
 
+@media (min-width: 768px) and (max-width: 834px) {
+  .workspace { grid-template-columns: 220px minmax(0, 1fr); }
+  .noteToolbar { align-items: flex-start; flex-direction: column; }
+  .noteActions { align-self: flex-end; }
+  .editor { padding: 18px; }
+  .formatBar { gap: 2px; width: 100%; }
+  .formatBar button { flex: 1; }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .page * { scroll-behavior: auto; }
 }

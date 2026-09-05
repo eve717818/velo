@@ -26,6 +26,9 @@ const parentMarkdown = [
   "",
   "![远程图](https://notes.invalid/should-not-load.png)",
   "<script>window.__notesUnsafeScript = true</script>",
+  "[危险脚本](javascript:window.__notesUnsafeLink=true)",
+  "[危险数据](data:text/html;base64,PHNjcmlwdD53aW5kb3cub3BlbmVyLl9fbm90ZXNVbnNhZmVEYXRhPXRydWU8L3NjcmlwdD4=)",
+  "[正常外链](https://example.com/notes-reference)",
 ].join("\n")
 const childTitle = "CSP 复习卡"
 const childMarkdown = "## 检查点\n- 阻止未授权脚本\n- 限制资源来源"
@@ -124,6 +127,47 @@ async function bounds(locator: Locator) {
   return box
 }
 
+function expectInsideViewport(box: { x: number; y: number; width: number; height: number }, viewport: { width: number; height: number }) {
+  expect(box.width).toBeGreaterThan(0)
+  expect(box.height).toBeGreaterThan(0)
+  expect(box.x).toBeGreaterThanOrEqual(-1)
+  expect(box.x + box.width).toBeLessThanOrEqual(viewport.width + 1)
+  expect(box.y).toBeGreaterThanOrEqual(-1)
+  expect(box.y).toBeLessThan(viewport.height)
+}
+
+async function expectTouchTarget(locator: Locator, viewport: { width: number; height: number }) {
+  await expect(locator).toBeVisible()
+  const box = await bounds(locator)
+  expectInsideViewport(box, viewport)
+  expect(box.width).toBeGreaterThanOrEqual(44)
+  expect(box.height).toBeGreaterThanOrEqual(44)
+  const clipped = await locator.evaluate((element) => ({
+    horizontal: element.scrollWidth > element.clientWidth + 1,
+    vertical: element.scrollHeight > element.clientHeight + 1,
+  }))
+  expect(clipped).toEqual({ horizontal: false, vertical: false })
+  return box
+}
+
+async function expectSurfaceNotClipped(locator: Locator, viewport: { width: number; height: number }) {
+  const box = await bounds(locator)
+  expectInsideViewport(box, viewport)
+  const clipping = await locator.evaluate((element) => {
+    const surface = element.getBoundingClientRect()
+    const overflowingChildren = Array.from(element.querySelectorAll<HTMLElement>("*")).flatMap((child) => {
+      const rect = child.getBoundingClientRect()
+      if (rect.width > 0 && (rect.left < surface.left - 1 || rect.right > surface.right + 1)) {
+        return [{ ariaLabel: child.getAttribute("aria-label"), className: child.className, tag: child.tagName }]
+      }
+      return []
+    })
+    return { clientWidth: element.clientWidth, overflowingChildren, scrollWidth: element.scrollWidth }
+  })
+  expect(clipping.scrollWidth, JSON.stringify(clipping)).toBeLessThanOrEqual(clipping.clientWidth + 1)
+  return box
+}
+
 async function forceNextNoteWriteFailure(page: Page) {
   await page.evaluate(() => {
     const prototype = IDBObjectStore.prototype
@@ -158,10 +202,22 @@ test("notes flow preserves subtree IDs and content through move, trash, restore,
   expect(initial.notes.find((note) => note.nodeId === initialParent?.id)).toMatchObject({ markdown: parentMarkdown, title: parentTitle })
 
   await page.getByRole("button", { name: "阅读", exact: true }).click()
-  await expect(page.getByLabel("Markdown 阅读内容").getByRole("heading", { name: "同源策略" })).toBeVisible()
+  const readingView = page.getByLabel("Markdown 阅读内容")
+  await expect(readingView.getByRole("heading", { name: "同源策略" })).toBeVisible()
   await expect(page.getByText("图片“远程图”已阻止加载")).toBeVisible()
+  const javascriptLink = readingView.locator("a", { hasText: "危险脚本" })
+  const dataLink = readingView.locator("a", { hasText: "危险数据" })
+  const externalLink = readingView.getByRole("link", { name: "正常外链" })
+  await expect(javascriptLink).toHaveAttribute("href", "")
+  await expect(dataLink).toHaveAttribute("href", "")
+  await expect(externalLink).toHaveAttribute("href", "https://example.com/notes-reference")
+  await expect(externalLink).toHaveAttribute("target", "_blank")
+  await expect(externalLink).toHaveAttribute("rel", "noreferrer noopener")
   expect(remoteRequests).toEqual([])
-  expect(await page.evaluate(() => Boolean((window as typeof window & { __notesUnsafeScript?: boolean }).__notesUnsafeScript))).toBe(false)
+  expect(await page.evaluate(() => {
+    const unsafeWindow = window as typeof window & { __notesUnsafeData?: boolean; __notesUnsafeLink?: boolean; __notesUnsafeScript?: boolean }
+    return Boolean(unsafeWindow.__notesUnsafeData || unsafeWindow.__notesUnsafeLink || unsafeWindow.__notesUnsafeScript)
+  })).toBe(false)
 
   await page.reload()
   await waitForSaved(page)
@@ -247,19 +303,60 @@ test("notes workspace reflows at required widths with large text and reduced mot
   for (const size of viewportMatrix) {
     await page.setViewportSize(size)
     await expectNoHorizontalOverflow(page)
+    const heading = page.getByRole("heading", { name: "笔记工作台" })
+    const header = heading.locator("xpath=ancestor::header[1]")
+    const newButton = page.getByRole("button", { name: "新建笔记", exact: true })
+    const content = page.getByRole("region", { name: "笔记内容" })
+    const editor = page.getByRole("region", { name: "笔记编辑器" })
+    const textarea = page.getByLabel("Markdown 正文")
+    const headerBox = await expectSurfaceNotClipped(header, size)
+    const headingBox = await bounds(heading)
+    expectInsideViewport(headingBox, size)
+    const newButtonBox = await expectTouchTarget(newButton, size)
+    expect(headingBox.x + headingBox.width).toBeLessThanOrEqual(newButtonBox.x + 1)
+    const contentBox = await expectSurfaceNotClipped(content, size)
+    const editorBox = await expectSurfaceNotClipped(editor, size)
+    const textareaBox = await expectSurfaceNotClipped(textarea, size)
+    expect(editorBox.x).toBeGreaterThanOrEqual(contentBox.x - 1)
+    expect(textareaBox.x).toBeGreaterThanOrEqual(editorBox.x - 1)
+    expect(textareaBox.x + textareaBox.width).toBeLessThanOrEqual(editorBox.x + editorBox.width + 1)
+    expect(textareaBox.width).toBeGreaterThan(100)
+    expect(textareaBox.height).toBeGreaterThan(100)
     const measurement: Record<string, unknown> = {
-      content: await bounds(page.getByRole("region", { name: "笔记内容" })),
-      editor: await bounds(page.getByRole("region", { name: "笔记编辑器" })),
+      content: contentBox,
+      editor: editorBox,
+      header: headerBox,
+      newButton: newButtonBox,
+      textarea: textareaBox,
       viewport: size,
     }
 
     if (size.width < 768) {
       const trigger = page.getByRole("button", { name: "目录", exact: true })
+      const triggerBox = await expectTouchTarget(trigger, size)
+      expect(triggerBox.x + triggerBox.width).toBeLessThanOrEqual(newButtonBox.x + 1)
+      if (size.width === 402) {
+        for (const label of [heading, trigger.locator("span"), newButton.locator("span")]) {
+          expect(await label.evaluate((element) => ({
+            unclipped: element.scrollWidth <= element.clientWidth + 1,
+            whiteSpace: getComputedStyle(element).whiteSpace,
+          }))).toEqual({ unclipped: true, whiteSpace: "nowrap" })
+        }
+      }
       await trigger.click()
       const drawer = page.getByRole("dialog", { name: "笔记目录" })
       await expect(drawer).toBeVisible()
-      measurement.tree = await bounds(drawer.getByRole("button", { name: "打开笔记：响应式样本" }))
-      measurement.directory = await bounds(drawer)
+      const drawerBox = await expectSurfaceNotClipped(drawer, size)
+      const treeBox = await expectTouchTarget(drawer.getByRole("button", { name: "打开笔记：响应式样本" }), size)
+      const navBoxes = []
+      for (const button of await drawer.getByRole("navigation", { name: "笔记区域" }).getByRole("button").all()) {
+        navBoxes.push(await expectTouchTarget(button, size))
+      }
+      expect(treeBox.x).toBeGreaterThanOrEqual(drawerBox.x - 1)
+      expect(treeBox.x + treeBox.width).toBeLessThanOrEqual(drawerBox.x + drawerBox.width + 1)
+      measurement.tree = treeBox
+      measurement.directory = drawerBox
+      measurement.navigation = navBoxes
       if (size.width === 402) {
         await page.screenshot({ path: resolve(screenshotDirectory, "notes-402-directory.png"), fullPage: true })
       }
@@ -267,8 +364,19 @@ test("notes workspace reflows at required widths with large text and reduced mot
       await expect(drawer).toBeHidden()
       await expectFocusRing(trigger)
     } else {
-      measurement.tree = await bounds(page.getByRole("button", { name: "打开笔记：响应式样本" }))
-      measurement.directory = await bounds(page.getByRole("complementary", { name: "笔记目录" }))
+      const directory = page.getByRole("complementary", { name: "笔记目录" })
+      const directoryBox = await expectSurfaceNotClipped(directory, size)
+      const treeBox = await expectTouchTarget(page.getByRole("button", { name: "打开笔记：响应式样本" }), size)
+      const navBoxes = []
+      for (const button of await directory.getByRole("navigation", { name: "笔记区域" }).getByRole("button").all()) {
+        navBoxes.push(await expectTouchTarget(button, size))
+      }
+      expect(directoryBox.x + directoryBox.width).toBeLessThanOrEqual(contentBox.x + 1)
+      expect(treeBox.x).toBeGreaterThanOrEqual(directoryBox.x - 1)
+      expect(treeBox.x + treeBox.width).toBeLessThanOrEqual(directoryBox.x + directoryBox.width + 1)
+      measurement.tree = treeBox
+      measurement.directory = directoryBox
+      measurement.navigation = navBoxes
     }
 
     await testInfo.attach(`notes-layout-${size.width}.json`, {
@@ -283,6 +391,35 @@ test("notes workspace reflows at required widths with large text and reduced mot
     await page.evaluate(() => { document.documentElement.style.fontSize = "200%" })
     await expect.poll(() => page.getByLabel("Markdown 正文").evaluate((element) => Number.parseFloat(getComputedStyle(element).fontSize))).toBe(initialFont * 2)
     await expectNoHorizontalOverflow(page)
+    const zoomedHeadingBox = await bounds(heading)
+    const zoomedNewButtonBox = await expectTouchTarget(newButton, size)
+    expectInsideViewport(await bounds(header), size)
+    expect(zoomedHeadingBox.x + zoomedHeadingBox.width).toBeLessThanOrEqual(zoomedNewButtonBox.x + 1)
+    await expectSurfaceNotClipped(content, size)
+    await expectSurfaceNotClipped(editor, size)
+    await expectSurfaceNotClipped(textarea, size)
+    if (size.width < 768) {
+      const trigger = page.getByRole("button", { name: "目录", exact: true })
+      const triggerBox = await expectTouchTarget(trigger, size)
+      expect(triggerBox.x + triggerBox.width).toBeLessThanOrEqual(zoomedNewButtonBox.x + 1)
+      await trigger.click()
+      const drawer = page.getByRole("dialog", { name: "笔记目录" })
+      await expectSurfaceNotClipped(drawer, size)
+      for (const button of await drawer.getByRole("navigation", { name: "笔记区域" }).getByRole("button").all()) {
+        await expectTouchTarget(button, size)
+      }
+      await expectTouchTarget(drawer.getByRole("button", { name: "打开笔记：响应式样本" }), size)
+      await page.keyboard.press("Escape")
+    } else {
+      const directory = page.getByRole("complementary", { name: "笔记目录" })
+      const zoomedDirectoryBox = await expectSurfaceNotClipped(directory, size)
+      const zoomedContentBox = await bounds(content)
+      expect(zoomedDirectoryBox.x + zoomedDirectoryBox.width).toBeLessThanOrEqual(zoomedContentBox.x + 1)
+      for (const button of await directory.getByRole("navigation", { name: "笔记区域" }).getByRole("button").all()) {
+        await expectTouchTarget(button, size)
+      }
+      await expectTouchTarget(page.getByRole("button", { name: "打开笔记：响应式样本" }), size)
+    }
     await page.evaluate(() => { document.documentElement.style.fontSize = "" })
   }
 
