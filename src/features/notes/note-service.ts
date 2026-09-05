@@ -219,8 +219,10 @@ export async function exportMarkdown(db: VeloDB, nodeId: string): Promise<{ file
     if (level <= 6) {
       lines.push(`${"#".repeat(level)} ${node.title}`, "", markdown, "")
     } else {
-      const indent = "  ".repeat(level - 4)
-      lines.push(`${indent}- **${node.title}**`, "", ...markdown.split("\n").map((line) => `${indent}  ${line}`), "")
+      const indent = "  ".repeat(level - 7)
+      lines.push(`${indent}- **${node.title}**`)
+      if (markdown) lines.push("", ...markdown.split("\n").map((line) => `${indent}  ${line}`))
+      lines.push("")
     }
     for (const child of children.get(node.id) ?? []) levels.set(child.id, level + 1)
   }

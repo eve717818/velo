@@ -158,23 +158,25 @@ describe('note service', () => {
     })
   })
 
-  test('exports levels deeper than six without invalid Markdown headings', async () => {
+  test('exports levels deeper than six as legal relative Markdown lists', async () => {
     const db = createDb()
     let parentId: string | null = null
     let rootId = ''
-    for (let index = 1; index <= 7; index += 1) {
+    for (let index = 1; index <= 8; index += 1) {
       const node = await createNote(db, { title: `第${index}层`, parentId, inbox: false }, index)
       if (index === 1) rootId = node.id
       parentId = node.id
     }
     const deepest = await loadNote(db, parentId!)
-    await saveNote(db, parentId!, { title: '第7层', markdown: '七层正文' }, deepest.revision ?? 0, 8)
+    await saveNote(db, parentId!, { title: '第8层', markdown: '八层正文' }, deepest.revision ?? 0, 9)
 
     const exported = await exportMarkdown(db, rootId)
 
     expect(exported.text).toContain('###### 第6层')
-    expect(exported.text).toContain('      - **第7层**')
-    expect(exported.text).toContain('七层正文')
+    expect(exported.text).toContain('\n- **第7层**\n')
+    expect(exported.text).toContain('\n  - **第8层**\n')
+    expect(exported.text).toContain('八层正文')
+    expect(exported.text).not.toContain('\n      - **第7层**')
     expect(exported.text).not.toContain('#######')
   })
 })
