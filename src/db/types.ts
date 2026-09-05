@@ -75,6 +75,9 @@ export interface KnowledgeNode {
   type: "folder" | "note"
   title: string
   order: number
+  inbox?: boolean
+  deletedAt?: number
+  trashRootId?: string
   createdAt: number
   updatedAt: number
 }
@@ -85,6 +88,8 @@ export interface NoteDocument {
   title: string
   content: Record<string, unknown>
   plainText: string
+  markdown?: string
+  revision?: number
   createdAt: number
   updatedAt: number
 }

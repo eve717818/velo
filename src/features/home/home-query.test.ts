@@ -76,4 +76,21 @@ describe("loadHomeSnapshot", () => {
       })
     })
   })
+
+  it("selects the latest live note instead of a trashed one", async () => {
+    await withDatabase(async (db) => {
+      await db.knowledgeNodes.bulkAdd([
+        { id: "live", parentId: null, type: "note", title: "仍可用", order: 0, createdAt: 1, updatedAt: 1 },
+        { id: "trash", parentId: null, type: "note", title: "已删除", order: 1, deletedAt: 2, trashRootId: "trash", createdAt: 2, updatedAt: 2 },
+      ])
+      await db.notes.bulkAdd([
+        note({ id: "live-document", nodeId: "live", title: "仍可用", plainText: "保留", updatedAt: 1 }),
+        note({ id: "trash-document", nodeId: "trash", title: "已删除", plainText: "排除", updatedAt: 2 }),
+      ])
+
+      await expect(loadHomeSnapshot(db, now)).resolves.toMatchObject({
+        recentNote: { id: "live-document", title: "仍可用" },
+      })
+    })
+  })
 })

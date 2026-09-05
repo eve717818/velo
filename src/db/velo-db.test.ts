@@ -107,6 +107,31 @@ async function createVersionFourDatabase(name: string, tasks: VersionFourPlanTas
   oldDb.close()
 }
 
+async function createVersionFiveNotesDatabase(name: string) {
+  const oldDb = new Dexie(name)
+  oldDb.version(5).stores({
+    planTasks: "id, [scope+periodKey], scope, periodKey, [scope+periodKey+isCompleted], isCompleted, updatedAt",
+    planTaskGroups: "id, startDate, endDate, updatedAt",
+    rangePlans: "&id, kind, rangeStart, rangeEnd, updatedAt",
+    learningPeriods: "id, kind, startDate, endDate, updatedAt",
+    legacyPlanTasks: "id, scope, periodKey, updatedAt",
+    knowledgeNodes: "id, parentId, type, order, updatedAt",
+    notes: "id, nodeId, title, updatedAt",
+    appMeta: "key, updatedAt",
+  })
+  await oldDb.table("knowledgeNodes").add({
+    id: "legacy-node",
+    parentId: null,
+    type: "note",
+    title: "旧笔记",
+    order: 1,
+    createdAt: 1,
+    updatedAt: 1,
+  })
+  await oldDb.table("notes").add(existingNote)
+  oldDb.close()
+}
+
 const existingNote: NoteDocument = {
   id: "existing-note",
   nodeId: "existing-node",
@@ -296,5 +321,24 @@ describe("VeloDB and seedHomeDemo", () => {
       await db.planTaskGroups.add(group)
       expect(await db.planTaskGroups.where("startDate").equals("2026-08-31").toArray()).toEqual([group])
     })
+  })
+
+  it("keeps legacy JSON and backfills readable Markdown when upgrading notes", async () => {
+    const name = `velo-v5-notes-${crypto.randomUUID()}`
+    await createVersionFiveNotesDatabase(name)
+
+    const db = new VeloDB(name)
+    await db.open()
+
+    await expect(db.notes.get("existing-note")).resolves.toMatchObject({
+      id: "existing-note",
+      nodeId: "existing-node",
+      content: { type: "doc" },
+      plainText: "已有内容",
+      markdown: "已有内容",
+      revision: 0,
+    })
+    expect(await db.knowledgeNodes.get("legacy-node")).toMatchObject({ id: "legacy-node", title: "旧笔记" })
+    await db.delete()
   })
 })

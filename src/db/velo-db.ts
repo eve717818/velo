@@ -110,6 +110,28 @@ export class VeloDB extends Dexie {
           await tasks.put({ ...rest, scope: "day", periodKey: scheduledDate, startMinutes: row.startMinutes })
         }
       })
+
+    this.version(6)
+      .stores({
+        planTasks: "id, [scope+periodKey], scope, periodKey, [scope+periodKey+isCompleted], isCompleted, updatedAt",
+        planTaskGroups: "id, startDate, endDate, updatedAt",
+        rangePlans: "&id, kind, rangeStart, rangeEnd, updatedAt",
+        learningPeriods: "id, kind, startDate, endDate, updatedAt",
+        legacyPlanTasks: "id, scope, periodKey, updatedAt",
+        knowledgeNodes: "id, parentId, type, order, inbox, deletedAt, trashRootId, updatedAt",
+        notes: "id, nodeId, title, updatedAt",
+        appMeta: "key, updatedAt",
+      })
+      .upgrade(async (transaction) => {
+        const notes = transaction.table<NoteDocument, string>("notes")
+        for (const note of await notes.toArray()) {
+          await notes.put({
+            ...note,
+            markdown: typeof note.markdown === "string" ? note.markdown : note.plainText,
+            revision: typeof note.revision === "number" ? note.revision : 0,
+          })
+        }
+      })
   }
 }
 
