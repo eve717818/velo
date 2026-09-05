@@ -61,6 +61,7 @@ export const NoteEditor = forwardRef<NoteEditorHandle, NoteEditorProps>(function
   const composingRef = useRef(false)
   const timerRef = useRef<number | undefined>(undefined)
   const inFlightRef = useRef<Promise<boolean> | null>(null)
+  const conflictRef = useRef(false)
   const sessionRef = useRef(0)
   const latestRef = useRef({ title: "", markdown: "", revision: 0, dirty: false })
 
@@ -72,14 +73,21 @@ export const NoteEditor = forwardRef<NoteEditorHandle, NoteEditorProps>(function
     if (session !== sessionRef.current) return
     const revision = loaded.revision ?? 0
     const stored = readStoredDraft(nodeId)
-    const useStored = stored && stored.baseRevision === revision
-    const nextTitle = useStored ? stored.title : loaded.title
-    const nextMarkdown = useStored ? stored.markdown : (loaded.markdown ?? loaded.plainText)
+    const hasStoredDraft = stored !== null
+    const storedConflict = hasStoredDraft && stored.baseRevision !== revision
+    const nextTitle = hasStoredDraft ? stored.title : loaded.title
+    const nextMarkdown = hasStoredDraft ? stored.markdown : (loaded.markdown ?? loaded.plainText)
     setDocument(loaded)
     setTitle(nextTitle)
     setMarkdown(nextMarkdown)
-    latestRef.current = { title: nextTitle, markdown: nextMarkdown, revision, dirty: Boolean(useStored) }
-    setStatus(useStored ? "dirty" : "saved")
+    latestRef.current = { title: nextTitle, markdown: nextMarkdown, revision: storedConflict ? stored.baseRevision : revision, dirty: hasStoredDraft }
+    conflictRef.current = storedConflict
+    if (storedConflict) {
+      setError("本地草稿基于较早版本，请选择保留草稿或重新载入当前版本。")
+      setStatus("conflict")
+    } else {
+      setStatus(hasStoredDraft ? "dirty" : "saved")
+    }
   }, [db, nodeId])
 
   useEffect(() => {
@@ -105,7 +113,7 @@ export const NoteEditor = forwardRef<NoteEditorHandle, NoteEditorProps>(function
   }, [])
 
   const performSave = useCallback(async () => {
-    if (composingRef.current) return false
+    if (composingRef.current || conflictRef.current) return false
     if (timerRef.current !== undefined) window.clearTimeout(timerRef.current)
 
     while (latestRef.current.dirty) {
@@ -128,6 +136,7 @@ export const NoteEditor = forwardRef<NoteEditorHandle, NoteEditorProps>(function
           latestRef.current.revision = saved.revision ?? snapshot.revision + 1
           latestRef.current.dirty = !stillCurrent
           if (stillCurrent) {
+            conflictRef.current = false
             clearStoredDraft(nodeId)
             setStatus("saved")
           } else {
@@ -145,6 +154,7 @@ export const NoteEditor = forwardRef<NoteEditorHandle, NoteEditorProps>(function
           if (session !== sessionRef.current) return false
           const message = reason instanceof Error ? reason.message : "保存失败"
           const conflict = message.includes("先重新加载")
+          conflictRef.current = conflict
           setError(message)
           setStatus(conflict ? "conflict" : "failed")
           return false
@@ -170,9 +180,13 @@ export const NoteEditor = forwardRef<NoteEditorHandle, NoteEditorProps>(function
     setMarkdown(nextMarkdown)
     latestRef.current = { ...latestRef.current, title: nextTitle, markdown: nextMarkdown, dirty: true }
     writeStoredDraft(nodeId, { title: nextTitle, markdown: nextMarkdown, baseRevision: latestRef.current.revision, updatedAt: Date.now() })
-    setStatus("dirty")
-    setError("")
-    scheduleSave()
+    if (conflictRef.current) {
+      setStatus("conflict")
+    } else {
+      setStatus("dirty")
+      setError("")
+      scheduleSave()
+    }
   }
 
   useImperativeHandle(ref, () => ({
@@ -188,6 +202,12 @@ export const NoteEditor = forwardRef<NoteEditorHandle, NoteEditorProps>(function
       textareaRef.current?.focus()
       textareaRef.current?.setSelectionRange(result.cursor, result.cursor)
     })
+  }
+
+  function reloadCurrentVersion() {
+    conflictRef.current = false
+    clearStoredDraft(nodeId)
+    void load()
   }
 
   if (!document && status === "loading") return <div className={styles.editorMessage} aria-busy="true">正在打开笔记…</div>
@@ -232,7 +252,7 @@ export const NoteEditor = forwardRef<NoteEditorHandle, NoteEditorProps>(function
         <div className={styles.conflict} role="alert">
           <p>{error}</p>
           <div>
-            <button onClick={() => void load()} type="button">重新载入当前版本</button>
+            <button onClick={reloadCurrentVersion} type="button">重新载入当前版本</button>
             <button onClick={() => downloadText(`${title || "本地草稿"}-本地草稿.md`, markdown)} type="button">导出本地草稿</button>
           </div>
         </div>

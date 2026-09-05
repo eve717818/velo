@@ -226,4 +226,37 @@ describe("NotesWorkspace", () => {
     expect(screen.getByRole("button", { name: "重新载入当前版本" })).toBeInTheDocument()
     expect(screen.getByRole("button", { name: "导出本地草稿" })).toBeInTheDocument()
   })
+
+  it("recovers an older local draft as an explicit conflict after remounting", async () => {
+    const note = await createNote(db, { title: "课堂笔记", parentId: null, inbox: false }, 1)
+    const initial = await loadNote(db, note.id)
+    await saveNote(db, note.id, { title: "课堂笔记", markdown: "远端新版本" }, initial.revision ?? 0, 2)
+    localStorage.setItem(`velow-note-draft:${note.id}`, JSON.stringify({
+      title: "课堂笔记（本地）",
+      markdown: "本地未保存草稿",
+      baseRevision: initial.revision ?? 0,
+      updatedAt: 3,
+    }))
+    const createObjectURL = vi.spyOn(URL, "createObjectURL").mockReturnValue("blob:recovered-draft")
+    vi.spyOn(URL, "revokeObjectURL").mockImplementation(() => undefined)
+    vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => undefined)
+    const user = userEvent.setup()
+
+    renderWorkspace({ initialEntry: `/notes?note=${note.id}` })
+
+    expect(await screen.findByText("发现其他页面保存的新版本")).toBeInTheDocument()
+    expect(screen.getByLabelText("笔记标题")).toHaveValue("课堂笔记（本地）")
+    expect(screen.getByLabelText("Markdown 正文")).toHaveValue("本地未保存草稿")
+    expect((await loadNote(db, note.id)).markdown).toBe("远端新版本")
+    expect(localStorage.getItem(`velow-note-draft:${note.id}`)).toContain("本地未保存草稿")
+
+    await user.click(screen.getByRole("button", { name: "导出本地草稿" }))
+    expect(createObjectURL).toHaveBeenCalledTimes(1)
+
+    await user.click(screen.getByRole("button", { name: "重新载入当前版本" }))
+    expect(await screen.findByLabelText("Markdown 正文")).toHaveValue("远端新版本")
+    expect(screen.queryByText("发现其他页面保存的新版本")).not.toBeInTheDocument()
+    expect(localStorage.getItem(`velow-note-draft:${note.id}`)).toBeNull()
+    expect((await loadNote(db, note.id)).markdown).toBe("远端新版本")
+  })
 })
