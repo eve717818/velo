@@ -37,6 +37,21 @@ describe('note service', () => {
     await expect(loadNote(db, root.id)).resolves.toMatchObject({ nodeId: root.id, title: '数学', markdown: '' })
   })
 
+  test('creates note IDs when randomUUID is unavailable on local HTTP', async () => {
+    const db = new VeloDB('note-service-without-random-uuid')
+    databases.push(db)
+    const originalRandomUuid = Object.getOwnPropertyDescriptor(crypto, 'randomUUID')
+    Object.defineProperty(crypto, 'randomUUID', { configurable: true, value: undefined })
+
+    try {
+      const note = await createNote(db, { title: '离线笔记', parentId: null, inbox: false }, 1)
+      expect(note.id).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/)
+    } finally {
+      if (originalRandomUuid) Object.defineProperty(crypto, 'randomUUID', originalRandomUuid)
+      else delete (crypto as { randomUUID?: () => string }).randomUUID
+    }
+  })
+
   test('rejects moving a node into its own descendant', async () => {
     const db = createDb()
     const parent = await createNote(db, { title: '数学', parentId: null, inbox: false }, 1)
@@ -111,6 +126,16 @@ describe('note service', () => {
     expect((await db.knowledgeNodes.get(parent.id))?.deletedAt).toBe(5)
   })
 
+  test('restores a root note to its original non-inbox location', async () => {
+    const db = createDb()
+    const root = await createNote(db, { title: '独立笔记', parentId: null, inbox: false }, 1)
+    await trashNote(db, root.id, 2)
+
+    await restoreNote(db, root.id, 3)
+
+    await expect(db.knowledgeNodes.get(root.id)).resolves.toMatchObject({ parentId: null, inbox: false, deletedAt: undefined })
+  })
+
   test('throws readable errors for missing nodes', async () => {
     const db = createDb()
 
@@ -131,5 +156,25 @@ describe('note service', () => {
       filename: '数学-基础.md',
       text: '# 数学 / 基础\n\n根正文\n\n## 导数\n\n子正文\n',
     })
+  })
+
+  test('exports levels deeper than six without invalid Markdown headings', async () => {
+    const db = createDb()
+    let parentId: string | null = null
+    let rootId = ''
+    for (let index = 1; index <= 7; index += 1) {
+      const node = await createNote(db, { title: `第${index}层`, parentId, inbox: false }, index)
+      if (index === 1) rootId = node.id
+      parentId = node.id
+    }
+    const deepest = await loadNote(db, parentId!)
+    await saveNote(db, parentId!, { title: '第7层', markdown: '七层正文' }, deepest.revision ?? 0, 8)
+
+    const exported = await exportMarkdown(db, rootId)
+
+    expect(exported.text).toContain('###### 第6层')
+    expect(exported.text).toContain('      - **第7层**')
+    expect(exported.text).toContain('七层正文')
+    expect(exported.text).not.toContain('#######')
   })
 })

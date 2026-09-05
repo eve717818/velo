@@ -1,5 +1,6 @@
 import type { KnowledgeNode, NoteDocument } from "@/db/types"
 import type { VeloDB } from "@/db/velo-db"
+import { createId } from "@/lib/create-id"
 
 type CreateNoteInput = {
   title: string
@@ -10,10 +11,6 @@ type CreateNoteInput = {
 type SaveNoteInput = {
   title: string
   markdown: string
-}
-
-function noteId() {
-  return crypto.randomUUID()
 }
 
 function isDeleted(node: KnowledgeNode) {
@@ -50,7 +47,7 @@ async function ensureDocument(db: VeloDB, node: KnowledgeNode, now: number) {
   const existing = await db.notes.where("nodeId").equals(node.id).first()
   if (existing) return existing
   const document: NoteDocument = {
-    id: noteId(),
+    id: createId(),
     nodeId: node.id,
     title: node.title,
     content: {},
@@ -109,7 +106,7 @@ export async function createNote(db: VeloDB, input: CreateNoteInput, now: number
     if (input.parentId !== null) await requireLiveNode(db, input.parentId)
     const title = input.title.trim() || "未命名笔记"
     created = {
-      id: noteId(),
+      id: createId(),
       parentId: input.parentId,
       type: "note",
       title,
@@ -187,11 +184,11 @@ export async function restoreNote(db: VeloDB, nodeId: string, now: number): Prom
     const group = (await db.knowledgeNodes.toArray()).filter((node) => node.trashRootId === trashRootId)
     const root = group.find((node) => node.id === trashRootId) ?? selected
     const parent = root.parentId === null ? undefined : await db.knowledgeNodes.get(root.parentId)
-    const parentIsLive = parent !== undefined && !isDeleted(parent)
+    const shouldReturnToInbox = root.parentId !== null && (parent === undefined || isDeleted(parent))
     const restoredRoot = {
       ...root,
-      parentId: parentIsLive ? root.parentId : null,
-      inbox: parentIsLive ? root.inbox : true,
+      parentId: shouldReturnToInbox ? null : root.parentId,
+      inbox: shouldReturnToInbox ? true : root.inbox,
       deletedAt: undefined,
       trashRootId: undefined,
       updatedAt: now,
@@ -218,7 +215,13 @@ export async function exportMarkdown(db: VeloDB, nodeId: string): Promise<{ file
   const lines: string[] = []
   for (const node of subtree) {
     const level = levels.get(node.id) ?? 1
-    lines.push(`${"#".repeat(level)} ${node.title}`, "", readableMarkdown(documents.get(node.id)), "")
+    const markdown = readableMarkdown(documents.get(node.id))
+    if (level <= 6) {
+      lines.push(`${"#".repeat(level)} ${node.title}`, "", markdown, "")
+    } else {
+      const indent = "  ".repeat(level - 4)
+      lines.push(`${indent}- **${node.title}**`, "", ...markdown.split("\n").map((line) => `${indent}  ${line}`), "")
+    }
     for (const child of children.get(node.id) ?? []) levels.set(child.id, level + 1)
   }
   return { filename: safeFilename(root.title), text: `${lines.join("\n").replace(/\n+$/, "")}\n` }

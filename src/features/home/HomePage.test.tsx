@@ -1,7 +1,7 @@
 import { render, screen } from "@testing-library/react"
 import { MemoryRouter } from "react-router-dom"
 import { describe, expect, it } from "vitest"
-import type { PlanTask } from "@/db/types"
+import type { NoteDocument, PlanTask } from "@/db/types"
 import { seedHomeDemo } from "@/db/seed"
 import { VeloDB } from "@/db/velo-db"
 import { HomePage } from "./HomePage"
@@ -122,6 +122,26 @@ describe("HomePage", () => {
 
       expect(await screen.findByText("4 / 5")).toBeInTheDocument()
       expect(screen.getByText("物理实验报告 · 数据整理")).toBeInTheDocument()
+    } finally {
+      view.unmount()
+      await db.delete()
+    }
+  })
+
+  it("removes a trashed recent note from the live home view", async () => {
+    const db = createDatabase()
+    const liveNote: NoteDocument = { id: "live-note", nodeId: "live-node", title: "仍可查看", content: {}, plainText: "保留", createdAt: 1, updatedAt: 1 }
+    const trashedNote: NoteDocument = { id: "trashed-note", nodeId: "trashed-node", title: "已删除笔记", content: {}, plainText: "排除", createdAt: 2, updatedAt: 2 }
+    await db.knowledgeNodes.bulkAdd([
+      { id: "live-node", parentId: null, type: "note", title: liveNote.title, order: 0, createdAt: 1, updatedAt: 1 },
+      { id: "trashed-node", parentId: null, type: "note", title: trashedNote.title, order: 1, deletedAt: 2, trashRootId: "trashed-node", createdAt: 2, updatedAt: 2 },
+    ])
+    await db.notes.bulkAdd([liveNote, trashedNote])
+    const view = renderHome(db)
+
+    try {
+      expect(await screen.findByText("仍可查看")).toBeInTheDocument()
+      expect(screen.queryByText("已删除笔记")).not.toBeInTheDocument()
     } finally {
       view.unmount()
       await db.delete()

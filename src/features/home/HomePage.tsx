@@ -1,12 +1,11 @@
-import { useLiveQuery } from "dexie-react-hooks"
 import type { VeloDB } from "@/db/velo-db"
 import { veloDb } from "@/db/velo-db"
-import { formatLocalDate } from "@/lib/local-date"
 import { NextTaskCard } from "./components/NextTaskCard"
 import { HomeLoadingCockpit } from "./components/HomeLoadingCockpit"
 import { ProgressPanel } from "./components/ProgressPanel"
 import { QuickActions } from "./components/QuickActions"
 import { RecentNoteRow } from "./components/RecentNoteRow"
+import { useHomeSnapshot } from "./useHomeSnapshot"
 import styles from "./HomePage.module.css"
 
 interface HomePageProps {
@@ -29,20 +28,7 @@ function formatDisplayDate(date: Date) {
 export function HomePage({ db, now }: HomePageProps) {
   const currentDate = now ?? new Date()
   const database = db ?? veloDb
-  const dayPeriodKey = formatLocalDate(currentDate)
-  const snapshot = useLiveQuery(async () => {
-    const [tasks, recentNotes] = await Promise.all([
-      database.planTasks.where("[scope+periodKey]").equals(["day", dayPeriodKey]).sortBy("order"),
-      database.notes.orderBy("updatedAt").reverse().limit(1).toArray(),
-    ])
-
-    return {
-      completedCount: tasks.filter((task) => task.isCompleted === 1).length,
-      totalCount: tasks.length,
-      nextTask: tasks.find((task) => task.isCompleted === 0) ?? null,
-      recentNote: recentNotes[0] ?? null,
-    }
-  }, [database, dayPeriodKey])
+  const snapshot = useHomeSnapshot(database, currentDate)
   const isLoading = snapshot === undefined
 
   return (
