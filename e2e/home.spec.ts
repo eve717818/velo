@@ -38,7 +38,7 @@ test("mobile navigation reaches every milestone surface including settings", asy
 
   for (const [label, heading] of [
     ["计划", "学习计划"],
-    ["笔记", "知识笔记"],
+    ["笔记", "笔记工作台"],
     ["专注", "专注"],
   ] as const) {
     await page.getByRole("link", { name: label }).click()
