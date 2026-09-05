@@ -57,12 +57,12 @@ pnpm test:pwa-lifecycle
 
 2026-09-05 的最终证据：
 
-- `pnpm verify`：退出码 0；54 个测试文件、253 项单元/组件测试通过；TypeScript、ESLint 与生产构建通过。
-- Notes Chrome 验收：6/6 通过（20.9 秒），包含链接协议属性与六档逐元素布局边界增强断言。
+- `pnpm verify`：退出码 0；54 个测试文件、254 项单元/组件测试通过；TypeScript、ESLint 与生产构建通过。
+- Notes Chrome 验收：6/6 通过（21.0 秒），包含链接协议属性、六档逐元素布局边界与重载草稿冲突恢复。
 - PWA Chrome 浏览器验收：2/2 通过；`pnpm test:pwa-lifecycle` 验证 `pwa-v1 → 更新提示 → pwa-v2` 通过。
 - Home 全量运行中 12/13 通过；唯一失败是旧测试仍寻找笔记标题“知识笔记”，更新为实际主标题“笔记工作台”后目标回归 1/1 通过。
 - Plans 长流程在本轮额外回归中停在一个旧测试定位器：测试等待已不再存在的“学期卡片”按钮，而当前页面与快照显示学习周期已改由“选择学期或假期”下拉框选择。Notes Task 3 没有修改计划产品代码，此脚本漂移留给计划工作区单独修订。
-- `http://127.0.0.1:4176/` 可访问，返回 HTML 与最新 `dist/index.html` 完全一致；审查修复构建的入口指纹为 `index-qhX17ck-.js` 与 `index-CPY2iiVm.css`。
+- `http://127.0.0.1:4176/` 可访问，返回 HTML 与最新 `dist/index.html` 完全一致；最终构建入口指纹为 `index-D1H3TeMl.js` 与 `index-CPY2iiVm.css`。
 - 构建保留既有提示：主入口压缩前约 562.53 kB，超过 Vite 的 500 kB 建议阈值；Markdown 阅读器已独立分块。
 
 ## 已知边界
