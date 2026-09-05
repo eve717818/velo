@@ -21,7 +21,7 @@
 
 ### Task 1: Persistent notes and hierarchy service
 
-**Files:** modify src/db/types.ts, src/db/velo-db.ts, src/features/home/home-query.ts; create src/features/notes/note-service.ts and src/features/notes/note-service.test.ts; add migration tests in src/db/velo-db.test.ts if needed.
+**Files:** modify src/db/types.ts, src/db/velo-db.ts, src/db/velo-db.test.ts and src/features/home/home-query.ts; create src/features/notes/note-service.ts and src/features/notes/note-service.test.ts.
 
 **Interfaces:** optional additions for compatibility: KnowledgeNode.inbox?: boolean, deletedAt?: number, trashRootId?: string; NoteDocument.markdown?: string, revision?: number. Export `createNote(db, {title,parentId,inbox}, now): Promise<KnowledgeNode>`, `saveNote(db,nodeId,{title,markdown},expectedRevision,now): Promise<NoteDocument>`, `moveNote(db,nodeId,parentId,inbox,now): Promise<void>`, `trashNote(db,nodeId,now): Promise<void>`, `restoreNote(db,nodeId,now): Promise<void>`, `loadNote(db,nodeId): Promise<NoteDocument>`, `exportMarkdown(db,nodeId): Promise<{filename:string,text:string}>`. Error messages must be user-readable Chinese.
 
