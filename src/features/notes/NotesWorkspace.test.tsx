@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react"
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { MemoryRouter } from "react-router-dom"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
@@ -23,10 +23,49 @@ beforeEach(() => {
 
 afterEach(async () => {
   vi.restoreAllMocks()
+  vi.unstubAllGlobals()
   await db.delete()
 })
 
 describe("NotesWorkspace", () => {
+  it("keeps the compact phone header labels on one line", () => {
+    renderWorkspace()
+
+    expect(screen.getByRole("heading", { name: "笔记工作台" })).toHaveAttribute("data-nowrap", "true")
+    expect(screen.getByRole("button", { name: "目录" }).querySelector("[data-nowrap='true']")).toHaveTextContent("目录")
+    expect(screen.getByRole("button", { name: "新建笔记" }).querySelector("[data-nowrap='true']")).toHaveTextContent("新建笔记")
+  })
+
+  it("only offers split view at a sufficiently wide viewport and falls back when it narrows", async () => {
+    const note = await createNote(db, { title: "响应式编辑", parentId: null, inbox: false }, 1)
+    let matches = false
+    const listeners = new Set<(event: MediaQueryListEvent) => void>()
+    vi.stubGlobal("matchMedia", vi.fn(() => ({
+      matches,
+      media: "(min-width: 1051px)",
+      onchange: null,
+      addEventListener: (_type: string, listener: (event: MediaQueryListEvent) => void) => listeners.add(listener),
+      removeEventListener: (_type: string, listener: (event: MediaQueryListEvent) => void) => listeners.delete(listener),
+      addListener: () => undefined,
+      removeListener: () => undefined,
+      dispatchEvent: () => true,
+    })))
+    renderWorkspace({ initialEntry: `/notes?note=${note.id}` })
+
+    await screen.findByLabelText("Markdown 正文")
+    expect(screen.queryByRole("button", { name: "分栏" })).not.toBeInTheDocument()
+
+    matches = true
+    act(() => listeners.forEach((listener) => listener({ matches } as MediaQueryListEvent)))
+    await userEvent.setup().click(await screen.findByRole("button", { name: "分栏" }))
+    expect(await screen.findByLabelText("Markdown 阅读内容")).toBeInTheDocument()
+
+    matches = false
+    act(() => listeners.forEach((listener) => listener({ matches } as MediaQueryListEvent)))
+    expect(screen.queryByRole("button", { name: "分栏" })).not.toBeInTheDocument()
+    expect(screen.queryByLabelText("Markdown 阅读内容")).not.toBeInTheDocument()
+    expect(screen.getByLabelText("Markdown 正文")).toBeInTheDocument()
+  })
   it("creates an empty note, edits it and announces a successful autosave", async () => {
     const user = userEvent.setup()
     renderWorkspace()

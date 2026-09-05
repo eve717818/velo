@@ -177,10 +177,10 @@ export function NotesWorkspace({ db, services }: NotesWorkspaceProps) {
   return (
     <main className={styles.page}>
       <header className={styles.workspaceHeader}>
-        <div><p>知识笔记</p><h1>笔记工作台</h1></div>
+        <div><p>知识笔记</p><h1 data-nowrap="true">笔记工作台</h1></div>
         <div className={styles.headerActions}>
-          <button className={styles.directoryButton} onClick={() => setDrawerOpen(true)} type="button"><Menu aria-hidden="true" />目录</button>
-          <button className={styles.primaryButton} onClick={() => void createNew()} type="button"><Plus aria-hidden="true" />新建笔记</button>
+          <button className={styles.directoryButton} onClick={() => setDrawerOpen(true)} type="button"><Menu aria-hidden="true" /><span data-nowrap="true">目录</span></button>
+          <button className={styles.primaryButton} onClick={() => void createNew()} type="button"><Plus aria-hidden="true" /><span data-nowrap="true">新建笔记</span></button>
         </div>
       </header>
 

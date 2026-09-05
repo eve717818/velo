@@ -418,8 +418,9 @@
 
 @media (max-width: 767px) {
   .page { margin: -8px -8px 0; }
-  .workspaceHeader { border-radius: 20px; padding: 16px; }
-  .workspaceHeader h1 { font-size: 1.7rem; }
+  .workspaceHeader { border-radius: 20px; gap: 8px; padding: 12px; }
+  .workspaceHeader > div:first-child { flex: 1 1 auto; min-width: 0; }
+  .workspaceHeader h1 { font-size: clamp(1.3rem, 5.8vw, 1.55rem); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .workspaceHeader p { display: none; }
   .workspace { display: block; min-height: calc(100dvh - 230px); }
   .directory,.reopenDirectory { display: none; }
@@ -436,11 +437,10 @@
   .modeSwitcher button { flex: 1; }
   .formatBar { gap: 2px; width: 100%; }
   .formatBar button { flex: 1; }
-  .editorBody.split { grid-template-columns: 1fr; }
-  .editorBody.split .markdownView { display: none; }
   .markdownField textarea { min-height: 48dvh; padding: 15px; }
-  .headerActions { gap: 6px; }
-  .headerActions button { padding: 0 11px; }
+  .headerActions { flex: 0 0 auto; gap: 5px; }
+  .headerActions button { font-size: .75rem; gap: 4px; padding: 0 9px; white-space: nowrap; }
+  .headerActions button svg { height: 17px; width: 17px; }
 }
 
 @media (min-width: 768px) {
@@ -452,8 +452,6 @@
   .workspace { grid-template-columns: minmax(230px, var(--notes-sidebar-width)) minmax(0, 1fr); }
   .workspaceHeader { padding: 18px 20px; }
   .editor { padding: 22px; }
-  .editorBody.split { grid-template-columns: 1fr; }
-  .editorBody.split .markdownView { border: 0; display: none; }
 }
 
 @media (prefers-reduced-motion: reduce) {

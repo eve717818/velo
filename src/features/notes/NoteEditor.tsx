@@ -11,6 +11,12 @@ const MarkdownView = lazy(async () => {
   return { default: module.MarkdownView }
 })
 
+const SPLIT_VIEW_QUERY = "(min-width: 1051px)"
+
+function splitViewAvailable() {
+  return typeof window.matchMedia === "function" && window.matchMedia(SPLIT_VIEW_QUERY).matches
+}
+
 export interface NoteEditorHandle {
   flush: () => Promise<boolean>
   exportDraft: () => { title: string; markdown: string }
@@ -48,6 +54,7 @@ export const NoteEditor = forwardRef<NoteEditorHandle, NoteEditorProps>(function
   const [title, setTitle] = useState("")
   const [markdown, setMarkdown] = useState("")
   const [mode, setMode] = useState<EditorMode>("edit")
+  const [canSplit, setCanSplit] = useState(splitViewAvailable)
   const [status, setStatus] = useState<SaveStatus>("loading")
   const [error, setError] = useState("")
   const textareaRef = useRef<HTMLTextAreaElement>(null)
@@ -85,6 +92,17 @@ export const NoteEditor = forwardRef<NoteEditorHandle, NoteEditorProps>(function
       if (timerRef.current !== undefined) window.clearTimeout(timerRef.current)
     }
   }, [load])
+
+  useEffect(() => {
+    if (typeof window.matchMedia !== "function") return undefined
+    const media = window.matchMedia(SPLIT_VIEW_QUERY)
+    const onChange = (event: MediaQueryListEvent) => {
+      setCanSplit(event.matches)
+      if (!event.matches) setMode((current) => current === "split" ? "edit" : current)
+    }
+    media.addEventListener("change", onChange)
+    return () => media.removeEventListener("change", onChange)
+  }, [])
 
   const performSave = useCallback(async () => {
     if (composingRef.current) return false
@@ -187,7 +205,7 @@ export const NoteEditor = forwardRef<NoteEditorHandle, NoteEditorProps>(function
 
       <div className={styles.editorControls}>
         <div className={styles.modeSwitcher} aria-label="显示模式">
-          {(["edit", "read", "split"] as EditorMode[]).map((value) => (
+          {(["edit", "read", ...(canSplit ? ["split" as const] : [])] as EditorMode[]).map((value) => (
             <button aria-pressed={mode === value} key={value} onClick={() => setMode(value)} type="button">
               {{ edit: "编辑", read: "阅读", split: "分栏" }[value]}
             </button>
