@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest"
 import type { KnowledgeNode, LegacyKnowledgeNode, NoteDocument } from "@/db/types"
 import { isDocumentEmpty, migrateLegacyKnowledgeTree, validateKnowledgeTree } from "./knowledge-tree-model"
 
-const node = (id: string, parentId: string | null, title: string, order: number): LegacyKnowledgeNode => ({
+const legacyNode = (id: string, parentId: string | null, title: string, order: number): LegacyKnowledgeNode => ({
   id,
   parentId,
   type: "note",
@@ -13,7 +13,17 @@ const node = (id: string, parentId: string | null, title: string, order: number)
   updatedAt: order + 1,
 })
 
-const document = (id: string, nodeId: string, markdown: string): NoteDocument => ({
+const currentNode = (id: string, parentId: string | null, type: KnowledgeNode["type"]): KnowledgeNode => ({
+  id,
+  parentId,
+  type,
+  title: id,
+  order: 0,
+  createdAt: 1,
+  updatedAt: 1,
+})
+
+const document = (id: string, nodeId: string, markdown: string, overrides: Partial<NoteDocument> = {}): NoteDocument => ({
   id,
   nodeId,
   title: nodeId,
@@ -23,6 +33,7 @@ const document = (id: string, nodeId: string, markdown: string): NoteDocument =>
   revision: 0,
   createdAt: 1,
   updatedAt: 1,
+  ...overrides,
 })
 
 describe("isDocumentEmpty", () => {
@@ -50,7 +61,7 @@ describe("isDocumentEmpty", () => {
 
 describe("migrateLegacyKnowledgeTree", () => {
   it("keeps a leaf as a note and removes its inbox marker", () => {
-    const inputNode = node("inbox", null, "速记", 0)
+    const inputNode = legacyNode("inbox", null, "速记", 0)
     const inputDocument = document("doc", "inbox", "正文")
 
     const result = migrateLegacyKnowledgeTree([inputNode], [inputDocument])
@@ -65,7 +76,7 @@ describe("migrateLegacyKnowledgeTree", () => {
 
   it("turns an empty parent into a folder and removes its empty document", () => {
     const result = migrateLegacyKnowledgeTree(
-      [node("parent", null, "数学", 0), node("child", "parent", "导数", 0)],
+      [legacyNode("parent", null, "数学", 0), legacyNode("child", "parent", "导数", 0)],
       [document("parent-doc", "parent", ""), document("child-doc", "child", "定义")],
     )
 
@@ -75,23 +86,63 @@ describe("migrateLegacyKnowledgeTree", () => {
 
   it("moves a non-empty parent document to a deterministic overview note", () => {
     const result = migrateLegacyKnowledgeTree(
-      [node("parent", null, "物理", 0), node("child", "parent", "力学", 0)],
-      [document("parent-doc", "parent", "课程概览"), document("child-doc", "child", "牛顿定律")],
+      [
+        legacyNode("parent", null, "物理", 0),
+        legacyNode("first-child", "parent", "力学", 2),
+        legacyNode("second-child", "parent", "光学", 7),
+      ],
+      [
+        document("parent-doc", "parent", "# 课程概览", {
+          title: "物理课程正文",
+          content: {
+            type: "doc",
+            content: [{
+              type: "paragraph",
+              attrs: { alignment: "center" },
+              content: [{ type: "text", text: "课程概览", marks: [{ type: "strong" }] }],
+            }],
+          },
+          plainText: "课程概览",
+          revision: 6,
+          createdAt: 101,
+          updatedAt: 202,
+        }),
+        document("first-child-doc", "first-child", "牛顿定律", { createdAt: 303, updatedAt: 404 }),
+        document("second-child-doc", "second-child", "几何光学", { createdAt: 505, updatedAt: 606 }),
+      ],
     )
 
     const overview = result.nodes.find((item) => item.parentId === "parent" && item.title === "概览")
     expect(overview).toMatchObject({ id: "parent--overview", type: "note", order: 0 })
-    expect(result.documents.find((item) => item.id === "parent-doc")).toMatchObject({ nodeId: overview?.id, markdown: "课程概览" })
-    expect(result.nodes.find((item) => item.id === "child")?.order).toBe(1)
+    expect(result.documents.find((item) => item.id === "parent-doc")).toEqual({
+      id: "parent-doc",
+      nodeId: "parent--overview",
+      title: "物理课程正文",
+      content: {
+        type: "doc",
+        content: [{
+          type: "paragraph",
+          attrs: { alignment: "center" },
+          content: [{ type: "text", text: "课程概览", marks: [{ type: "strong" }] }],
+        }],
+      },
+      plainText: "课程概览",
+      markdown: "# 课程概览",
+      revision: 6,
+      createdAt: 101,
+      updatedAt: 202,
+    })
+    expect(result.nodes.find((item) => item.id === "first-child")?.order).toBe(3)
+    expect(result.nodes.find((item) => item.id === "second-child")?.order).toBe(8)
   })
 
   it("adds numeric suffixes when deterministic overview and document IDs collide", () => {
     const result = migrateLegacyKnowledgeTree(
       [
-        node("parent", null, "物理", 0),
-        node("parent--overview", "parent", "已有笔记", 0),
-        node("leaf", null, "无正文笔记", 1),
-        node("holder", null, "占位笔记", 2),
+        legacyNode("parent", null, "物理", 0),
+        legacyNode("parent--overview", "parent", "已有笔记", 0),
+        legacyNode("leaf", null, "无正文笔记", 1),
+        legacyNode("holder", null, "占位笔记", 2),
       ],
       [
         document("parent-doc", "parent", "课程概览"),
@@ -105,7 +156,7 @@ describe("migrateLegacyKnowledgeTree", () => {
   })
 
   it("creates exactly one deterministic empty document for a leaf without one", () => {
-    const result = migrateLegacyKnowledgeTree([node("leaf", null, "待补充", 0)], [])
+    const result = migrateLegacyKnowledgeTree([legacyNode("leaf", null, "待补充", 0)], [])
 
     expect(result.nodes).toEqual([expect.objectContaining({ id: "leaf", type: "note" })])
     expect(result.documents).toEqual([
@@ -123,26 +174,21 @@ describe("migrateLegacyKnowledgeTree", () => {
 
   it("aborts rather than discarding ambiguous or orphaned legacy rows", () => {
     expect(() => migrateLegacyKnowledgeTree(
-      [node("leaf", null, "重复正文", 0)],
+      [legacyNode("leaf", null, "重复正文", 0)],
       [document("first", "leaf", "一"), document("second", "leaf", "二")],
     )).toThrow()
     expect(() => migrateLegacyKnowledgeTree(
-      [node("leaf", null, "正文孤儿", 0)],
+      [legacyNode("leaf", null, "正文孤儿", 0)],
       [document("orphan", "missing", "孤儿")],
     )).toThrow()
     expect(() => migrateLegacyKnowledgeTree(
-      [node("child", "missing", "父节点缺失", 0)],
+      [legacyNode("child", "missing", "父节点缺失", 0)],
       [document("child-doc", "child", "正文")],
     )).toThrow()
   })
 })
 
 describe("validateKnowledgeTree", () => {
-  const currentNode = (id: string, parentId: string | null, type: KnowledgeNode["type"]): KnowledgeNode => ({
-    ...node(id, parentId, id, 0),
-    type,
-  })
-
   it("rejects folders with documents", () => {
     expect(() => validateKnowledgeTree(
       [currentNode("folder", null, "folder")],
