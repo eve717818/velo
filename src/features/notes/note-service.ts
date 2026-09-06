@@ -5,6 +5,11 @@ import { createId } from '@/lib/create-id'
 type CreateNodeInput = {
   title: string
   parentId: string | null
+}
+
+type LegacyCreateNoteInput = {
+  title: string
+  parentId: string | null
   /** @deprecated Ignored until legacy callers migrate to the node-type API. */
   inbox?: boolean
 }
@@ -139,7 +144,7 @@ export function createFolder(db: VeloDB, input: CreateNodeInput, now: number): P
   return createNode(db, 'folder', input, now)
 }
 
-export function createNote(db: VeloDB, input: CreateNodeInput, now: number): Promise<KnowledgeNode> {
+export function createNote(db: VeloDB, input: LegacyCreateNoteInput, now: number): Promise<KnowledgeNode> {
   return createNode(db, 'note', input, now)
 }
 
@@ -186,7 +191,14 @@ export async function renameNode(db: VeloDB, nodeId: string, title: string, now:
     await db.knowledgeNodes.put(renamed)
     if (node.type === 'note') {
       const document = await db.notes.where('nodeId').equals(node.id).first()
-      if (document) await db.notes.put({ ...document, title: renamed.title, updatedAt: now })
+      if (document) {
+        await db.notes.put({
+          ...document,
+          title: renamed.title,
+          revision: (document.revision ?? 0) + 1,
+          updatedAt: now,
+        })
+      }
     }
   })
   return renamed

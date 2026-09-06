@@ -1,5 +1,5 @@
 import 'fake-indexeddb/auto'
-import { afterEach, describe, expect, test } from 'vitest'
+import { afterEach, describe, expect, expectTypeOf, test } from 'vitest'
 import { VeloDB } from '../../db/velo-db'
 import {
   createFolder,
@@ -29,6 +29,14 @@ afterEach(async () => {
 })
 
 describe('note service', () => {
+  test('exposes legacy inbox input only on createNote', () => {
+    type FolderInput = Parameters<typeof createFolder>[1]
+    type NoteInput = Parameters<typeof createNote>[1]
+
+    expectTypeOf<FolderInput>().toEqualTypeOf<{ title: string; parentId: string | null }>()
+    expectTypeOf<NoteInput>().toEqualTypeOf<{ title: string; parentId: string | null; inbox?: boolean }>()
+  })
+
   test('creates folders without documents and notes with one document', async () => {
     const db = createDb()
     const folder = await createFolder(db, { title: '数学', parentId: null }, 1)
@@ -84,15 +92,42 @@ describe('note service', () => {
     }
   })
 
-  test('renames folders without documents and keeps note document titles synchronized', async () => {
+  test('renames folders without creating or modifying documents', async () => {
     const db = createDb()
     const folder = await createFolder(db, { title: '旧目录', parentId: null }, 1)
-    const note = await createNote(db, { title: '旧笔记', parentId: folder.id }, 2)
+    const unexpectedDocument = {
+      id: 'unexpected-folder-document',
+      nodeId: folder.id,
+      title: '意外旧文档',
+      content: {},
+      plainText: '',
+      markdown: '',
+      revision: 4,
+      createdAt: 1,
+      updatedAt: 1,
+    }
+    await db.notes.add(unexpectedDocument)
 
     await expect(renameNode(db, folder.id, '  新目录  ', 3)).resolves.toMatchObject({ title: '新目录', updatedAt: 3 })
-    expect(await db.notes.where('nodeId').equals(folder.id).count()).toBe(0)
-    await expect(renameNode(db, note.id, '  新笔记  ', 4)).resolves.toMatchObject({ title: '新笔记', updatedAt: 4 })
-    await expect(loadNote(db, note.id)).resolves.toMatchObject({ title: '新笔记', updatedAt: 4 })
+    await expect(db.notes.get(unexpectedDocument.id)).resolves.toEqual(unexpectedDocument)
+  })
+
+  test('increments note revision on rename so stale autosaves cannot overwrite the title', async () => {
+    const db = createDb()
+    const note = await createNote(db, { title: '旧笔记', parentId: null }, 1)
+    const staleDocument = await loadNote(db, note.id)
+
+    await expect(renameNode(db, note.id, '新笔记', 2)).resolves.toMatchObject({ title: '新笔记', updatedAt: 2 })
+
+    await expect(loadNote(db, note.id)).resolves.toMatchObject({
+      id: staleDocument.id,
+      title: '新笔记',
+      revision: (staleDocument.revision ?? 0) + 1,
+      updatedAt: 2,
+    })
+    await expect(saveNote(db, note.id, { title: '旧笔记', markdown: '旧正文' }, staleDocument.revision ?? 0, 3))
+      .rejects.toThrow('笔记已被更新')
+    await expect(db.knowledgeNodes.get(note.id)).resolves.toMatchObject({ title: '新笔记', updatedAt: 2 })
   })
 
   test('rejects moving a node into its own descendant', async () => {
