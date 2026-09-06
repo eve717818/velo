@@ -56,6 +56,10 @@ describe("loadHomeSnapshot", () => {
         note({ id: "older-note", title: "较早笔记", updatedAt: 10 }),
         note({ id: "recent-note", title: "最新笔记", updatedAt: 20 }),
       ])
+      await db.knowledgeNodes.bulkAdd([
+        { id: "older-note-node", parentId: null, type: "note", title: "较早笔记", order: 0, createdAt: 1, updatedAt: 10 },
+        { id: "recent-note-node", parentId: null, type: "note", title: "最新笔记", order: 1, createdAt: 1, updatedAt: 20 },
+      ])
 
       const snapshot = await loadHomeSnapshot(db, now)
 
@@ -77,15 +81,18 @@ describe("loadHomeSnapshot", () => {
     })
   })
 
-  it("selects the latest live note instead of a trashed one", async () => {
+  it("selects only documents owned by live note nodes", async () => {
     await withDatabase(async (db) => {
       await db.knowledgeNodes.bulkAdd([
         { id: "live", parentId: null, type: "note", title: "仍可用", order: 0, createdAt: 1, updatedAt: 1 },
         { id: "trash", parentId: null, type: "note", title: "已删除", order: 1, deletedAt: 2, trashRootId: "trash", createdAt: 2, updatedAt: 2 },
+        { id: "folder", parentId: null, type: "folder", title: "目录", order: 2, createdAt: 3, updatedAt: 3 },
       ])
       await db.notes.bulkAdd([
         note({ id: "live-document", nodeId: "live", title: "仍可用", plainText: "保留", updatedAt: 1 }),
         note({ id: "trash-document", nodeId: "trash", title: "已删除", plainText: "排除", updatedAt: 2 }),
+        note({ id: "folder-document", nodeId: "folder", title: "目录正文", plainText: "排除", updatedAt: 3 }),
+        note({ id: "orphan-document", nodeId: "missing", title: "孤儿正文", plainText: "排除", updatedAt: 4 }),
       ])
 
       await expect(loadHomeSnapshot(db, now)).resolves.toMatchObject({

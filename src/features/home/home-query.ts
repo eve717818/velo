@@ -16,7 +16,7 @@ export async function loadHomeSnapshot(db: VeloDB, now: Date): Promise<HomeSnaps
   let recentNote: NoteDocument | null = null
   for (const note of recentNotes) {
     const node = await db.knowledgeNodes.get(note.nodeId)
-    if (!node || node.deletedAt === undefined) {
+    if (node?.type === "note" && node.deletedAt === undefined) {
       recentNote = note
       break
     }

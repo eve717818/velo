@@ -2,13 +2,15 @@ import 'fake-indexeddb/auto'
 import { afterEach, describe, expect, test } from 'vitest'
 import { VeloDB } from '../../db/velo-db'
 import {
+  createFolder,
   createNote,
   exportMarkdown,
   loadNote,
-  moveNote,
-  restoreNote,
+  moveNode,
+  renameNode,
+  restoreNode,
   saveNote,
-  trashNote,
+  trashNode,
 } from './note-service'
 
 const databases: VeloDB[] = []
@@ -27,83 +29,136 @@ afterEach(async () => {
 })
 
 describe('note service', () => {
-  test('creates root and inbox notes with a markdown document', async () => {
+  test('creates folders without documents and notes with one document', async () => {
     const db = createDb()
-    const root = await createNote(db, { title: '数学', parentId: null, inbox: false }, 1)
-    const inbox = await createNote(db, { title: '收集', parentId: null, inbox: true }, 2)
+    const folder = await createFolder(db, { title: '数学', parentId: null }, 1)
+    const note = await createNote(db, { title: '导数', parentId: folder.id }, 2)
 
-    expect(root).toMatchObject({ title: '数学', parentId: null, inbox: false })
-    expect(inbox).toMatchObject({ title: '收集', parentId: null, inbox: true })
-    await expect(loadNote(db, root.id)).resolves.toMatchObject({ nodeId: root.id, title: '数学', markdown: '' })
+    expect(folder).toMatchObject({ type: 'folder', parentId: null })
+    expect(folder).not.toHaveProperty('inbox')
+    expect(await db.notes.where('nodeId').equals(folder.id).count()).toBe(0)
+    expect(note).toMatchObject({ type: 'note', parentId: folder.id })
+    expect(note).not.toHaveProperty('inbox')
+    expect(await db.notes.where('nodeId').equals(note.id).count()).toBe(1)
   })
 
-  test('creates note IDs when randomUUID is unavailable on local HTTP', async () => {
+  test('rejects children or moves under a note', async () => {
+    const db = createDb()
+    const note = await createNote(db, { title: '孤立笔记', parentId: null }, 1)
+
+    await expect(createFolder(db, { title: '错误目录', parentId: note.id }, 2)).rejects.toThrow('父节点必须是文件夹')
+    const other = await createNote(db, { title: '另一篇', parentId: null }, 3)
+    await expect(moveNode(db, other.id, note.id, 4)).rejects.toThrow('父节点必须是文件夹')
+  })
+
+  test('restores a subtree to root when its former folder is gone', async () => {
+    const db = createDb()
+    const existingRoot = await createFolder(db, { title: '现有根目录', parentId: null }, 1)
+    const outer = await createFolder(db, { title: '外层', parentId: null }, 2)
+    const inner = await createFolder(db, { title: '内层', parentId: outer.id }, 3)
+    const note = await createNote(db, { title: '正文', parentId: inner.id }, 4)
+    await trashNode(db, inner.id, 5)
+    await db.knowledgeNodes.delete(outer.id)
+
+    await restoreNode(db, note.id, 6)
+
+    expect(await db.knowledgeNodes.get(inner.id)).toMatchObject({ parentId: null, order: existingRoot.order + 1, deletedAt: undefined })
+    expect(await db.knowledgeNodes.get(note.id)).toMatchObject({ parentId: inner.id, deletedAt: undefined })
+  })
+
+  test('creates stable node and document IDs when randomUUID is unavailable on local HTTP', async () => {
     const db = new VeloDB('note-service-without-random-uuid')
     databases.push(db)
     const originalRandomUuid = Object.getOwnPropertyDescriptor(crypto, 'randomUUID')
     Object.defineProperty(crypto, 'randomUUID', { configurable: true, value: undefined })
 
     try {
-      const note = await createNote(db, { title: '离线笔记', parentId: null, inbox: false }, 1)
-      expect(note.id).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/)
+      const note = await createNote(db, { title: '离线笔记', parentId: null }, 1)
+      const document = await loadNote(db, note.id)
+      const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/
+      expect(note.id).toMatch(uuid)
+      expect(document.id).toMatch(uuid)
     } finally {
       if (originalRandomUuid) Object.defineProperty(crypto, 'randomUUID', originalRandomUuid)
       else delete (crypto as { randomUUID?: () => string }).randomUUID
     }
   })
 
+  test('renames folders without documents and keeps note document titles synchronized', async () => {
+    const db = createDb()
+    const folder = await createFolder(db, { title: '旧目录', parentId: null }, 1)
+    const note = await createNote(db, { title: '旧笔记', parentId: folder.id }, 2)
+
+    await expect(renameNode(db, folder.id, '  新目录  ', 3)).resolves.toMatchObject({ title: '新目录', updatedAt: 3 })
+    expect(await db.notes.where('nodeId').equals(folder.id).count()).toBe(0)
+    await expect(renameNode(db, note.id, '  新笔记  ', 4)).resolves.toMatchObject({ title: '新笔记', updatedAt: 4 })
+    await expect(loadNote(db, note.id)).resolves.toMatchObject({ title: '新笔记', updatedAt: 4 })
+  })
+
   test('rejects moving a node into its own descendant', async () => {
     const db = createDb()
-    const parent = await createNote(db, { title: '数学', parentId: null, inbox: false }, 1)
-    const child = await createNote(db, { title: '导数', parentId: parent.id, inbox: false }, 2)
+    const parent = await createFolder(db, { title: '数学', parentId: null }, 1)
+    const child = await createFolder(db, { title: '导数', parentId: parent.id }, 2)
 
-    await expect(moveNote(db, parent.id, child.id, false, 3)).rejects.toThrow('不能移动')
+    await expect(moveNode(db, parent.id, child.id, 3)).rejects.toThrow('不能移动')
   })
 
   test('rejects a corrupted parent cycle instead of traversing forever', async () => {
     const db = createDb()
-    const note = await createNote(db, { title: '正常笔记', parentId: null, inbox: false }, 1)
+    const note = await createNote(db, { title: '正常笔记', parentId: null }, 1)
     await db.knowledgeNodes.bulkAdd([
       { id: 'cycle-a', parentId: 'cycle-b', type: 'folder', title: '循环 A', order: 0, createdAt: 1, updatedAt: 1 },
       { id: 'cycle-b', parentId: 'cycle-a', type: 'folder', title: '循环 B', order: 0, createdAt: 1, updatedAt: 1 },
     ])
 
-    await expect(moveNote(db, note.id, 'cycle-a', false, 2)).rejects.toThrow('目录结构存在循环')
+    await expect(moveNode(db, note.id, 'cycle-a', 2)).rejects.toThrow('目录结构存在循环')
   })
 
-  test('keeps the same node and markdown when moving', async () => {
+  test('keeps the same node and markdown when moving between folders', async () => {
     const db = createDb()
-    const source = await createNote(db, { title: '数学', parentId: null, inbox: false }, 1)
-    const target = await createNote(db, { title: '物理', parentId: null, inbox: false }, 2)
-    const note = await createNote(db, { title: '导数', parentId: source.id, inbox: false }, 3)
+    const source = await createFolder(db, { title: '数学', parentId: null }, 1)
+    const target = await createFolder(db, { title: '物理', parentId: null }, 2)
+    const note = await createNote(db, { title: '导数', parentId: source.id }, 3)
     const document = await loadNote(db, note.id)
     await saveNote(db, note.id, { title: '导数', markdown: '# 定义\n变化率' }, document.revision ?? 0, 4)
 
-    await moveNote(db, note.id, target.id, false, 5)
+    await moveNode(db, note.id, target.id, 5)
 
-    await expect(loadNote(db, note.id)).resolves.toMatchObject({ nodeId: note.id, markdown: '# 定义\n变化率' })
+    await expect(loadNote(db, note.id)).resolves.toMatchObject({ id: document.id, nodeId: note.id, markdown: '# 定义\n变化率' })
     await expect(db.knowledgeNodes.get(note.id)).resolves.toMatchObject({ id: note.id, parentId: target.id })
   })
 
-  test('rejects stale saves and keeps node and document titles synchronized', async () => {
+  test('rejects stale saves and keeps IME-independent save revisions synchronized', async () => {
     const db = createDb()
-    const note = await createNote(db, { title: '导数', parentId: null, inbox: false }, 1)
+    const folder = await createFolder(db, { title: '数学', parentId: null }, 1)
+    const note = await createNote(db, { title: '导数', parentId: folder.id }, 2)
     const document = await loadNote(db, note.id)
 
-    await expect(saveNote(db, note.id, { title: '极限', markdown: '# 定义' }, document.revision ?? 0, 2))
+    await expect(saveNote(db, note.id, { title: '极限', markdown: '# 定义' }, document.revision ?? 0, 3))
       .resolves.toMatchObject({ title: '极限', markdown: '# 定义', revision: 1 })
-    await expect(saveNote(db, note.id, { title: '旧稿', markdown: '旧' }, document.revision ?? 0, 3)).rejects.toThrow('已被更新')
+    await expect(saveNote(db, note.id, { title: '旧稿', markdown: '旧' }, document.revision ?? 0, 4)).rejects.toThrow('已被更新')
     await expect(db.knowledgeNodes.get(note.id)).resolves.toMatchObject({ title: '极限' })
   })
 
-  test('trashes a live subtree without reviving an already trashed descendant', async () => {
+  test('rejects note-document operations for folders', async () => {
     const db = createDb()
-    const parent = await createNote(db, { title: '数学', parentId: null, inbox: false }, 1)
-    const child = await createNote(db, { title: '导数', parentId: parent.id, inbox: false }, 2)
-    const grandchild = await createNote(db, { title: '极限', parentId: child.id, inbox: false }, 3)
-    await trashNote(db, child.id, 4)
+    const folder = await createFolder(db, { title: '资料', parentId: null }, 1)
+
+    await expect(loadNote(db, folder.id)).rejects.toThrow('请选择一篇笔记')
+    await expect(saveNote(db, folder.id, { title: '错误', markdown: '错误' }, 0, 2)).rejects.toThrow('请选择一篇笔记')
+    await expect(exportMarkdown(db, folder.id)).rejects.toThrow('请选择一篇笔记')
+    expect(await db.notes.where('nodeId').equals(folder.id).count()).toBe(0)
+  })
+
+  test('trashes a live subtree without changing an already trashed descendant group', async () => {
+    const db = createDb()
+    const parent = await createFolder(db, { title: '数学', parentId: null }, 1)
+    const child = await createFolder(db, { title: '导数', parentId: parent.id }, 2)
+    const grandchild = await createNote(db, { title: '极限', parentId: child.id }, 3)
+    await trashNode(db, child.id, 4)
     const firstTrash = await db.knowledgeNodes.get(child.id)
-    await trashNote(db, parent.id, 5)
+
+    await trashNode(db, parent.id, 5)
 
     expect((await db.knowledgeNodes.get(parent.id))?.trashRootId).toBe(parent.id)
     expect((await db.knowledgeNodes.get(child.id))?.trashRootId).toBe(child.id)
@@ -111,72 +166,38 @@ describe('note service', () => {
     expect(firstTrash?.deletedAt).toBe(4)
   })
 
-  test('restores only its trash group and sends a deleted parent restore to inbox', async () => {
+  test('restores the exact trash group from a clicked descendant', async () => {
     const db = createDb()
-    const parent = await createNote(db, { title: '数学', parentId: null, inbox: false }, 1)
-    const child = await createNote(db, { title: '导数', parentId: parent.id, inbox: false }, 2)
-    const grandchild = await createNote(db, { title: '极限', parentId: child.id, inbox: false }, 3)
-    await trashNote(db, child.id, 4)
-    await trashNote(db, parent.id, 5)
+    const parent = await createFolder(db, { title: '数学', parentId: null }, 1)
+    const child = await createFolder(db, { title: '导数', parentId: parent.id }, 2)
+    const grandchild = await createNote(db, { title: '极限', parentId: child.id }, 3)
+    await trashNode(db, child.id, 4)
+    await trashNode(db, parent.id, 5)
 
-    await restoreNote(db, child.id, 6)
+    await restoreNode(db, grandchild.id, 6)
 
-    expect(await db.knowledgeNodes.get(child.id)).toMatchObject({ deletedAt: undefined, trashRootId: undefined, inbox: true, parentId: null })
+    expect(await db.knowledgeNodes.get(child.id)).toMatchObject({ deletedAt: undefined, trashRootId: undefined, parentId: null })
     expect(await db.knowledgeNodes.get(grandchild.id)).toMatchObject({ deletedAt: undefined, trashRootId: undefined, parentId: child.id })
     expect((await db.knowledgeNodes.get(parent.id))?.deletedAt).toBe(5)
-  })
-
-  test('restores a root note to its original non-inbox location', async () => {
-    const db = createDb()
-    const root = await createNote(db, { title: '独立笔记', parentId: null, inbox: false }, 1)
-    await trashNote(db, root.id, 2)
-
-    await restoreNote(db, root.id, 3)
-
-    await expect(db.knowledgeNodes.get(root.id)).resolves.toMatchObject({ parentId: null, inbox: false, deletedAt: undefined })
   })
 
   test('throws readable errors for missing nodes', async () => {
     const db = createDb()
 
     await expect(loadNote(db, 'missing')).rejects.toThrow('笔记不存在')
-    await expect(trashNote(db, 'missing', 1)).rejects.toThrow('笔记不存在')
+    await expect(trashNode(db, 'missing', 1)).rejects.toThrow('笔记不存在')
   })
 
-  test('exports an ordered markdown subtree including each node text', async () => {
+  test('exports the selected note heading and markdown in order', async () => {
     const db = createDb()
-    const parent = await createNote(db, { title: '数学 / 基础', parentId: null, inbox: false }, 1)
-    const child = await createNote(db, { title: '导数', parentId: parent.id, inbox: false }, 2)
-    let document = await loadNote(db, parent.id)
-    await saveNote(db, parent.id, { title: parent.title, markdown: '根正文' }, document.revision ?? 0, 3)
-    document = await loadNote(db, child.id)
-    await saveNote(db, child.id, { title: child.title, markdown: '子正文' }, document.revision ?? 0, 4)
+    const folder = await createFolder(db, { title: '数学', parentId: null }, 1)
+    const note = await createNote(db, { title: '数学 / 基础', parentId: folder.id }, 2)
+    const document = await loadNote(db, note.id)
+    await saveNote(db, note.id, { title: note.title, markdown: '正文' }, document.revision ?? 0, 3)
 
-    await expect(exportMarkdown(db, parent.id)).resolves.toEqual({
+    await expect(exportMarkdown(db, note.id)).resolves.toEqual({
       filename: '数学-基础.md',
-      text: '# 数学 / 基础\n\n根正文\n\n## 导数\n\n子正文\n',
+      text: '# 数学 / 基础\n\n正文\n',
     })
-  })
-
-  test('exports levels deeper than six as legal relative Markdown lists', async () => {
-    const db = createDb()
-    let parentId: string | null = null
-    let rootId = ''
-    for (let index = 1; index <= 8; index += 1) {
-      const node = await createNote(db, { title: `第${index}层`, parentId, inbox: false }, index)
-      if (index === 1) rootId = node.id
-      parentId = node.id
-    }
-    const deepest = await loadNote(db, parentId!)
-    await saveNote(db, parentId!, { title: '第8层', markdown: '八层正文' }, deepest.revision ?? 0, 9)
-
-    const exported = await exportMarkdown(db, rootId)
-
-    expect(exported.text).toContain('###### 第6层')
-    expect(exported.text).toContain('\n- **第7层**\n')
-    expect(exported.text).toContain('\n  - **第8层**\n')
-    expect(exported.text).toContain('八层正文')
-    expect(exported.text).not.toContain('\n      - **第7层**')
-    expect(exported.text).not.toContain('#######')
   })
 })
