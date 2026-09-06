@@ -1,34 +1,39 @@
-import { ChevronDown, ChevronRight, FileText } from "lucide-react"
-import { useState } from "react"
+import { ChevronDown, ChevronRight, FileText, Folder, FolderOpen } from "lucide-react"
+import { useId } from "react"
 import type { KnowledgeNode } from "@/db/types"
 import styles from "./NotesWorkspace.module.css"
 
 interface NoteTreeProps {
   nodes: KnowledgeNode[]
   selectedId: string | null
-  onSelect: (nodeId: string) => void | Promise<void>
+  expandedIds: Set<string>
+  onSelect: (node: KnowledgeNode) => void | Promise<void>
+  onToggle: (nodeId: string) => void | Promise<void>
 }
 interface BranchProps extends NoteTreeProps {
   node: KnowledgeNode
   childrenByParent: Map<string | null, KnowledgeNode[]>
-  depth: number
   visited: Set<string>
 }
 
-function Branch({ node, childrenByParent, depth, visited, selectedId, onSelect }: BranchProps) {
-  const [expanded, setExpanded] = useState(true)
+function Branch({ node, childrenByParent, visited, selectedId, expandedIds, onSelect, onToggle }: BranchProps) {
+  const childrenId = useId()
   if (visited.has(node.id)) return null
   const nextVisited = new Set(visited).add(node.id)
   const children = childrenByParent.get(node.id) ?? []
+  const expandable = node.type === "folder" && children.length > 0
+  const expanded = expandable && expandedIds.has(node.id)
+  const NodeIcon = node.type === "folder" ? (expanded ? FolderOpen : Folder) : FileText
   return (
     <li>
-      <div className={styles.treeRow} style={{ "--tree-depth": Math.min(depth, 4) } as React.CSSProperties}>
-        {children.length ? (
+      <div className={styles.treeRow}>
+        {expandable ? (
           <button
+            aria-controls={childrenId}
             aria-expanded={expanded}
             aria-label={`${expanded ? "收起" : "展开"}${node.title}`}
             className={styles.treeToggle}
-            onClick={() => setExpanded((value) => !value)}
+            onClick={() => void onToggle(node.id)}
             type="button"
           >
             {expanded ? <ChevronDown aria-hidden="true" size={16} /> : <ChevronRight aria-hidden="true" size={16} />}
@@ -36,19 +41,19 @@ function Branch({ node, childrenByParent, depth, visited, selectedId, onSelect }
         ) : <span className={styles.treeTogglePlaceholder} />}
         <button
           aria-current={selectedId === node.id ? "page" : undefined}
-          aria-label={`打开笔记：${node.title}`}
+          aria-label={`打开${node.type === "folder" ? "文件夹" : "笔记"}：${node.title}`}
           className={styles.treeNode}
-          onClick={() => void onSelect(node.id)}
+          onClick={() => void onSelect(node)}
           type="button"
         >
-          <FileText aria-hidden="true" size={16} />
-          <span>{node.title}</span>
+          <NodeIcon aria-hidden="true" size={16} />
+          <span className={styles.treeLabel}>{node.title}</span>
         </button>
       </div>
-      {expanded && children.length ? (
-        <ul className={styles.treeList}>
+      {children.length ? (
+        <ul className={styles.treeChildren} hidden={!expanded} id={childrenId}>
           {children.map((child) => (
-            <Branch key={child.id} {...{ childrenByParent, depth: depth + 1, node: child, nodes: [], onSelect, selectedId, visited: nextVisited }} />
+            <Branch key={child.id} {...{ childrenByParent, expandedIds, node: child, nodes: [], onSelect, onToggle, selectedId, visited: nextVisited }} />
           ))}
         </ul>
       ) : null}
@@ -56,7 +61,7 @@ function Branch({ node, childrenByParent, depth, visited, selectedId, onSelect }
   )
 }
 
-export function NoteTree({ nodes, selectedId, onSelect }: NoteTreeProps) {
+export function NoteTree({ nodes, selectedId, expandedIds, onSelect, onToggle }: NoteTreeProps) {
   const childrenByParent = new Map<string | null, KnowledgeNode[]>()
   for (const node of nodes) {
     const siblings = childrenByParent.get(node.parentId) ?? []
@@ -71,7 +76,7 @@ export function NoteTree({ nodes, selectedId, onSelect }: NoteTreeProps) {
   return (
     <ul className={styles.treeList}>
       {roots.map((node) => (
-        <Branch key={node.id} {...{ childrenByParent, depth: 0, node, nodes, onSelect, selectedId, visited: new Set() }} />
+        <Branch key={node.id} {...{ childrenByParent, expandedIds, node, nodes, onSelect, onToggle, selectedId, visited: new Set() }} />
       ))}
     </ul>
   )

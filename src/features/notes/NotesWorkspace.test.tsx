@@ -3,8 +3,9 @@ import userEvent from "@testing-library/user-event"
 import { MemoryRouter } from "react-router-dom"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import { VeloDB } from "@/db/velo-db"
-import { createNote, loadNote, saveNote } from "./note-service"
+import { createFolder, createNote, loadNote, saveNote } from "./note-service"
 import { NotesWorkspace, type NoteServiceOverrides } from "./NotesWorkspace"
+import styles from "./NotesWorkspace.module.css"
 
 let db: VeloDB
 
@@ -28,6 +29,59 @@ afterEach(async () => {
 })
 
 describe("NotesWorkspace", () => {
+  it("collapses a folder without selecting it, restores its descendants and persists the choice", async () => {
+    const folder = await createFolder(db, { title: "数学", parentId: null }, 1)
+    await createNote(db, { title: "线性代数", parentId: folder.id }, 2)
+    await db.appMeta.put({
+      key: "notes.expanded-folders",
+      value: JSON.stringify([folder.id]),
+      updatedAt: 3,
+    })
+    const user = userEvent.setup()
+    renderWorkspace()
+
+    expect(await screen.findByRole("button", { name: "打开笔记：线性代数" })).toBeInTheDocument()
+    await user.click(screen.getByRole("button", { name: "收起数学" }))
+
+    expect(screen.queryByRole("button", { name: "打开笔记：线性代数" })).not.toBeInTheDocument()
+    expect(screen.queryByLabelText("Markdown 正文")).not.toBeInTheDocument()
+    await waitFor(async () => {
+      expect((await db.appMeta.get("notes.expanded-folders"))?.value).toBe("[]")
+    })
+
+    await user.click(screen.getByRole("button", { name: "展开数学" }))
+    expect(await screen.findByRole("button", { name: "打开笔记：线性代数" })).toBeInTheDocument()
+  })
+
+  it("opens the ancestor chain for a deep note and exposes type-specific decorative icons", async () => {
+    const folderTitles = ["理科", "物理", "量子", "场论", "规范", "对称"]
+    const folders = []
+    let parentId: string | null = null
+    for (const [index, title] of folderTitles.entries()) {
+      const folder = await createFolder(db, { title, parentId }, index + 1)
+      folders.push(folder)
+      parentId = folder.id
+    }
+    const longTitle = "量".repeat(100)
+    const note = await createNote(db, { title: longTitle, parentId }, 7)
+
+    renderWorkspace({ initialEntry: `/notes?note=${note.id}` })
+
+    const rootButton = await screen.findByRole("button", { name: "打开文件夹：理科" })
+    const deepestFolderButton = await screen.findByRole("button", { name: "打开文件夹：对称" })
+    const noteButton = screen.getByRole("button", { name: `打开笔记：${longTitle}` })
+    for (const folder of folders) {
+      expect(screen.getByRole("button", { name: `收起${folder.title}` })).toHaveAttribute("aria-expanded", "true")
+    }
+    expect(rootButton.querySelector(".lucide-folder-open")).toHaveAttribute("aria-hidden", "true")
+    expect(deepestFolderButton.querySelector(".lucide-folder-open")).toHaveAttribute("aria-hidden", "true")
+    expect(noteButton.querySelector(".lucide-file-text")).toHaveAttribute("aria-hidden", "true")
+    expect(noteButton.querySelector("span")).toHaveClass(styles.treeLabel)
+    const directory = screen.getByRole("complementary", { name: "笔记目录" })
+    expect(directory.querySelectorAll(`.${styles.treeChildren}`)).toHaveLength(folderTitles.length)
+    expect(directory.querySelector("[style*='--tree-depth']")).not.toBeInTheDocument()
+  })
+
   it("keeps the compact phone header labels on one line", () => {
     renderWorkspace()
 
@@ -166,24 +220,25 @@ describe("NotesWorkspace", () => {
     await waitFor(async () => expect((await loadNote(db, note.id)).markdown).toBe("第二稿"))
   })
 
-  it("adds a child, moves it to inbox, trashes and restores it", async () => {
-    const root = await createNote(db, { title: "计算机科学", parentId: null, inbox: false }, 1)
+  it("adds a note within a folder, moves it to inbox, trashes and restores it", async () => {
+    const folder = await createFolder(db, { title: "计算机科学", parentId: null }, 1)
+    const root = await createNote(db, { title: "算法", parentId: folder.id, inbox: false }, 2)
     const user = userEvent.setup()
     renderWorkspace({ initialEntry: `/notes?note=${root.id}` })
 
     await user.click(await screen.findByRole("button", { name: "笔记操作" }))
-    await user.click(screen.getByRole("button", { name: "新建子笔记" }))
+    await user.click(screen.getByRole("button", { name: "新建同级笔记" }))
     expect(await screen.findByDisplayValue("未命名笔记")).toBeInTheDocument()
-    const childId = (await db.knowledgeNodes.toArray()).find((node) => node.parentId === root.id)?.id
+    const childId = (await db.knowledgeNodes.toArray()).find((node) => node.parentId === folder.id && node.id !== root.id)?.id
     expect(childId).toBeTruthy()
 
     await user.click(screen.getByRole("button", { name: "笔记操作" }))
     await user.click(screen.getByRole("button", { name: "移到收件箱" }))
-    await user.click(screen.getByRole("button", { name: "笔记收件箱" }))
+    await user.click(screen.getByRole("button", { name: "全部笔记" }))
     expect(await screen.findByRole("button", { name: "打开笔记：未命名笔记" })).toBeInTheDocument()
 
     await user.click(screen.getByRole("button", { name: "打开笔记：未命名笔记" }))
-    await user.click(screen.getByRole("button", { name: "笔记操作" }))
+    await user.click(await screen.findByRole("button", { name: "笔记操作" }))
     await user.click(screen.getByRole("button", { name: "移到回收站" }))
     expect(screen.getByText("子笔记也会一起进入回收站，可随时恢复。")).toBeInTheDocument()
     await user.click(screen.getByRole("button", { name: "确认移到回收站" }))

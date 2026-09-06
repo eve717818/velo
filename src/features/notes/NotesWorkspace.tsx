@@ -1,6 +1,6 @@
 import { useLiveQuery } from "dexie-react-hooks"
 import { Download, FolderOpen, Inbox, Menu, MoreHorizontal, NotebookPen, PanelLeftClose, PanelLeftOpen, Plus, Trash2 } from "lucide-react"
-import { useCallback, useId, useMemo, useRef, useState } from "react"
+import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react"
 import { useSearchParams } from "react-router-dom"
 import type { KnowledgeNode } from "@/db/types"
 import type { VeloDB } from "@/db/velo-db"
@@ -8,6 +8,7 @@ import { PlanDialog } from "@/features/plans/components/PlanDialog"
 import { NoteActionsDialog } from "./NoteActionsDialog"
 import { NoteEditor, type NoteEditorHandle } from "./NoteEditor"
 import { NoteTree } from "./NoteTree"
+import { loadExpandedFolderIds, saveExpandedFolderIds } from "./tree-expansion"
 import {
   createNote,
   exportMarkdown,
@@ -56,9 +57,25 @@ function buildBreadcrumbs(nodes: KnowledgeNode[], selected: KnowledgeNode) {
   return result
 }
 
+function ancestorFolderIds(nodes: KnowledgeNode[], nodeId: string) {
+  const byId = new Map(nodes.map((node) => [node.id, node]))
+  const ancestors = new Set<string>()
+  const visited = new Set<string>()
+  let cursor = byId.get(nodeId)
+  while (cursor?.parentId && !visited.has(cursor.parentId)) {
+    visited.add(cursor.parentId)
+    const parent = byId.get(cursor.parentId)
+    if (!parent) break
+    if (parent.type === "folder") ancestors.add(parent.id)
+    cursor = parent
+  }
+  return ancestors
+}
+
 export function NotesWorkspace({ db, services }: NotesWorkspaceProps) {
   const api = useMemo(() => ({ createNote, exportMarkdown, moveNote, restoreNote, saveNote, trashNote, ...services }), [services])
-  const nodes = useLiveQuery(() => db.knowledgeNodes.toArray(), [db], [])
+  const queriedNodes = useLiveQuery(() => db.knowledgeNodes.toArray(), [db])
+  const nodes = useMemo(() => queriedNodes ?? [], [queriedNodes])
   const [params, setParams] = useSearchParams()
   const selectedId = params.get("note")
   const area = (params.get("area") as Area | null) ?? "all"
@@ -70,8 +87,39 @@ export function NotesWorkspace({ db, services }: NotesWorkspaceProps) {
   const [actionsOpen, setActionsOpen] = useState(false)
   const [trashConfirmOpen, setTrashConfirmOpen] = useState(false)
   const [message, setMessage] = useState("")
+  const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set())
+  const expandedIdsRef = useRef(expandedIds)
+  const expansionDbRef = useRef<VeloDB | null>(null)
   const drawerTitleId = useId()
   const trashTitleId = useId()
+
+  useEffect(() => {
+    if (queriedNodes === undefined || expansionDbRef.current === db) return
+    let active = true
+    void loadExpandedFolderIds(db).then((storedIds) => {
+      if (!active) return
+      expansionDbRef.current = db
+      const nextIds = new Set(storedIds)
+      if (selectedId) {
+        for (const id of ancestorFolderIds(queriedNodes, selectedId)) nextIds.add(id)
+      }
+      expandedIdsRef.current = nextIds
+      setExpandedIds(nextIds)
+      if (nextIds.size !== storedIds.size) {
+        void saveExpandedFolderIds(db, nextIds, Date.now()).catch(() => {
+          setMessage("目录展开状态保存失败，本次操作仍会保留到页面关闭前。")
+        })
+      }
+    }).catch(() => {
+      if (!active) return
+      expansionDbRef.current = db
+      const emptyIds = new Set<string>()
+      expandedIdsRef.current = emptyIds
+      setExpandedIds(emptyIds)
+      setMessage("目录展开状态读取失败，本次将使用折叠状态。")
+    })
+    return () => { active = false }
+  }, [db, queriedNodes, selectedId])
 
   const visibleNodes = useMemo(() => {
     if (area === "trash") return nodes.filter((node) => node.deletedAt !== undefined)
@@ -94,11 +142,35 @@ export function NotesWorkspace({ db, services }: NotesWorkspaceProps) {
 
   const flush = useCallback(async () => editorRef.current?.flush() ?? true, [])
 
+  async function toggleFolder(nodeId: string) {
+    const nextIds = new Set(expandedIdsRef.current)
+    if (nextIds.has(nodeId)) nextIds.delete(nodeId)
+    else nextIds.add(nodeId)
+    expandedIdsRef.current = nextIds
+    setExpandedIds(nextIds)
+    try {
+      await saveExpandedFolderIds(db, nextIds, Date.now())
+    } catch {
+      setMessage("目录展开状态保存失败，本次操作仍会保留到页面关闭前。")
+    }
+  }
+
   async function selectNode(nodeId: string) {
     if (nodeId === selectedId) { setDrawerOpen(false); return }
     if (!(await flush())) {
       setMessage("请先处理当前笔记的保存问题，再切换笔记。")
       return
+    }
+    const nextExpandedIds = new Set(expandedIdsRef.current)
+    for (const id of ancestorFolderIds(nodes, nodeId)) nextExpandedIds.add(id)
+    if (nextExpandedIds.size !== expandedIdsRef.current.size) {
+      expandedIdsRef.current = nextExpandedIds
+      setExpandedIds(nextExpandedIds)
+      try {
+        await saveExpandedFolderIds(db, nextExpandedIds, Date.now())
+      } catch {
+        setMessage("目录展开状态保存失败，本次操作仍会保留到页面关闭前。")
+      }
     }
     const next = new URLSearchParams(params)
     next.set("note", nodeId)
@@ -170,7 +242,13 @@ export function NotesWorkspace({ db, services }: NotesWorkspaceProps) {
         <button aria-current={area === "trash" ? "page" : undefined} onClick={() => void selectArea("trash")} type="button"><Trash2 aria-hidden="true" />回收站</button>
       </nav>
       <div className={styles.treeHeader}><span>{area === "trash" ? "已删除" : area === "inbox" ? "待整理" : "知识目录"}</span><span>{visibleNodes.length}</span></div>
-      <NoteTree nodes={visibleNodes} onSelect={selectNode} selectedId={selectedId} />
+      <NoteTree
+        expandedIds={expandedIds}
+        nodes={visibleNodes}
+        onSelect={(node) => selectNode(node.id)}
+        onToggle={toggleFolder}
+        selectedId={selectedId}
+      />
     </div>
   )
 
