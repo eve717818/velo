@@ -2,6 +2,7 @@ export type LearningPeriodKind = "semester" | "winter-break" | "summer-break" | 
 export type PlanTaskScope = "day" | "week" | "month" | "semester"
 export type PlanTaskStepTitleMode = "inherit" | "custom"
 export type RangePlanKind = "week" | "month"
+export type KnowledgeNodeType = "folder" | "note"
 
 export interface RangePlan {
   id: string
@@ -72,15 +73,18 @@ export interface LegacyPlanTask {
 export interface KnowledgeNode {
   id: string
   parentId: string | null
-  type: "folder" | "note"
+  type: KnowledgeNodeType
   title: string
   order: number
+  /** @deprecated Compatibility only until all legacy inbox callers migrate. */
   inbox?: boolean
   deletedAt?: number
   trashRootId?: string
   createdAt: number
   updatedAt: number
 }
+
+export type LegacyKnowledgeNode = KnowledgeNode & { inbox?: boolean }
 
 export interface NoteDocument {
   id: string

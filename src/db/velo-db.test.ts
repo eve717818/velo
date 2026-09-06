@@ -1,6 +1,6 @@
 import Dexie from "dexie"
 import { describe, expect, it } from "vitest"
-import type { LegacyPlanTask, NoteDocument, PlanTask, PlanTaskGroup } from "./types"
+import type { LegacyKnowledgeNode, LegacyPlanTask, NoteDocument, PlanTask, PlanTaskGroup } from "./types"
 import { seedHomeDemo } from "./seed"
 import { VeloDB } from "./velo-db"
 
@@ -120,7 +120,7 @@ async function createVersionFiveNotesDatabase(name: string) {
     appMeta: "key, updatedAt",
   })
   await oldDb.table("knowledgeNodes").add({
-    id: "legacy-node",
+    id: "existing-node",
     parentId: null,
     type: "note",
     title: "旧笔记",
@@ -129,6 +129,134 @@ async function createVersionFiveNotesDatabase(name: string) {
     updatedAt: 1,
   })
   await oldDb.table("notes").add(existingNote)
+  oldDb.close()
+}
+
+async function createVersionSixNotesDatabase(
+  name: string,
+  nodes: LegacyKnowledgeNode[] = [
+    {
+      id: "legacy-inbox",
+      parentId: null,
+      type: "note",
+      title: "速记",
+      order: 0,
+      inbox: true,
+      createdAt: 1,
+      updatedAt: 1,
+    },
+    {
+      id: "empty-parent",
+      parentId: null,
+      type: "note",
+      title: "数学",
+      order: 1,
+      inbox: false,
+      createdAt: 2,
+      updatedAt: 2,
+    },
+    {
+      id: "empty-child",
+      parentId: "empty-parent",
+      type: "note",
+      title: "导数",
+      order: 0,
+      inbox: false,
+      createdAt: 3,
+      updatedAt: 3,
+    },
+    {
+      id: "written-parent",
+      parentId: null,
+      type: "note",
+      title: "物理",
+      order: 2,
+      inbox: false,
+      createdAt: 4,
+      updatedAt: 4,
+    },
+    {
+      id: "written-child",
+      parentId: "written-parent",
+      type: "note",
+      title: "力学",
+      order: 0,
+      inbox: false,
+      createdAt: 5,
+      updatedAt: 5,
+    },
+  ],
+  documents: NoteDocument[] = [
+    {
+      id: "legacy-inbox-document",
+      nodeId: "legacy-inbox",
+      title: "速记",
+      content: { type: "doc" },
+      plainText: "收集内容",
+      markdown: "收集内容",
+      revision: 0,
+      createdAt: 1,
+      updatedAt: 1,
+    },
+    {
+      id: "empty-parent-document",
+      nodeId: "empty-parent",
+      title: "数学",
+      content: { type: "doc", content: [] },
+      plainText: "",
+      markdown: "",
+      revision: 0,
+      createdAt: 2,
+      updatedAt: 2,
+    },
+    {
+      id: "empty-child-document",
+      nodeId: "empty-child",
+      title: "导数",
+      content: { type: "doc" },
+      plainText: "定义",
+      markdown: "定义",
+      revision: 0,
+      createdAt: 3,
+      updatedAt: 3,
+    },
+    {
+      id: "written-parent-document",
+      nodeId: "written-parent",
+      title: "物理",
+      content: { type: "doc" },
+      plainText: "原父节点正文",
+      markdown: "原父节点正文",
+      revision: 0,
+      createdAt: 4,
+      updatedAt: 4,
+    },
+    {
+      id: "written-child-document",
+      nodeId: "written-child",
+      title: "力学",
+      content: { type: "doc" },
+      plainText: "牛顿定律",
+      markdown: "牛顿定律",
+      revision: 0,
+      createdAt: 5,
+      updatedAt: 5,
+    },
+  ],
+) {
+  const oldDb = new Dexie(name)
+  oldDb.version(6).stores({
+    planTasks: "id, [scope+periodKey], scope, periodKey, [scope+periodKey+isCompleted], isCompleted, updatedAt",
+    planTaskGroups: "id, startDate, endDate, updatedAt",
+    rangePlans: "&id, kind, rangeStart, rangeEnd, updatedAt",
+    learningPeriods: "id, kind, startDate, endDate, updatedAt",
+    legacyPlanTasks: "id, scope, periodKey, updatedAt",
+    knowledgeNodes: "id, parentId, type, order, inbox, deletedAt, trashRootId, updatedAt",
+    notes: "id, nodeId, title, updatedAt",
+    appMeta: "key, updatedAt",
+  })
+  await oldDb.table("knowledgeNodes").bulkAdd(nodes)
+  await oldDb.table("notes").bulkAdd(documents)
   oldDb.close()
 }
 
@@ -338,7 +466,73 @@ describe("VeloDB and seedHomeDemo", () => {
       markdown: "已有内容",
       revision: 0,
     })
-    expect(await db.knowledgeNodes.get("legacy-node")).toMatchObject({ id: "legacy-node", title: "旧笔记" })
+    expect(await db.knowledgeNodes.get("existing-node")).toMatchObject({ id: "existing-node", title: "旧笔记" })
     await db.delete()
+  })
+
+  it("migrates version six note parents into folders and overview notes", async () => {
+    const name = `velo-v6-notes-${crypto.randomUUID()}`
+    await createVersionSixNotesDatabase(name)
+
+    const db = new VeloDB(name)
+    await db.open()
+
+    expect(await db.knowledgeNodes.get("empty-parent")).toMatchObject({ type: "folder" })
+    expect(await db.notes.where("nodeId").equals("empty-parent").count()).toBe(0)
+    const overview = await db.knowledgeNodes
+      .where("parentId")
+      .equals("written-parent")
+      .filter((item) => item.title === "概览")
+      .first()
+    expect(overview).toMatchObject({ type: "note", order: 0 })
+    expect(await db.notes.get("written-parent-document")).toMatchObject({ nodeId: overview?.id, markdown: "原父节点正文" })
+    expect(await db.knowledgeNodes.get("legacy-inbox")).not.toHaveProperty("inbox")
+    await db.delete()
+  })
+
+  it("rolls back the version seven migration when a document references a missing node", async () => {
+    const name = `velo-v6-orphan-${crypto.randomUUID()}`
+    const legacyNode: LegacyKnowledgeNode = {
+      id: "legacy-node",
+      parentId: null,
+      type: "note",
+      title: "旧笔记",
+      order: 0,
+      inbox: true,
+      createdAt: 1,
+      updatedAt: 1,
+    }
+    const legacyDocument: NoteDocument = {
+      id: "orphan-document",
+      nodeId: "missing-node",
+      title: "孤儿正文",
+      content: { type: "doc" },
+      plainText: "不能静默丢弃",
+      markdown: "不能静默丢弃",
+      revision: 0,
+      createdAt: 1,
+      updatedAt: 1,
+    }
+    await createVersionSixNotesDatabase(name, [legacyNode], [legacyDocument])
+
+    const db = new VeloDB(name)
+    await expect(db.open()).rejects.toThrow()
+    db.close()
+
+    const rawV6 = new Dexie(name)
+    rawV6.version(6).stores({
+      planTasks: "id, [scope+periodKey], scope, periodKey, [scope+periodKey+isCompleted], isCompleted, updatedAt",
+      planTaskGroups: "id, startDate, endDate, updatedAt",
+      rangePlans: "&id, kind, rangeStart, rangeEnd, updatedAt",
+      learningPeriods: "id, kind, startDate, endDate, updatedAt",
+      legacyPlanTasks: "id, scope, periodKey, updatedAt",
+      knowledgeNodes: "id, parentId, type, order, inbox, deletedAt, trashRootId, updatedAt",
+      notes: "id, nodeId, title, updatedAt",
+      appMeta: "key, updatedAt",
+    })
+    await rawV6.open()
+    expect(await rawV6.table<LegacyKnowledgeNode, string>("knowledgeNodes").toArray()).toEqual([legacyNode])
+    expect(await rawV6.table<NoteDocument, string>("notes").toArray()).toEqual([legacyDocument])
+    await rawV6.delete()
   })
 })

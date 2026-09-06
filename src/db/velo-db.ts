@@ -1,6 +1,17 @@
 import Dexie, { type Table } from "dexie"
 import { assertValidPlanPeriodKey } from "../features/plans/domain/plan-period-keys"
-import type { AppMeta, KnowledgeNode, LearningPeriod, LegacyPlanTask, NoteDocument, PlanTask, PlanTaskGroup, RangePlan } from "./types"
+import { migrateLegacyKnowledgeTree } from "../features/notes/knowledge-tree-model"
+import type {
+  AppMeta,
+  KnowledgeNode,
+  LearningPeriod,
+  LegacyKnowledgeNode,
+  LegacyPlanTask,
+  NoteDocument,
+  PlanTask,
+  PlanTaskGroup,
+  RangePlan,
+} from "./types"
 
 type VersionFourPlanTaskRow = {
   id: string
@@ -131,6 +142,27 @@ export class VeloDB extends Dexie {
             revision: typeof note.revision === "number" ? note.revision : 0,
           })
         }
+      })
+
+    this.version(7)
+      .stores({
+        planTasks: "id, [scope+periodKey], scope, periodKey, [scope+periodKey+isCompleted], isCompleted, updatedAt",
+        planTaskGroups: "id, startDate, endDate, updatedAt",
+        rangePlans: "&id, kind, rangeStart, rangeEnd, updatedAt",
+        learningPeriods: "id, kind, startDate, endDate, updatedAt",
+        legacyPlanTasks: "id, scope, periodKey, updatedAt",
+        knowledgeNodes: "id, parentId, type, order, deletedAt, trashRootId, updatedAt",
+        notes: "id, nodeId, title, updatedAt",
+        appMeta: "key, updatedAt",
+      })
+      .upgrade(async (transaction) => {
+        const nodeTable = transaction.table<LegacyKnowledgeNode, string>("knowledgeNodes")
+        const documentTable = transaction.table<NoteDocument, string>("notes")
+        const migrated = migrateLegacyKnowledgeTree(await nodeTable.toArray(), await documentTable.toArray())
+        await nodeTable.clear()
+        await documentTable.clear()
+        await nodeTable.bulkAdd(migrated.nodes)
+        await documentTable.bulkAdd(migrated.documents)
       })
   }
 }
