@@ -100,6 +100,15 @@ export interface NoteDocument {
   updatedAt: number
 }
 
+export interface DailyInspiration {
+  dateKey: string
+  content: Record<string, unknown>
+  plainText: string
+  revision: number
+  createdAt: number
+  updatedAt: number
+}
+
 export interface AppMeta {
   key: string
   value: string

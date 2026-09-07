@@ -260,6 +260,29 @@ async function createVersionSixNotesDatabase(
   oldDb.close()
 }
 
+async function createVersionSevenDatabase(name: string) {
+  const oldDb = new Dexie(name)
+  oldDb.version(7).stores({
+    planTasks: "id, [scope+periodKey], scope, periodKey, [scope+periodKey+isCompleted], isCompleted, updatedAt",
+    planTaskGroups: "id, startDate, endDate, updatedAt",
+    rangePlans: "&id, kind, rangeStart, rangeEnd, updatedAt",
+    learningPeriods: "id, kind, startDate, endDate, updatedAt",
+    legacyPlanTasks: "id, scope, periodKey, updatedAt",
+    knowledgeNodes: "id, parentId, type, order, deletedAt, trashRootId, updatedAt",
+    notes: "id, nodeId, title, updatedAt",
+    appMeta: "key, updatedAt",
+  })
+  await oldDb.table("planTasks").add(existingTask)
+  await oldDb.table("planTaskGroups").add({ id: "group", title: "旧分组", startDate: "2026-09-01", endDate: "2026-09-07", sessionCount: 1, createdAt: 1, updatedAt: 1 })
+  await oldDb.table("rangePlans").add({ id: "range", kind: "week", rangeStart: "2026-09-01", rangeEnd: "2026-09-07", theme: "旧范围", goal: "复习", focusItems: [], createdAt: 1, updatedAt: 1 })
+  await oldDb.table("learningPeriods").add({ id: "period", kind: "semester", name: "秋季", startDate: "2026-09-01", endDate: "2027-01-31", createdAt: 1, updatedAt: 1 })
+  await oldDb.table("legacyPlanTasks").add(legacyTask({ id: "legacy", scope: "week", periodKey: "2026-W36" }))
+  await oldDb.table("knowledgeNodes").add({ id: "node", parentId: null, type: "note", title: "旧节点", order: 0, createdAt: 1, updatedAt: 1 })
+  await oldDb.table("notes").add({ ...existingNote, id: "note", nodeId: "node" })
+  await oldDb.table("appMeta").add({ key: "meta", value: "保留", updatedAt: 1 })
+  oldDb.close()
+}
+
 const existingNote: NoteDocument = {
   id: "existing-note",
   nodeId: "existing-node",
@@ -534,5 +557,25 @@ describe("VeloDB and seedHomeDemo", () => {
     expect(await rawV6.table<LegacyKnowledgeNode, string>("knowledgeNodes").toArray()).toEqual([legacyNode])
     expect(await rawV6.table<NoteDocument, string>("notes").toArray()).toEqual([legacyDocument])
     await rawV6.delete()
+  })
+
+  it("adds daily inspirations in v8 without changing v7 tables", async () => {
+    const name = `velo-v7-daily-inspiration-${crypto.randomUUID()}`
+    await createVersionSevenDatabase(name)
+
+    const db = new VeloDB(name)
+    await db.open()
+
+    expect(await db.planTasks.get("existing-task")).toEqual(existingTask)
+    expect(await db.planTaskGroups.get("group")).toMatchObject({ title: "旧分组" })
+    expect(await db.rangePlans.get("range")).toMatchObject({ theme: "旧范围" })
+    expect(await db.learningPeriods.get("period")).toMatchObject({ name: "秋季" })
+    expect(await db.legacyPlanTasks.get("legacy")).toMatchObject({ scope: "week" })
+    expect(await db.knowledgeNodes.get("node")).toMatchObject({ title: "旧节点" })
+    expect(await db.notes.get("note")).toMatchObject({ plainText: "已有内容" })
+    expect(await db.appMeta.get("meta")).toMatchObject({ value: "保留" })
+    expect(db.dailyInspirations.schema.primKey.keyPath).toBe("dateKey")
+    expect(db.dailyInspirations.schema.indexes.map((index) => index.name)).toContain("updatedAt")
+    await db.delete()
   })
 })

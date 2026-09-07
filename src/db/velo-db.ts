@@ -3,6 +3,7 @@ import { assertValidPlanPeriodKey } from "../features/plans/domain/plan-period-k
 import { migrateLegacyKnowledgeTree } from "../features/notes/knowledge-tree-model"
 import type {
   AppMeta,
+  DailyInspiration,
   KnowledgeNode,
   LearningPeriod,
   LegacyKnowledgeNode,
@@ -32,6 +33,7 @@ export class VeloDB extends Dexie {
   knowledgeNodes!: Table<KnowledgeNode, string>
   notes!: Table<NoteDocument, string>
   appMeta!: Table<AppMeta, string>
+  dailyInspirations!: Table<DailyInspiration, string>
 
   constructor(name: string) {
     super(name)
@@ -164,6 +166,18 @@ export class VeloDB extends Dexie {
         await nodeTable.bulkAdd(migrated.nodes)
         await documentTable.bulkAdd(migrated.documents)
       })
+
+    this.version(8).stores({
+      planTasks: "id, [scope+periodKey], scope, periodKey, [scope+periodKey+isCompleted], isCompleted, updatedAt",
+      planTaskGroups: "id, startDate, endDate, updatedAt",
+      rangePlans: "&id, kind, rangeStart, rangeEnd, updatedAt",
+      learningPeriods: "id, kind, startDate, endDate, updatedAt",
+      legacyPlanTasks: "id, scope, periodKey, updatedAt",
+      knowledgeNodes: "id, parentId, type, order, deletedAt, trashRootId, updatedAt",
+      notes: "id, nodeId, title, updatedAt",
+      appMeta: "key, updatedAt",
+      dailyInspirations: "&dateKey, updatedAt",
+    })
   }
 }
 
