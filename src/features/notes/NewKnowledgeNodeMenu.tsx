@@ -9,7 +9,7 @@ export type NewKnowledgeNodeSelection = {
 
 interface NewKnowledgeNodeMenuProps {
   parentId?: string | null
-  onSelect: (selection: NewKnowledgeNodeSelection) => void
+  onSelect: (selection: NewKnowledgeNodeSelection, returnFocusTo: HTMLButtonElement | null) => void | Promise<boolean>
 }
 
 export function NewKnowledgeNodeMenu({ parentId = null, onSelect }: NewKnowledgeNodeMenuProps) {
@@ -28,9 +28,9 @@ export function NewKnowledgeNodeMenu({ parentId = null, onSelect }: NewKnowledge
     return () => document.removeEventListener("keydown", onKeyDown)
   }, [open])
 
-  function choose(type: NewKnowledgeNodeSelection["type"]) {
-    setOpen(false)
-    onSelect({ type, parentId })
+  async function choose(type: NewKnowledgeNodeSelection["type"]) {
+    const started = await onSelect({ type, parentId }, triggerRef.current)
+    if (started !== false) setOpen(false)
   }
 
   return (
@@ -40,8 +40,8 @@ export function NewKnowledgeNodeMenu({ parentId = null, onSelect }: NewKnowledge
       </button>
       {open ? (
         <div aria-label="新建节点" className={styles.newNodeMenuPopup} role="menu">
-          <button onClick={() => choose("folder")} role="menuitem" type="button"><FolderPlus aria-hidden="true" />新建文件夹</button>
-          <button onClick={() => choose("note")} role="menuitem" type="button"><NotebookPen aria-hidden="true" />新建笔记</button>
+          <button onClick={() => void choose("folder")} role="menuitem" type="button"><FolderPlus aria-hidden="true" />新建文件夹</button>
+          <button onClick={() => void choose("note")} role="menuitem" type="button"><NotebookPen aria-hidden="true" />新建笔记</button>
         </div>
       ) : null}
     </div>

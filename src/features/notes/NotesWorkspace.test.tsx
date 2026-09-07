@@ -1,6 +1,6 @@
 import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
-import { MemoryRouter, useNavigate } from "react-router-dom"
+import { MemoryRouter, useLocation, useNavigate } from "react-router-dom"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import { VeloDB } from "@/db/velo-db"
 import { createFolder, createNote, loadNote, saveNote } from "./note-service"
@@ -27,6 +27,11 @@ function FolderHistoryNavigation({ noteId }: { noteId: string }) {
       <button onClick={() => void navigate(1)} type="button">前进</button>
     </>
   )
+}
+
+function LocationStateProbe() {
+  const location = useLocation()
+  return <output aria-label="当前位置状态">{JSON.stringify(location.state)}</output>
 }
 
 beforeEach(() => {
@@ -252,6 +257,86 @@ describe("NotesWorkspace", () => {
     expect(second.id).not.toBe(first.id)
   })
 
+  it("blocks every creation entry while the current editor cannot save", async () => {
+    const note = await createNote(db, { title: "未保存笔记", parentId: null }, 1)
+    const rejectSave = vi.fn<typeof saveNote>().mockRejectedValue(new Error("模拟保存失败"))
+    const user = userEvent.setup()
+    renderWorkspace({ initialEntry: `/notes?note=${note.id}`, services: { saveNote: rejectSave } })
+
+    await user.type(await screen.findByLabelText("Markdown 正文"), "不要丢失")
+    await screen.findByText("保存失败，草稿仍在本机")
+    await user.click(screen.getByRole("button", { name: "新建" }))
+    await user.click(screen.getByRole("menuitem", { name: "新建文件夹" }))
+
+    expect(screen.getByLabelText("Markdown 正文")).toHaveValue("不要丢失")
+    expect(screen.queryByRole("textbox", { name: "文件夹名称" })).not.toBeInTheDocument()
+    expect(screen.getByText("请先处理当前笔记的保存问题，再新建节点。")).toBeInTheDocument()
+    await user.click(screen.getByRole("button", { name: "新建" }))
+    await user.click(screen.getByRole("button", { name: "节点操作：未保存笔记" }))
+    await user.click(screen.getByRole("button", { name: "重命名" }))
+    expect(screen.queryByRole("textbox", { name: "笔记名称" })).not.toBeInTheDocument()
+    expect(screen.getByRole("dialog", { name: "未保存笔记" })).toBeInTheDocument()
+  })
+
+  it("creates from the header beneath the currently selected live folder", async () => {
+    const folder = await createFolder(db, { title: "课程", parentId: null }, 1)
+    const user = userEvent.setup()
+    renderWorkspace()
+
+    await user.click(await screen.findByRole("button", { name: "课程" }))
+    await user.click(screen.getByRole("button", { name: "新建" }))
+    await user.click(screen.getByRole("menuitem", { name: "新建笔记" }))
+    await user.type(screen.getByRole("textbox", { name: "笔记名称" }), "第一讲{Enter}")
+
+    await waitFor(async () => expect((await db.knowledgeNodes.toArray()).find((node) => node.title === "第一讲")?.parentId).toBe(folder.id))
+  })
+
+  it("stores folder selection in browser history and restores it on forward navigation", async () => {
+    const folder = await createFolder(db, { title: "历史目录", parentId: null }, 1)
+    const note = await createNote(db, { title: "历史笔记", parentId: null }, 2)
+    const user = userEvent.setup()
+    render(
+      <MemoryRouter initialEntries={[`/notes?note=${note.id}`]}>
+        <NotesWorkspace db={db} />
+        <FolderHistoryNavigation noteId={note.id} />
+        <LocationStateProbe />
+      </MemoryRouter>,
+    )
+
+    await user.click(await screen.findByRole("button", { name: "历史目录" }))
+    expect(screen.getByLabelText("当前位置状态")).toHaveTextContent(folder.id)
+    await user.click(screen.getByRole("button", { name: "后退" }))
+    expect(await screen.findByLabelText("Markdown 正文")).toBeInTheDocument()
+    await user.click(screen.getByRole("button", { name: "前进" }))
+    expect(await screen.findByRole("heading", { name: "历史目录" })).toBeInTheDocument()
+  })
+
+  it("does not show a live folder when history state belongs to the trash area", async () => {
+    const folder = await createFolder(db, { title: "仅在全部笔记", parentId: null }, 1)
+    render(
+      <MemoryRouter initialEntries={[{ pathname: "/notes", search: "?area=trash", state: { selectedFolderId: folder.id } }]}>
+        <NotesWorkspace db={db} />
+      </MemoryRouter>,
+    )
+
+    expect(screen.queryByRole("heading", { name: folder.title })).not.toBeInTheDocument()
+    expect(screen.queryByRole("button", { name: "节点操作：仅在全部笔记" })).not.toBeInTheDocument()
+  })
+
+  it("renders title entry in the tree while retaining the selected folder panel", async () => {
+    const folder = await createFolder(db, { title: "树内编辑", parentId: null }, 1)
+    const user = userEvent.setup()
+    renderWorkspace()
+
+    await user.click(await screen.findByRole("button", { name: "树内编辑" }))
+    await user.click(screen.getByRole("button", { name: "节点操作：树内编辑" }))
+    await user.click(screen.getByRole("button", { name: "重命名" }))
+
+    const directory = screen.getByRole("complementary", { name: "笔记目录" })
+    expect(within(directory).getByRole("textbox", { name: "文件夹名称" })).toBeInTheDocument()
+    expect(screen.getByRole("heading", { name: folder.title })).toBeInTheDocument()
+  })
+
   it("retains a failed draft and exposes recovery actions", async () => {
     const note = await createNote(db, { title: "离线草稿", parentId: null }, 1)
     const rejectSave = vi.fn<typeof saveNote>().mockRejectedValue(new Error("模拟保存失败"))
@@ -308,7 +393,8 @@ describe("NotesWorkspace", () => {
     await createFolder(db, { title: "重复", parentId: folder.id }, 2)
     const second = await createFolder(db, { title: "重复", parentId: folder.id }, 3)
     const user = userEvent.setup()
-    renderWorkspace({ initialEntry: `/notes?note=${folder.id}` })
+    renderWorkspace()
+    await user.click(await screen.findByRole("button", { name: "资料" }))
 
     await user.click(await screen.findByRole("button", { name: "节点操作：资料" }))
     await user.click(screen.getByRole("button", { name: "重命名" }))
@@ -331,7 +417,8 @@ describe("NotesWorkspace", () => {
     const target = await createFolder(db, { title: "物理", parentId: null }, 4)
     await createNote(db, { title: "不能作为目标", parentId: null }, 5)
     const user = userEvent.setup()
-    renderWorkspace({ initialEntry: `/notes?note=${source.id}` })
+    renderWorkspace()
+    await user.click(await screen.findByRole("button", { name: "数学" }))
 
     await user.click(await screen.findByRole("button", { name: "节点操作：数学" }))
     await user.click(screen.getByRole("button", { name: "移动" }))
@@ -349,9 +436,9 @@ describe("NotesWorkspace", () => {
     await user.click(screen.getByRole("button", { name: "移到回收站" }))
     expect(screen.getByText("文件夹内的子文件夹和笔记会一起进入回收站，可随时恢复。")).toBeInTheDocument()
     await user.click(screen.getByRole("button", { name: "确认移到回收站" }))
-    await user.click(screen.getByRole("button", { name: "恢复文件夹" }))
+    await user.click(await screen.findByRole("button", { name: "恢复文件夹" }))
     await waitFor(async () => expect((await db.knowledgeNodes.get(source.id))?.deletedAt).toBeUndefined())
-    await expect(db.knowledgeNodes.get(child.id)).resolves.toMatchObject({ deletedAt: undefined })
+    await waitFor(async () => expect((await db.knowledgeNodes.get(child.id))?.deletedAt).toBeUndefined())
   })
 
   it("exports the latest saved subtree as Markdown", async () => {

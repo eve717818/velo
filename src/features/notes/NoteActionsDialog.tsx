@@ -6,9 +6,9 @@ import styles from "./NotesWorkspace.module.css"
 interface NoteActionsDialogProps {
   node: KnowledgeNode
   nodes: KnowledgeNode[]
-  onAdd: (type: "folder" | "note", parentId: string | null) => void
+  onAdd: (type: "folder" | "note", parentId: string | null) => boolean | void | Promise<boolean | void>
   onMove: (parentId: string | null) => void | Promise<void>
-  onRename: () => void
+  onRename: () => boolean | void | Promise<boolean | void>
   onRequestClose: () => void
   onRequestTrash: () => void
   open: boolean
@@ -32,17 +32,31 @@ function descendantIds(nodes: KnowledgeNode[], nodeId: string) {
 
 export function NoteActionsDialog(props: NoteActionsDialogProps) {
   const titleId = useId()
-  const [destination, setDestination] = useState<string | null>(null)
-  const [moveOpen, setMoveOpen] = useState(false)
+  const resetKey = `${props.node.id}:${props.open}`
+  const [moveState, setMoveState] = useState({ key: resetKey, destination: null as string | null, error: "", open: false })
+  const currentMove = moveState.key === resetKey ? moveState : { key: resetKey, destination: null, error: "", open: false }
   const destinations = useMemo(() => {
     const unavailable = descendantIds(props.nodes, props.node.id)
     return props.nodes.filter((node) => node.type === "folder" && node.deletedAt === undefined && !unavailable.has(node.id))
   }, [props.node.id, props.nodes])
   const kind = props.node.type === "folder" ? "文件夹" : "笔记"
 
-  function closeForNextAction(action: () => void) {
-    props.onRequestClose()
-    action()
+  async function closeForNextAction(action: () => boolean | void | Promise<boolean | void>) {
+    const started = await action()
+    if (started !== false) props.onRequestClose()
+  }
+
+  async function confirmMove() {
+    if (currentMove.destination !== null && !destinations.some((node) => node.id === currentMove.destination)) {
+      setMoveState({ ...currentMove, error: "目标文件夹已不可用，请重新选择。" })
+      return
+    }
+    try {
+      setMoveState({ ...currentMove, error: "" })
+      await props.onMove(currentMove.destination)
+    } catch (error) {
+      setMoveState({ ...currentMove, error: error instanceof Error ? error.message : "移动失败，请重新选择目标文件夹。" })
+    }
   }
 
   return (
@@ -55,28 +69,29 @@ export function NoteActionsDialog(props: NoteActionsDialogProps) {
         <div className={styles.actionGrid}>
           {props.node.type === "folder" ? (
             <>
-              <button onClick={() => closeForNextAction(() => props.onAdd("folder", props.node.id))} type="button">新建子文件夹</button>
-              <button onClick={() => closeForNextAction(() => props.onAdd("note", props.node.id))} type="button">新建笔记</button>
+              <button onClick={() => void closeForNextAction(() => props.onAdd("folder", props.node.id))} type="button">新建子文件夹</button>
+              <button onClick={() => void closeForNextAction(() => props.onAdd("note", props.node.id))} type="button">新建笔记</button>
             </>
           ) : (
             <>
-              <button onClick={() => closeForNextAction(() => props.onAdd("note", props.node.parentId))} type="button">新建同级笔记</button>
-              <button onClick={() => closeForNextAction(() => props.onAdd("folder", props.node.parentId))} type="button">新建同级文件夹</button>
+              <button onClick={() => void closeForNextAction(() => props.onAdd("note", props.node.parentId))} type="button">新建同级笔记</button>
+              <button onClick={() => void closeForNextAction(() => props.onAdd("folder", props.node.parentId))} type="button">新建同级文件夹</button>
             </>
           )}
-          <button onClick={() => closeForNextAction(props.onRename)} type="button">重命名</button>
-          <button onClick={() => setMoveOpen((value) => !value)} type="button">移动</button>
+          <button onClick={() => void closeForNextAction(props.onRename)} type="button">重命名</button>
+          <button onClick={() => setMoveState({ ...currentMove, error: "", open: !currentMove.open })} type="button">移动</button>
         </div>
-        {moveOpen ? (
+        {currentMove.open ? (
           <>
             <label className={styles.destinationField}>
               <span>移动到目录</span>
-              <select aria-label="移动到目录" onChange={(event) => setDestination(event.target.value || null)} value={destination ?? ""}>
+              <select aria-describedby={currentMove.error ? "move-destination-error" : undefined} aria-invalid={currentMove.error ? true : undefined} aria-label="移动到目录" onChange={(event) => setMoveState({ ...currentMove, destination: event.target.value || null, error: "" })} value={currentMove.destination ?? ""}>
                 <option value="">笔记库根目录</option>
                 {destinations.map((node) => <option key={node.id} value={node.id}>{node.title}</option>)}
               </select>
             </label>
-            <button className={styles.moveButton} onClick={() => void props.onMove(destination)} type="button">确认移动</button>
+            {currentMove.error ? <p className={styles.moveError} id="move-destination-error" role="alert">{currentMove.error}</p> : null}
+            <button className={styles.moveButton} onClick={() => void confirmMove()} type="button">确认移动</button>
           </>
         ) : null}
         <button className={styles.trashButton} onClick={props.onRequestTrash} type="button">移到回收站</button>

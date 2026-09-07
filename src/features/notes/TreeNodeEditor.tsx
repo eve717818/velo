@@ -36,6 +36,7 @@ export function TreeNodeEditor({ ariaLabel, initialValue, onCancel, onCommit }: 
         aria-label={ariaLabel}
         onChange={(event) => setValue(event.target.value)}
         onKeyDown={(event) => {
+          if (event.nativeEvent.isComposing || event.keyCode === 229) return
           if (event.key === "Enter") { event.preventDefault(); void commit() }
           if (event.key === "Escape") { event.preventDefault(); onCancel() }
         }}

@@ -271,6 +271,7 @@
 .treeNode[aria-current="page"] { background: #f1e8f0; color: #751460; }
 .treeEmpty { color: var(--color-text-muted); font-size: .78rem; margin: 12px 8px; }
 .treeNodeEditor { display: grid; gap: 7px; width: min(100%, 360px); }
+.treeRow .treeNodeEditor { grid-column: 2; padding: 4px 8px 8px; width: 100%; }
 .treeNodeEditor input {
   background: white;
   border: 1px solid var(--color-border);
@@ -473,6 +474,7 @@
 .destinationField span { font-size: .75rem; font-weight: 720; }
 .destinationField select { background: #f5f4f6; border: 1px solid var(--color-border); border-radius: 13px; font: inherit; min-height: 44px; padding: 0 11px; width: 100%; }
 .moveButton { justify-content: center; margin-top: 8px; }
+.moveError { color: #972344; font-size: .78rem; margin: 8px 0 0; }
 .moveButton:disabled { cursor: not-allowed; opacity: .55; }
 .trashButton { background: #fff0f4; border: 1px solid #f1c4d0; color: #972344; margin-top: 16px; padding: 0 14px; width: 100%; }
 .confirmDialog p { color: var(--color-text-muted); font-size: .84rem; line-height: 1.6; }
