@@ -1,6 +1,6 @@
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
-import { MemoryRouter } from "react-router-dom"
+import { MemoryRouter, useNavigate } from "react-router-dom"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import { VeloDB } from "@/db/velo-db"
 import { createFolder, createNote, loadNote, saveNote } from "./note-service"
@@ -17,6 +17,18 @@ function renderWorkspace(options?: { initialEntry?: string; services?: NoteServi
   )
 }
 
+function FolderHistoryNavigation({ noteId }: { noteId: string }) {
+  const navigate = useNavigate()
+
+  return (
+    <>
+      <button onClick={() => void navigate(`/notes?note=${noteId}`)} type="button">在历史中打开深层笔记</button>
+      <button onClick={() => void navigate(-1)} type="button">后退</button>
+      <button onClick={() => void navigate(1)} type="button">前进</button>
+    </>
+  )
+}
+
 beforeEach(() => {
   db = new VeloDB(`notes-workspace-${crypto.randomUUID()}`)
   localStorage.clear()
@@ -29,6 +41,20 @@ afterEach(async () => {
 })
 
 describe("NotesWorkspace", () => {
+  it("shows a quiet temporary state instead of mounting the note editor for a selected folder", async () => {
+    await createFolder(db, { title: "课程资料", parentId: null }, 1)
+    const user = userEvent.setup()
+    renderWorkspace()
+
+    await user.click(await screen.findByRole("button", { name: "打开文件夹：课程资料" }))
+
+    expect(await screen.findByRole("heading", { name: "课程资料" })).toBeInTheDocument()
+    expect(screen.getByText("文件夹的正文功能将在后续版本提供。")).toBeInTheDocument()
+    expect(screen.queryByText("请选择一篇笔记")).not.toBeInTheDocument()
+    expect(screen.queryByLabelText("Markdown 正文")).not.toBeInTheDocument()
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument()
+  })
+
   it("collapses a folder without selecting it, restores its descendants and persists the choice", async () => {
     const folder = await createFolder(db, { title: "数学", parentId: null }, 1)
     await createNote(db, { title: "线性代数", parentId: folder.id }, 2)
@@ -80,6 +106,31 @@ describe("NotesWorkspace", () => {
     const directory = screen.getByRole("complementary", { name: "笔记目录" })
     expect(directory.querySelectorAll(`.${styles.treeChildren}`)).toHaveLength(folderTitles.length)
     expect(directory.querySelector("[style*='--tree-depth']")).not.toBeInTheDocument()
+  })
+
+  it("reopens a deep note's ancestors when history changes the search parameter after mount", async () => {
+    const root = await createFolder(db, { title: "历史", parentId: null }, 1)
+    const branch = await createFolder(db, { title: "近代", parentId: root.id }, 2)
+    const note = await createNote(db, { title: "工业革命", parentId: branch.id }, 3)
+    const user = userEvent.setup()
+    render(
+      <MemoryRouter initialEntries={["/notes", `/notes?note=${note.id}`]} initialIndex={0}>
+        <NotesWorkspace db={db} />
+        <FolderHistoryNavigation noteId={note.id} />
+      </MemoryRouter>,
+    )
+
+    await user.click(screen.getByRole("button", { name: "在历史中打开深层笔记" }))
+    expect(await screen.findByRole("button", { name: "收起历史" })).toHaveAttribute("aria-expanded", "true")
+    expect(screen.getByRole("button", { name: "收起近代" })).toHaveAttribute("aria-expanded", "true")
+
+    await user.click(screen.getByRole("button", { name: "收起历史" }))
+    expect(screen.getByRole("button", { name: "展开历史" })).toHaveAttribute("aria-expanded", "false")
+    await user.click(screen.getByRole("button", { name: "后退" }))
+    await user.click(screen.getByRole("button", { name: "前进" }))
+
+    expect(await screen.findByRole("button", { name: "收起历史" })).toHaveAttribute("aria-expanded", "true")
+    expect(screen.getByRole("button", { name: "收起近代" })).toHaveAttribute("aria-expanded", "true")
   })
 
   it("keeps the compact phone header labels on one line", () => {

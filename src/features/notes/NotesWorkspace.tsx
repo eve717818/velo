@@ -88,6 +88,7 @@ export function NotesWorkspace({ db, services }: NotesWorkspaceProps) {
   const [trashConfirmOpen, setTrashConfirmOpen] = useState(false)
   const [message, setMessage] = useState("")
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set())
+  const [hasLoadedExpansion, setHasLoadedExpansion] = useState(false)
   const expandedIdsRef = useRef(expandedIds)
   const expansionDbRef = useRef<VeloDB | null>(null)
   const drawerTitleId = useId()
@@ -99,27 +100,33 @@ export function NotesWorkspace({ db, services }: NotesWorkspaceProps) {
     void loadExpandedFolderIds(db).then((storedIds) => {
       if (!active) return
       expansionDbRef.current = db
-      const nextIds = new Set(storedIds)
-      if (selectedId) {
-        for (const id of ancestorFolderIds(queriedNodes, selectedId)) nextIds.add(id)
-      }
-      expandedIdsRef.current = nextIds
-      setExpandedIds(nextIds)
-      if (nextIds.size !== storedIds.size) {
-        void saveExpandedFolderIds(db, nextIds, Date.now()).catch(() => {
-          setMessage("目录展开状态保存失败，本次操作仍会保留到页面关闭前。")
-        })
-      }
+      expandedIdsRef.current = new Set(storedIds)
+      setExpandedIds(new Set(storedIds))
+      setHasLoadedExpansion(true)
     }).catch(() => {
       if (!active) return
       expansionDbRef.current = db
       const emptyIds = new Set<string>()
       expandedIdsRef.current = emptyIds
       setExpandedIds(emptyIds)
+      setHasLoadedExpansion(true)
       setMessage("目录展开状态读取失败，本次将使用折叠状态。")
     })
     return () => { active = false }
-  }, [db, queriedNodes, selectedId])
+  }, [db, queriedNodes])
+
+  useEffect(() => {
+    if (!hasLoadedExpansion || !selectedId) return
+    const nextIds = new Set(expandedIdsRef.current)
+    for (const id of ancestorFolderIds(nodes, selectedId)) nextIds.add(id)
+    if (nextIds.size === expandedIdsRef.current.size) return
+
+    expandedIdsRef.current = nextIds
+    setExpandedIds(nextIds)
+    void saveExpandedFolderIds(db, nextIds, Date.now()).catch(() => {
+      setMessage("目录展开状态保存失败，本次操作仍会保留到页面关闭前。")
+    })
+  }, [db, hasLoadedExpansion, nodes, selectedId])
 
   const visibleNodes = useMemo(() => {
     if (area === "trash") return nodes.filter((node) => node.deletedAt !== undefined)
@@ -278,7 +285,13 @@ export function NotesWorkspace({ db, services }: NotesWorkspaceProps) {
         )}
 
         <section className={styles.contentPane} aria-label="笔记内容">
-          {selected ? (
+          {selected?.type === "folder" ? (
+            <div className={styles.emptyState}>
+              <span><FolderOpen aria-hidden="true" /></span>
+              <h2>{selected.title}</h2>
+              <p>文件夹的正文功能将在后续版本提供。</p>
+            </div>
+          ) : selected ? (
             <>
               <div className={styles.noteToolbar}>
                 <nav aria-label="当前笔记路径" className={styles.breadcrumbs}>
@@ -308,7 +321,7 @@ export function NotesWorkspace({ db, services }: NotesWorkspaceProps) {
         </section>
       </PlanDialog>
 
-      {selected && selected.deletedAt === undefined ? (
+      {selected?.type === "note" && selected.deletedAt === undefined ? (
         <NoteActionsDialog
           node={selected}
           nodes={nodes}
