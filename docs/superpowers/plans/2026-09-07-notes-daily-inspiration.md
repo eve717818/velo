@@ -19,6 +19,7 @@
 - The card uses a restrained light-beige paper surface, fine low-contrast texture, soft shadow and minimum height; it grows with content and has no internal scrollbar.
 - The compact calendar supports arbitrary year/month selection, previous/next month, “今天”, content dots, selected/today states and horizontal phone swipe.
 - At widths below 768px, the existing left drawer remains the approved directory pattern; choosing “每日灵感” closes it and moves focus to the writing card.
+- Every create/rename row shows the full parent path. On phones, successful folder/note creation and any folder/note selection close the drawer; the right pane then shows the selected folder path/actions or the selected note path/body.
 - Touch targets remain at least 44px; keyboard, screen-reader names, reduced motion and 390/402/768/834/1024/1366 layouts are verified.
 - Do not add search, PDF, the final WYSIWYG note editor, formulas, recording, AI or synchronization in this sub-project.
 
@@ -169,7 +170,7 @@ git commit -m "feat: 构建每日灵感日历与书写卡片"
 
 - [ ] **Step 1: Write workspace RED tests**
 
-Cover fixed entry order (“全部笔记”, “每日灵感”, knowledge tree, “回收站”), choosing daily closes the phone drawer, the selected day survives reload/history navigation, a pending daily save blocks leaving, a pending note save blocks entering, and the daily editor receives focus after drawer close.
+Cover fixed entry order (“全部笔记”, “每日灵感”, knowledge tree, “回收站”), choosing daily closes the phone drawer, the selected day survives reload/history navigation, a pending daily save blocks leaving, a pending note save blocks entering, and the daily editor receives focus after drawer close. Also assert that each inline create/rename row announces and displays its full parent path; successful phone folder creation closes the drawer and shows the folder path/actions on the right, while successful phone note creation closes the drawer and opens the matching path/body.
 
 Add an empty-tree assertion: inside the directory, render “目录还是空的” plus a 44px “新建文件夹” action instead of a visually blank tree region. Once nodes exist, remove that empty prompt and render the actual connector tree unchanged.
 
@@ -179,7 +180,7 @@ Load month content dates with `useLiveQuery`, render calendar + editor only for 
 
 - [ ] **Step 3: Keep mobile and desktop behavior distinct but equivalent**
 
-On phone, “目录” opens the left drawer; “每日灵感” closes it before focusing the card. On desktop/tablet landscape, the sidebar stays visible. The empty-tree action starts inline folder creation in the visible tree instance. Do not seed demonstration folders or copy IndexedDB data between preview ports.
+On phone, “目录” opens the left drawer; “每日灵感” closes it before focusing the card. Selecting or successfully creating any folder/note also closes the drawer and renders that node's full breadcrumb path and folder actions or note body in the right pane. On desktop/tablet landscape, the sidebar stays visible. The empty-tree action starts inline folder creation in the visible tree instance. Do not seed demonstration folders or copy IndexedDB data between preview ports.
 
 - [ ] **Step 4: Run workspace verification and commit**
 
