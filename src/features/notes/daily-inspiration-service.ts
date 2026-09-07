@@ -23,7 +23,8 @@ export function parseLocalDateKey(dateKey: string): LocalDateParts {
   const year = Number(match[1])
   const month = Number(match[2])
   const day = Number(match[3])
-  const localNoon = new Date(year, month - 1, day, 12)
+  if (year < 1) throw new Error('日期无效')
+  const localNoon = localNoonDate(year, month - 1, day)
   if (localNoon.getFullYear() !== year || localNoon.getMonth() !== month - 1 || localNoon.getDate() !== day) {
     throw new Error('日期无效')
   }
@@ -52,27 +53,50 @@ export async function saveDailyInspiration(
 ): Promise<DailyInspiration | null> {
   parseLocalDateKey(dateKey)
   let saved: DailyInspiration | null = null
-  await db.transaction('rw', db.dailyInspirations, async () => {
+  await db.transaction('rw', db.dailyInspirations, db.appMeta, async () => {
     const existing = await db.dailyInspirations.get(dateKey)
-    const revision = existing?.revision ?? 0
-    if (revision !== expectedRevision) throw new Error('灵感已被更新，请先重新加载')
+    const markerKey = revisionMarkerKey(dateKey)
+    const marker = await db.appMeta.get(markerKey)
+    const markerRevision = marker ? Number(marker.value) : 0
+    if (!Number.isInteger(markerRevision) || markerRevision < 0) throw new Error('灵感修订记录无效，请重新加载')
+
+    if (existing ? existing.revision !== expectedRevision : expectedRevision !== 0) {
+      throw new Error('灵感已被更新，请先重新加载')
+    }
 
     if (input.plainText.trim() === '') {
-      if (existing) await db.dailyInspirations.delete(dateKey)
+      if (existing) {
+        const revision = Math.max(existing.revision, markerRevision) + 1
+        await db.dailyInspirations.delete(dateKey)
+        await db.appMeta.put({ key: markerKey, value: String(revision), updatedAt: now })
+      }
       return
     }
 
+    const revision = existing ? Math.max(existing.revision, markerRevision) + 1 : markerRevision + 1
     saved = {
       dateKey,
       content: structuredContent(input.plainText),
       plainText: input.plainText,
-      revision: revision + 1,
+      revision,
       createdAt: existing?.createdAt ?? now,
       updatedAt: now,
     }
     await db.dailyInspirations.put(saved)
+    await db.appMeta.put({ key: markerKey, value: String(revision), updatedAt: now })
   })
   return saved
+}
+
+function localNoonDate(year: number, monthIndex: number, day: number): Date {
+  const date = new Date(0)
+  date.setFullYear(year, monthIndex, day)
+  date.setHours(12, 0, 0, 0)
+  return date
+}
+
+function revisionMarkerKey(dateKey: string) {
+  return `daily-inspiration-revision:${dateKey}`
 }
 
 function structuredContent(plainText: string): Record<string, unknown> {

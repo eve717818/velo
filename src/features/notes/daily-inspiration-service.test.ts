@@ -21,6 +21,13 @@ function body(plainText: string, content: Record<string, unknown> = { type: 'une
   return { content, plainText }
 }
 
+function localDate(year: number, monthIndex: number, day: number, hour = 12) {
+  const date = new Date(0)
+  date.setFullYear(year, monthIndex, day)
+  date.setHours(hour, 0, 0, 0)
+  return date
+}
+
 const emptyBody = body('')
 
 afterEach(async () => {
@@ -39,9 +46,19 @@ describe('daily inspiration service', () => {
 
   test('parses only real local calendar dates, including leap day', () => {
     expect(parseLocalDateKey('2028-02-29')).toEqual({ year: 2028, month: 2, day: 29 })
+    expect(parseLocalDateKey('0096-02-29')).toEqual({ year: 96, month: 2, day: 29 })
+    expect(parseLocalDateKey('0099-02-28')).toEqual({ year: 99, month: 2, day: 28 })
     expect(() => parseLocalDateKey('2027-02-29')).toThrow('日期无效')
+    expect(() => parseLocalDateKey('0099-02-29')).toThrow('日期无效')
+    expect(() => parseLocalDateKey('0000-01-01')).toThrow('日期无效')
+    expect(() => parseLocalDateKey('10000-01-01')).toThrow('日期无效')
     expect(() => parseLocalDateKey('2026-2-03')).toThrow('日期无效')
     expect(() => parseLocalDateKey('2026-13-01')).toThrow('日期无效')
+  })
+
+  test('roundtrips early local years without JavaScript’s 1900 offset', () => {
+    expect(localDateKey(localDate(99, 0, 2, 23))).toBe('0099-01-02')
+    expect(localDateKey(localDate(1, 11, 31))).toBe('0001-12-31')
   })
 
   test('does not create an empty day and deletes a cleared existing day', async () => {
@@ -96,5 +113,30 @@ describe('daily inspiration service', () => {
     expect(original?.revision).toBe(1)
     await expect(saveDailyInspiration(db, '2026-09-07', body('旧稿'), 0, 2)).rejects.toThrow('灵感已被更新，请先重新加载')
     await expect(loadDailyInspiration(db, '2026-09-07')).resolves.toMatchObject({ plainText: '原稿', revision: 1 })
+  })
+
+  test('keeps a date generation across deletion so stale revision-one tabs cannot write an ABA date', async () => {
+    const db = createDb()
+    const dateKey = '2026-09-07'
+    const first = await saveDailyInspiration(db, dateKey, body('第一稿'), 0, 1)
+
+    await expect(saveDailyInspiration(db, dateKey, emptyBody, first?.revision ?? 0, 2)).resolves.toBeNull()
+    expect(await db.dailyInspirations.count()).toBe(0)
+    expect(await listDailyInspirationDates(db, dateKey, dateKey)).toEqual([])
+    expect(await db.appMeta.get(`daily-inspiration-revision:${dateKey}`)).toBeDefined()
+
+    await expect(saveDailyInspiration(db, dateKey, body('过期写入'), 1, 3)).rejects.toThrow('灵感已被更新')
+    await expect(saveDailyInspiration(db, dateKey, emptyBody, 1, 3)).rejects.toThrow('灵感已被更新')
+
+    const recreated = await saveDailyInspiration(db, dateKey, body('重建稿'), 0, 4)
+    expect(recreated?.revision).toBeGreaterThan(first?.revision ?? 0)
+  })
+
+  test('does not create a revision marker for a never-written empty date', async () => {
+    const db = createDb()
+    const dateKey = '2026-09-08'
+
+    await expect(saveDailyInspiration(db, dateKey, emptyBody, 0, 1)).resolves.toBeNull()
+    await expect(db.appMeta.get(`daily-inspiration-revision:${dateKey}`)).resolves.toBeUndefined()
   })
 })
