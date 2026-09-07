@@ -15,8 +15,11 @@ export function TreeNodeEditor({ ariaLabel, initialValue, onCancel, onCommit }: 
   const errorId = useId()
 
   useEffect(() => {
-    inputRef.current?.focus()
-    inputRef.current?.select()
+    const timer = window.setTimeout(() => {
+      inputRef.current?.focus()
+      inputRef.current?.select()
+    }, 0)
+    return () => window.clearTimeout(timer)
   }, [])
 
   async function commit() {

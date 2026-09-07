@@ -337,6 +337,69 @@ describe("NotesWorkspace", () => {
     expect(screen.getByRole("heading", { name: folder.title })).toBeInTheDocument()
   })
 
+  it("reloads a renamed note editor before the next body save", async () => {
+    const note = await createNote(db, { title: "旧标题", parentId: null }, 1)
+    const user = userEvent.setup()
+    renderWorkspace({ initialEntry: `/notes?note=${note.id}` })
+
+    await user.click(await screen.findByRole("button", { name: "节点操作：旧标题" }))
+    await user.click(screen.getByRole("button", { name: "重命名" }))
+    const renameInput = screen.getByRole("textbox", { name: "笔记名称" })
+    await user.clear(renameInput)
+    await user.type(renameInput, "新标题{Enter}")
+
+    expect(await screen.findByRole("button", { name: "打开笔记：新标题" })).toBeInTheDocument()
+    expect(await screen.findByLabelText("笔记标题")).toHaveValue("新标题")
+    await user.type(screen.getByLabelText("Markdown 正文"), "重命名后的正文")
+    await waitFor(async () => expect((await loadNote(db, note.id)).markdown).toContain("重命名后的正文"))
+    expect((await loadNote(db, note.id)).title).toBe("新标题")
+  })
+
+  it("opens the phone directory and focuses the visible tree editor", async () => {
+    const user = userEvent.setup()
+    vi.stubGlobal("matchMedia", vi.fn((query: string) => ({
+      matches: query === "(max-width: 767px)", media: query, onchange: null,
+      addEventListener: () => undefined, removeEventListener: () => undefined,
+      addListener: () => undefined, removeListener: () => undefined, dispatchEvent: () => true,
+    })))
+    renderWorkspace()
+
+    await user.click(screen.getByRole("button", { name: "新建" }))
+    await user.click(screen.getByRole("menuitem", { name: "新建文件夹" }))
+
+    const drawer = await screen.findByRole("dialog", { name: "笔记目录" })
+    const input = within(drawer).getByRole("textbox", { name: "文件夹名称" })
+    await waitFor(() => expect(input).toHaveFocus())
+  })
+
+  it("restores a hidden desktop sidebar before opening a tree editor", async () => {
+    const user = userEvent.setup()
+    renderWorkspace()
+
+    await user.click(screen.getByRole("button", { name: "收起目录" }))
+    await user.click(screen.getByRole("button", { name: "新建" }))
+    await user.click(screen.getByRole("menuitem", { name: "新建文件夹" }))
+
+    const directory = await screen.findByRole("complementary", { name: "笔记目录" })
+    expect(within(directory).getByRole("textbox", { name: "文件夹名称" })).toHaveFocus()
+  })
+
+  it("returns focus to the action trigger after cancelling a root sibling creation", async () => {
+    const note = await createNote(db, { title: "根笔记", parentId: null }, 1)
+    const user = userEvent.setup()
+    renderWorkspace({ initialEntry: `/notes?note=${note.id}` })
+
+    const trigger = await screen.findByRole("button", { name: "节点操作：根笔记" })
+    await user.click(trigger)
+    await user.click(screen.getByRole("button", { name: "新建同级文件夹" }))
+    const input = screen.getByRole("textbox", { name: "文件夹名称" })
+    await waitFor(() => expect(input).toHaveFocus())
+    await user.keyboard("{Escape}")
+
+    await waitFor(() => expect(trigger).toHaveFocus())
+    expect(document.activeElement).not.toBe(document.body)
+  })
+
   it("retains a failed draft and exposes recovery actions", async () => {
     const note = await createNote(db, { title: "离线草稿", parentId: null }, 1)
     const rejectSave = vi.fn<typeof saveNote>().mockRejectedValue(new Error("模拟保存失败"))

@@ -32,9 +32,13 @@ function descendantIds(nodes: KnowledgeNode[], nodeId: string) {
 
 export function NoteActionsDialog(props: NoteActionsDialogProps) {
   const titleId = useId()
-  const resetKey = `${props.node.id}:${props.open}`
-  const [moveState, setMoveState] = useState({ key: resetKey, destination: null as string | null, error: "", open: false })
-  const currentMove = moveState.key === resetKey ? moveState : { key: resetKey, destination: null, error: "", open: false }
+  return <PlanDialog labelledBy={titleId} onRequestClose={props.onRequestClose} open={props.open} returnFocusTo={props.returnFocusTo}>
+    {props.open ? <ActionSheet key={props.node.id} titleId={titleId} {...props} /> : null}
+  </PlanDialog>
+}
+
+function ActionSheet({ titleId, ...props }: NoteActionsDialogProps & { titleId: string }) {
+  const [moveState, setMoveState] = useState({ destination: null as string | null, error: "", open: false })
   const destinations = useMemo(() => {
     const unavailable = descendantIds(props.nodes, props.node.id)
     return props.nodes.filter((node) => node.type === "folder" && node.deletedAt === undefined && !unavailable.has(node.id))
@@ -47,20 +51,19 @@ export function NoteActionsDialog(props: NoteActionsDialogProps) {
   }
 
   async function confirmMove() {
-    if (currentMove.destination !== null && !destinations.some((node) => node.id === currentMove.destination)) {
-      setMoveState({ ...currentMove, error: "目标文件夹已不可用，请重新选择。" })
+    if (moveState.destination !== null && !destinations.some((node) => node.id === moveState.destination)) {
+      setMoveState({ ...moveState, error: "目标文件夹已不可用，请重新选择。" })
       return
     }
     try {
-      setMoveState({ ...currentMove, error: "" })
-      await props.onMove(currentMove.destination)
+      setMoveState({ ...moveState, error: "" })
+      await props.onMove(moveState.destination)
     } catch (error) {
-      setMoveState({ ...currentMove, error: error instanceof Error ? error.message : "移动失败，请重新选择目标文件夹。" })
+      setMoveState({ ...moveState, error: error instanceof Error ? error.message : "移动失败，请重新选择目标文件夹。" })
     }
   }
 
   return (
-    <PlanDialog labelledBy={titleId} onRequestClose={props.onRequestClose} open={props.open} returnFocusTo={props.returnFocusTo}>
       <section className={styles.actionSheet}>
         <header>
           <div><p>{kind}操作</p><h2 id={titleId}>{props.node.title}</h2></div>
@@ -79,23 +82,22 @@ export function NoteActionsDialog(props: NoteActionsDialogProps) {
             </>
           )}
           <button onClick={() => void closeForNextAction(props.onRename)} type="button">重命名</button>
-          <button onClick={() => setMoveState({ ...currentMove, error: "", open: !currentMove.open })} type="button">移动</button>
+          <button onClick={() => setMoveState({ ...moveState, error: "", open: !moveState.open })} type="button">移动</button>
         </div>
-        {currentMove.open ? (
+        {moveState.open ? (
           <>
             <label className={styles.destinationField}>
               <span>移动到目录</span>
-              <select aria-describedby={currentMove.error ? "move-destination-error" : undefined} aria-invalid={currentMove.error ? true : undefined} aria-label="移动到目录" onChange={(event) => setMoveState({ ...currentMove, destination: event.target.value || null, error: "" })} value={currentMove.destination ?? ""}>
+              <select aria-describedby={moveState.error ? "move-destination-error" : undefined} aria-invalid={moveState.error ? true : undefined} aria-label="移动到目录" onChange={(event) => setMoveState({ ...moveState, destination: event.target.value || null, error: "" })} value={moveState.destination ?? ""}>
                 <option value="">笔记库根目录</option>
                 {destinations.map((node) => <option key={node.id} value={node.id}>{node.title}</option>)}
               </select>
             </label>
-            {currentMove.error ? <p className={styles.moveError} id="move-destination-error" role="alert">{currentMove.error}</p> : null}
+            {moveState.error ? <p className={styles.moveError} id="move-destination-error" role="alert">{moveState.error}</p> : null}
             <button className={styles.moveButton} onClick={() => void confirmMove()} type="button">确认移动</button>
           </>
         ) : null}
         <button className={styles.trashButton} onClick={props.onRequestTrash} type="button">移到回收站</button>
       </section>
-    </PlanDialog>
   )
 }

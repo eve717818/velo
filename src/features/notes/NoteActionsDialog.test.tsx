@@ -36,4 +36,19 @@ describe("NoteActionsDialog", () => {
     expect(onMove).not.toHaveBeenCalled()
     expect(await screen.findByRole("alert")).toHaveTextContent("目标文件夹已不可用")
   })
+
+  it("resets move state when the same node dialog closes and reopens", async () => {
+    const user = userEvent.setup()
+    const common = { onAdd: vi.fn(), onMove: vi.fn(), onRename: vi.fn(), onRequestClose: vi.fn(), onRequestTrash: vi.fn() }
+    const { rerender } = render(<NoteActionsDialog {...common} node={source} nodes={[source, target]} open />)
+
+    await user.click(screen.getByRole("button", { name: "移动" }))
+    await user.selectOptions(screen.getByRole("combobox", { name: "移动到目录" }), target.id)
+    rerender(<NoteActionsDialog {...common} node={source} nodes={[source, target]} open={false} />)
+    rerender(<NoteActionsDialog {...common} node={source} nodes={[source, target]} open />)
+
+    await user.click(screen.getByRole("button", { name: "移动" }))
+    expect(screen.getByRole("combobox", { name: "移动到目录" })).toHaveValue("")
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument()
+  })
 })
