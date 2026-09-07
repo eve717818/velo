@@ -76,15 +76,17 @@ export interface KnowledgeNode {
   type: KnowledgeNodeType
   title: string
   order: number
-  /** @deprecated Compatibility only until all legacy inbox callers migrate. */
-  inbox?: boolean
   deletedAt?: number
   trashRootId?: string
   createdAt: number
   updatedAt: number
 }
 
-export type LegacyKnowledgeNode = KnowledgeNode & { inbox?: boolean }
+export type LegacyKnowledgeNode = Omit<KnowledgeNode, "deletedAt" | "trashRootId"> & {
+  inbox?: boolean
+  deletedAt?: number
+  trashRootId?: string
+}
 
 export interface NoteDocument {
   id: string

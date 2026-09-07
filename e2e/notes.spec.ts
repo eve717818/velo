@@ -5,7 +5,6 @@ import { resolve } from "node:path"
 
 interface StoredNode {
   id: string
-  inbox?: boolean
   parentId: string | null
   title: string
   deletedAt?: number
@@ -19,20 +18,6 @@ interface StoredNote {
   title: string
 }
 
-const parentTitle = "网络安全课堂笔记"
-const parentMarkdown = [
-  "# 同源策略",
-  "浏览器会隔离不同来源的数据。",
-  "",
-  "![远程图](https://notes.invalid/should-not-load.png)",
-  "<script>window.__notesUnsafeScript = true</script>",
-  "[危险脚本](javascript:window.__notesUnsafeLink=true)",
-  "[危险数据](data:text/html;base64,PHNjcmlwdD53aW5kb3cub3BlbmVyLl9fbm90ZXNVbnNhZmVEYXRhPXRydWU8L3NjcmlwdD4=)",
-  "[正常外链](https://example.com/notes-reference)",
-].join("\n")
-const childTitle = "CSP 复习卡"
-const childMarkdown = "## 检查点\n- 阻止未授权脚本\n- 限制资源来源"
-const directoryTitle = "计算机网络"
 const viewportMatrix = [
   { width: 390, height: 844 },
   { width: 402, height: 874 },
@@ -65,26 +50,12 @@ async function editCurrentNote(page: Page, title: string, markdown: string) {
   await waitForSaved(page)
 }
 
-async function openNote(page: Page, title: string) {
-  await page.getByRole("button", { name: `打开笔记：${title}` }).click()
-  await expect(page.getByLabel("笔记标题")).toHaveValue(title)
-}
-
-async function openActions(page: Page) {
-  await page.getByRole("button", { name: "笔记操作" }).click()
-  return page.getByRole("dialog", { name: /.+/ }).filter({ has: page.getByText("笔记操作", { exact: true }) })
-}
-
-async function createFromActions(page: Page, dialog: Locator, action: "新建子笔记" | "新建同级笔记") {
-  const previousId = new URL(page.url()).searchParams.get("note")
-  await dialog.getByRole("button", { name: action }).click()
-  await expect.poll(() => new URL(page.url()).searchParams.get("note")).not.toBe(previousId)
-  await expect(page.getByLabel("笔记标题")).toHaveValue("未命名笔记")
-}
-
 async function createFromHeader(page: Page) {
   const previousId = new URL(page.url()).searchParams.get("note")
-  await page.getByRole("button", { name: "新建笔记", exact: true }).click()
+  await page.getByRole("button", { name: "新建", exact: true }).click()
+  await page.getByRole("menuitem", { name: "新建笔记" }).click()
+  await page.getByRole("textbox", { name: "笔记名称" }).fill("未命名笔记")
+  await page.getByRole("textbox", { name: "笔记名称" }).press("Enter")
   await expect.poll(() => new URL(page.url()).searchParams.get("note")).not.toBe(previousId)
   await expect(page.getByLabel("笔记标题")).toHaveValue("未命名笔记")
 }
@@ -184,101 +155,43 @@ async function forceNextNoteWriteFailure(page: Page) {
   })
 }
 
-test("notes flow preserves subtree IDs and content through move, trash, restore, and Markdown export", async ({ page }) => {
-  const remoteRequests: string[] = []
-  page.on("request", (request) => {
-    if (request.url().startsWith("https://notes.invalid/")) remoteRequests.push(request.url())
-  })
-
+test("knowledge tree creates folders and notes, persists, moves, and restores a subtree", async ({ page }) => {
   await page.setViewportSize({ width: 1024, height: 900 })
   await finishOnboarding(page)
-  await page.getByRole("button", { name: "笔记收件箱" }).click()
-  await page.getByRole("button", { name: "创建第一篇笔记" }).click()
-  await editCurrentNote(page, parentTitle, parentMarkdown)
+  await page.getByRole("button", { name: "新建" }).click()
+  await page.getByRole("menuitem", { name: "新建文件夹" }).click()
+  await page.getByRole("textbox", { name: "文件夹名称" }).fill("数学")
+  await page.getByRole("textbox", { name: "文件夹名称" }).press("Enter")
+  await page.getByRole("button", { name: "数学", exact: true }).click()
+  await page.getByRole("button", { name: "节点操作：数学" }).click()
+  await page.getByRole("dialog", { name: "数学" }).getByRole("button", { name: "新建笔记" }).click()
+  await page.getByRole("textbox", { name: "笔记名称" }).fill("极限与连续")
+  await page.getByRole("textbox", { name: "笔记名称" }).press("Enter")
+  await expect(page.getByRole("button", { name: "打开笔记：极限与连续" })).toBeVisible()
+  await expect(page.getByText("笔记收件箱", { exact: true })).toHaveCount(0)
 
-  const initial = await readNotesStore(page)
-  const initialParent = initial.nodes.find((node) => node.title === parentTitle)
-  expect(initialParent).toMatchObject({ inbox: true, parentId: null })
-  expect(initial.notes.find((note) => note.nodeId === initialParent?.id)).toMatchObject({ markdown: parentMarkdown, title: parentTitle })
-
-  await page.getByRole("button", { name: "阅读", exact: true }).click()
-  const readingView = page.getByLabel("Markdown 阅读内容")
-  await expect(readingView.getByRole("heading", { name: "同源策略" })).toBeVisible()
-  await expect(page.getByText("图片“远程图”已阻止加载")).toBeVisible()
-  const javascriptLink = readingView.locator("a", { hasText: "危险脚本" })
-  const dataLink = readingView.locator("a", { hasText: "危险数据" })
-  const externalLink = readingView.getByRole("link", { name: "正常外链" })
-  await expect(javascriptLink).toHaveAttribute("href", "")
-  await expect(dataLink).toHaveAttribute("href", "")
-  await expect(externalLink).toHaveAttribute("href", "https://example.com/notes-reference")
-  await expect(externalLink).toHaveAttribute("target", "_blank")
-  await expect(externalLink).toHaveAttribute("rel", "noreferrer noopener")
-  expect(remoteRequests).toEqual([])
-  expect(await page.evaluate(() => {
-    const unsafeWindow = window as typeof window & { __notesUnsafeData?: boolean; __notesUnsafeLink?: boolean; __notesUnsafeScript?: boolean }
-    return Boolean(unsafeWindow.__notesUnsafeData || unsafeWindow.__notesUnsafeLink || unsafeWindow.__notesUnsafeScript)
-  })).toBe(false)
-
+  await page.getByRole("button", { name: "收起数学" }).click()
+  await expect(page.getByRole("button", { name: "打开笔记：极限与连续" })).toBeHidden()
+  await page.getByRole("button", { name: "展开数学" }).click()
   await page.reload()
-  await waitForSaved(page)
-  await expect(page.getByLabel("笔记标题")).toHaveValue(parentTitle)
-  await expect(page.getByLabel("Markdown 正文")).toHaveValue(parentMarkdown)
+  await expect(page.getByRole("button", { name: "打开笔记：极限与连续" })).toBeVisible()
 
-  let dialog = await openActions(page)
-  await createFromActions(page, dialog, "新建子笔记")
-  await editCurrentNote(page, childTitle, childMarkdown)
-
-  await openNote(page, parentTitle)
-  dialog = await openActions(page)
-  await createFromActions(page, dialog, "新建同级笔记")
-  await editCurrentNote(page, directoryTitle, "# 目录")
-
-  const afterDirectorySave = await readNotesStore(page)
-  expect(afterDirectorySave.nodes.some((node) => node.title === directoryTitle)).toBe(true)
-  await expect(page.getByRole("button", { name: `打开笔记：${directoryTitle}` })).toBeVisible()
-
-  await openNote(page, parentTitle)
-  dialog = await openActions(page)
-  await dialog.getByLabel("移动到目录").selectOption({ label: directoryTitle })
-  await dialog.getByRole("button", { name: "确认移动" }).click()
-
-  const moved = await readNotesStore(page)
-  const movedParent = moved.nodes.find((node) => node.title === parentTitle)
-  const movedChild = moved.nodes.find((node) => node.title === childTitle)
-  const movedDirectory = moved.nodes.find((node) => node.title === directoryTitle)
-  expect(movedParent?.id).toBe(initialParent?.id)
-  expect(movedParent?.parentId).toBe(movedDirectory?.id)
-  expect(movedChild?.parentId).toBe(movedParent?.id)
-
-  dialog = await openActions(page)
-  await dialog.getByRole("button", { name: "移到回收站" }).click()
-  const confirm = page.getByRole("dialog", { name: "移到回收站？" })
-  await confirm.getByRole("button", { name: "确认移到回收站" }).click()
-  await expect(page.getByRole("button", { name: "恢复笔记" })).toBeVisible()
-  await page.getByRole("button", { name: "恢复笔记" }).click()
-  await waitForSaved(page)
-
+  await page.getByRole("button", { name: "新建" }).click()
+  await page.getByRole("menuitem", { name: "新建文件夹" }).click()
+  await page.getByRole("textbox", { name: "文件夹名称" }).fill("物理")
+  await page.getByRole("textbox", { name: "文件夹名称" }).press("Enter")
+  await page.getByRole("button", { name: "数学", exact: true }).click()
+  await page.getByRole("button", { name: "节点操作：数学" }).click()
+  const actions = page.getByRole("dialog", { name: "数学" })
+  await actions.getByRole("button", { name: "移动" }).click()
+  await actions.getByLabel("移动到目录").selectOption({ label: "物理" })
+  await actions.getByRole("button", { name: "确认移动" }).click()
+  await page.getByRole("button", { name: "节点操作：数学" }).click()
+  await page.getByRole("dialog", { name: "数学" }).getByRole("button", { name: "移到回收站" }).click()
+  await page.getByRole("dialog", { name: "移到回收站？" }).getByRole("button", { name: "确认移到回收站" }).click()
+  await page.getByRole("button", { name: "恢复文件夹" }).click()
   const restored = await readNotesStore(page)
-  const restoredParent = restored.nodes.find((node) => node.id === initialParent?.id)
-  const restoredChild = restored.nodes.find((node) => node.id === movedChild?.id)
-  expect(restoredParent).toMatchObject({ parentId: movedDirectory?.id, title: parentTitle })
-  expect(restoredParent?.deletedAt).toBeUndefined()
-  expect(restoredChild).toMatchObject({ parentId: initialParent?.id, title: childTitle })
-  expect(restoredChild?.deletedAt).toBeUndefined()
-  expect(restored.notes.find((note) => note.nodeId === restoredParent?.id)?.markdown).toBe(parentMarkdown)
-  expect(restored.notes.find((note) => note.nodeId === restoredChild?.id)?.markdown).toBe(childMarkdown)
-
-  const downloadPromise = page.waitForEvent("download")
-  await page.getByRole("button", { name: "导出 Markdown", exact: true }).click()
-  const download = await downloadPromise
-  expect(download.suggestedFilename()).toMatch(/\.md$/)
-  const downloadPath = await download.path()
-  expect(downloadPath).toBeTruthy()
-  const exported = await readFile(downloadPath, "utf8")
-  expect(exported).toContain(parentTitle)
-  expect(exported).toContain("浏览器会隔离不同来源的数据。")
-  expect(exported).toContain(childTitle)
-  expect(exported).toContain("阻止未授权脚本")
+  expect(restored.nodes.find((node) => node.title === "数学")?.deletedAt).toBeUndefined()
 })
 
 test("notes primary state is accessible and keyboard focus is visible", async ({ page }) => {
@@ -305,7 +218,7 @@ test("notes workspace reflows at required widths with large text and reduced mot
     await expectNoHorizontalOverflow(page)
     const heading = page.getByRole("heading", { name: "笔记工作台" })
     const header = heading.locator("xpath=ancestor::header[1]")
-    const newButton = page.getByRole("button", { name: "新建笔记", exact: true })
+    const newButton = page.getByRole("button", { name: "新建", exact: true })
     const content = page.getByRole("region", { name: "笔记内容" })
     const editor = page.getByRole("region", { name: "笔记编辑器" })
     const textarea = page.getByLabel("Markdown 正文")

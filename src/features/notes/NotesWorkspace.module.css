@@ -45,6 +45,39 @@
   gap: 8px;
 }
 
+.newNodeMenu { position: relative; }
+.newNodeMenuPopup {
+  background: white;
+  border: 1px solid var(--color-border);
+  border-radius: 14px;
+  box-shadow: var(--shadow-raised);
+  display: grid;
+  gap: 4px;
+  min-width: 172px;
+  padding: 6px;
+  position: absolute;
+  right: 0;
+  top: calc(100% + 7px);
+  z-index: 5;
+}
+.newNodeMenuPopup button {
+  align-items: center;
+  background: transparent;
+  border: 0;
+  border-radius: 10px;
+  color: var(--color-text);
+  cursor: pointer;
+  display: flex;
+  font: inherit;
+  font-size: .82rem;
+  font-weight: 710;
+  gap: 8px;
+  justify-content: flex-start;
+  min-height: 44px;
+  padding: 0 10px;
+}
+.newNodeMenuPopup button:hover { background: #f1f0f3; }
+
 .headerActions button,
 .noteActions button,
 .primaryButton,
@@ -237,6 +270,22 @@
 }
 .treeNode[aria-current="page"] { background: #f1e8f0; color: #751460; }
 .treeEmpty { color: var(--color-text-muted); font-size: .78rem; margin: 12px 8px; }
+.treeNodeEditor { display: grid; gap: 7px; width: min(100%, 360px); }
+.treeNodeEditor input {
+  background: white;
+  border: 1px solid var(--color-border);
+  border-radius: 13px;
+  color: var(--color-text);
+  font: inherit;
+  min-height: 44px;
+  padding: 0 12px;
+  width: 100%;
+}
+.treeNodeEditor input[aria-invalid="true"] { border-color: #a51f46; }
+.treeNodeEditor p { color: #972344; font-size: .78rem; margin: 0; text-align: left; }
+.folderActions { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; }
+.folderActions button { background: white; border: 1px solid var(--color-border); border-radius: 13px; color: var(--color-text); cursor: pointer; font: inherit; font-weight: 710; min-height: 44px; padding: 0 14px; }
+.folderActions button:last-child { min-width: 44px; padding: 0 12px; }
 
 .widthControl {
   border-top: 1px solid var(--color-border);

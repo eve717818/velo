@@ -41,7 +41,7 @@ function Branch({ node, childrenByParent, visited, selectedId, expandedIds, onSe
         ) : <span className={styles.treeTogglePlaceholder} />}
         <button
           aria-current={selectedId === node.id ? "page" : undefined}
-          aria-label={`打开${node.type === "folder" ? "文件夹" : "笔记"}：${node.title}`}
+          aria-label={node.type === "folder" ? node.title : `打开笔记：${node.title}`}
           className={styles.treeNode}
           onClick={() => void onSelect(node)}
           type="button"

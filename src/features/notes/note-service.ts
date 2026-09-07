@@ -7,13 +7,6 @@ type CreateNodeInput = {
   parentId: string | null
 }
 
-type LegacyCreateNoteInput = {
-  title: string
-  parentId: string | null
-  /** @deprecated Ignored until legacy callers migrate to the node-type API. */
-  inbox?: boolean
-}
-
 type SaveNoteInput = {
   title: string
   markdown: string
@@ -144,7 +137,7 @@ export function createFolder(db: VeloDB, input: CreateNodeInput, now: number): P
   return createNode(db, 'folder', input, now)
 }
 
-export function createNote(db: VeloDB, input: LegacyCreateNoteInput, now: number): Promise<KnowledgeNode> {
+export function createNote(db: VeloDB, input: CreateNodeInput, now: number): Promise<KnowledgeNode> {
   return createNode(db, 'note', input, now)
 }
 
@@ -281,14 +274,3 @@ export async function exportMarkdown(db: VeloDB, nodeId: string): Promise<{ file
   }
   return { filename: safeFilename(root.title), text: `${lines.join('\n').replace(/\n+$/, '')}\n` }
 }
-
-/** @deprecated Use moveNode after legacy UI callers migrate. */
-export async function moveNote(db: VeloDB, nodeId: string, parentId: string | null, _inbox: boolean, now: number): Promise<void> {
-  return moveNode(db, nodeId, parentId, now)
-}
-
-/** @deprecated Use trashNode after legacy UI callers migrate. */
-export const trashNote = trashNode
-
-/** @deprecated Use restoreNode after legacy UI callers migrate. */
-export const restoreNote = restoreNode

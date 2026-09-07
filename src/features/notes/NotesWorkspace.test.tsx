@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen, waitFor } from "@testing-library/react"
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { MemoryRouter, useNavigate } from "react-router-dom"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
@@ -41,18 +41,47 @@ afterEach(async () => {
 })
 
 describe("NotesWorkspace", () => {
-  it("shows a quiet temporary state instead of mounting the note editor for a selected folder", async () => {
+  it("creates a folder, a child note, renames the folder and blocks a note as a parent", async () => {
+    const user = userEvent.setup()
+    renderWorkspace()
+
+    await user.click(screen.getByRole("button", { name: "新建" }))
+    await user.click(screen.getByRole("menuitem", { name: "新建文件夹" }))
+    await user.type(screen.getByRole("textbox", { name: "文件夹名称" }), "数学{Enter}")
+    await user.click(await screen.findByRole("button", { name: "数学" }))
+    await user.click(screen.getByRole("button", { name: "节点操作：数学" }))
+    await user.click(within(screen.getByRole("dialog", { name: "数学" })).getByRole("button", { name: "新建笔记" }))
+    await user.type(screen.getByRole("textbox", { name: "笔记名称" }), "导数{Enter}")
+
+    expect(await screen.findByRole("button", { name: "打开笔记：导数" })).toBeVisible()
+    expect(await db.notes.count()).toBe(1)
+  })
+
+  it("shows a quiet folder panel instead of mounting the note editor for a selected folder", async () => {
     await createFolder(db, { title: "课程资料", parentId: null }, 1)
     const user = userEvent.setup()
     renderWorkspace()
 
-    await user.click(await screen.findByRole("button", { name: "打开文件夹：课程资料" }))
+    await user.click(await screen.findByRole("button", { name: "课程资料" }))
 
     expect(await screen.findByRole("heading", { name: "课程资料" })).toBeInTheDocument()
-    expect(screen.getByText("文件夹的正文功能将在后续版本提供。")).toBeInTheDocument()
+    expect(screen.getByText("课程资料 · 0 个子节点")).toBeInTheDocument()
     expect(screen.queryByText("请选择一篇笔记")).not.toBeInTheDocument()
     expect(screen.queryByLabelText("Markdown 正文")).not.toBeInTheDocument()
     expect(screen.queryByRole("alert")).not.toBeInTheDocument()
+  })
+
+  it("closes the phone directory drawer after opening a note", async () => {
+    await createNote(db, { title: "手机笔记", parentId: null }, 1)
+    const user = userEvent.setup()
+    renderWorkspace()
+
+    await user.click(screen.getByRole("button", { name: "目录" }))
+    const drawer = await screen.findByRole("dialog", { name: "笔记目录" })
+    await user.click(within(drawer).getByRole("button", { name: "打开笔记：手机笔记" }))
+
+    expect(screen.queryByRole("dialog", { name: "笔记目录" })).not.toBeInTheDocument()
+    expect(await screen.findByLabelText("Markdown 正文")).toBeInTheDocument()
   })
 
   it("collapses a folder without selecting it, restores its descendants and persists the choice", async () => {
@@ -93,9 +122,11 @@ describe("NotesWorkspace", () => {
 
     renderWorkspace({ initialEntry: `/notes?note=${note.id}` })
 
-    const rootButton = await screen.findByRole("button", { name: "打开文件夹：理科" })
-    const deepestFolderButton = await screen.findByRole("button", { name: "打开文件夹：对称" })
-    const noteButton = screen.getByRole("button", { name: `打开笔记：${longTitle}` })
+    const directory = screen.getByRole("complementary", { name: "笔记目录" })
+    const rootButton = await within(directory).findByRole("button", { name: "理科" })
+    await within(directory).findByRole("button", { name: "收起对称" })
+    const deepestFolderButton = within(directory).getByRole("button", { name: "对称" })
+    const noteButton = within(directory).getByRole("button", { name: `打开笔记：${longTitle}` })
     for (const folder of folders) {
       expect(screen.getByRole("button", { name: `收起${folder.title}` })).toHaveAttribute("aria-expanded", "true")
     }
@@ -103,7 +134,6 @@ describe("NotesWorkspace", () => {
     expect(deepestFolderButton.querySelector(".lucide-folder-open")).toHaveAttribute("aria-hidden", "true")
     expect(noteButton.querySelector(".lucide-file-text")).toHaveAttribute("aria-hidden", "true")
     expect(noteButton.querySelector("span")).toHaveClass(styles.treeLabel)
-    const directory = screen.getByRole("complementary", { name: "笔记目录" })
     expect(directory.querySelectorAll(`.${styles.treeChildren}`)).toHaveLength(folderTitles.length)
     expect(directory.querySelector("[style*='--tree-depth']")).not.toBeInTheDocument()
   })
@@ -138,11 +168,11 @@ describe("NotesWorkspace", () => {
 
     expect(screen.getByRole("heading", { name: "笔记工作台" })).toHaveAttribute("data-nowrap", "true")
     expect(screen.getByRole("button", { name: "目录" }).querySelector("[data-nowrap='true']")).toHaveTextContent("目录")
-    expect(screen.getByRole("button", { name: "新建笔记" }).querySelector("[data-nowrap='true']")).toHaveTextContent("新建笔记")
+    expect(screen.getByRole("button", { name: "新建" })).toHaveTextContent("新建")
   })
 
   it("only offers split view at a sufficiently wide viewport and falls back when it narrows", async () => {
-    const note = await createNote(db, { title: "响应式编辑", parentId: null, inbox: false }, 1)
+    const note = await createNote(db, { title: "响应式编辑", parentId: null }, 1)
     let matches = false
     const listeners = new Set<(event: MediaQueryListEvent) => void>()
     vi.stubGlobal("matchMedia", vi.fn(() => ({
@@ -175,7 +205,9 @@ describe("NotesWorkspace", () => {
     const user = userEvent.setup()
     renderWorkspace()
 
-    await user.click(screen.getByRole("button", { name: "新建笔记" }))
+    await user.click(screen.getByRole("button", { name: "新建" }))
+    await user.click(screen.getByRole("menuitem", { name: "新建笔记" }))
+    await user.type(screen.getByRole("textbox", { name: "笔记名称" }), "未命名笔记{Enter}")
     const body = await screen.findByLabelText("Markdown 正文")
     await user.clear(screen.getByLabelText("笔记标题"))
     await user.type(screen.getByLabelText("笔记标题"), "高等数学")
@@ -186,7 +218,7 @@ describe("NotesWorkspace", () => {
   })
 
   it("reads safe Markdown without rendering raw HTML or remote images", async () => {
-    const note = await createNote(db, { title: "安全预览", parentId: null, inbox: false }, 1)
+    const note = await createNote(db, { title: "安全预览", parentId: null }, 1)
     const loadedDocument = await loadNote(db, note.id)
     await saveNote(
       db,
@@ -206,8 +238,8 @@ describe("NotesWorkspace", () => {
   })
 
   it("flushes the current draft before switching to another note", async () => {
-    const first = await createNote(db, { title: "第一篇", parentId: null, inbox: false }, 1)
-    const second = await createNote(db, { title: "第二篇", parentId: null, inbox: false }, 2)
+    const first = await createNote(db, { title: "第一篇", parentId: null }, 1)
+    const second = await createNote(db, { title: "第二篇", parentId: null }, 2)
     const user = userEvent.setup()
     renderWorkspace({ initialEntry: `/notes?note=${first.id}` })
 
@@ -221,7 +253,7 @@ describe("NotesWorkspace", () => {
   })
 
   it("retains a failed draft and exposes recovery actions", async () => {
-    const note = await createNote(db, { title: "离线草稿", parentId: null, inbox: false }, 1)
+    const note = await createNote(db, { title: "离线草稿", parentId: null }, 1)
     const rejectSave = vi.fn<typeof saveNote>().mockRejectedValue(new Error("模拟保存失败"))
     const user = userEvent.setup()
     renderWorkspace({ initialEntry: `/notes?note=${note.id}`, services: { saveNote: rejectSave } })
@@ -235,7 +267,7 @@ describe("NotesWorkspace", () => {
   })
 
   it("does not save in the middle of Chinese IME composition", async () => {
-    const note = await createNote(db, { title: "中文输入", parentId: null, inbox: false }, 1)
+    const note = await createNote(db, { title: "中文输入", parentId: null }, 1)
     const saveSpy = vi.fn<typeof saveNote>(saveNote)
     renderWorkspace({ initialEntry: `/notes?note=${note.id}`, services: { saveNote: saveSpy } })
     const body = await screen.findByLabelText("Markdown 正文")
@@ -250,7 +282,7 @@ describe("NotesWorkspace", () => {
   })
 
   it("serializes autosaves so a slow earlier save cannot conflict with the latest draft", async () => {
-    const note = await createNote(db, { title: "慢速保存", parentId: null, inbox: false }, 1)
+    const note = await createNote(db, { title: "慢速保存", parentId: null }, 1)
     let releaseFirst!: () => void
     const firstGate = new Promise<void>((resolve) => { releaseFirst = resolve })
     const saveSpy = vi.fn<typeof saveNote>(async (...args) => {
@@ -271,36 +303,59 @@ describe("NotesWorkspace", () => {
     await waitFor(async () => expect((await loadNote(db, note.id)).markdown).toBe("第二稿"))
   })
 
-  it("adds a note within a folder, moves it to inbox, trashes and restores it", async () => {
-    const folder = await createFolder(db, { title: "计算机科学", parentId: null }, 1)
-    const root = await createNote(db, { title: "算法", parentId: folder.id, inbox: false }, 2)
+  it("renames inline with Enter, cancels with Escape, and preserves duplicate sibling titles", async () => {
+    const folder = await createFolder(db, { title: "资料", parentId: null }, 1)
+    await createFolder(db, { title: "重复", parentId: folder.id }, 2)
+    const second = await createFolder(db, { title: "重复", parentId: folder.id }, 3)
     const user = userEvent.setup()
-    renderWorkspace({ initialEntry: `/notes?note=${root.id}` })
+    renderWorkspace({ initialEntry: `/notes?note=${folder.id}` })
 
-    await user.click(await screen.findByRole("button", { name: "笔记操作" }))
-    await user.click(screen.getByRole("button", { name: "新建同级笔记" }))
-    expect(await screen.findByDisplayValue("未命名笔记")).toBeInTheDocument()
-    const childId = (await db.knowledgeNodes.toArray()).find((node) => node.parentId === folder.id && node.id !== root.id)?.id
-    expect(childId).toBeTruthy()
+    await user.click(await screen.findByRole("button", { name: "节点操作：资料" }))
+    await user.click(screen.getByRole("button", { name: "重命名" }))
+    await user.clear(screen.getByRole("textbox", { name: "文件夹名称" }))
+    await user.type(screen.getByRole("textbox", { name: "文件夹名称" }), "资料库{Enter}")
+    expect(await screen.findByRole("button", { name: "资料库" })).toBeVisible()
 
-    await user.click(screen.getByRole("button", { name: "笔记操作" }))
-    await user.click(screen.getByRole("button", { name: "移到收件箱" }))
-    await user.click(screen.getByRole("button", { name: "全部笔记" }))
-    expect(await screen.findByRole("button", { name: "打开笔记：未命名笔记" })).toBeInTheDocument()
+    await user.click(screen.getByRole("button", { name: "节点操作：资料库" }))
+    await user.click(screen.getByRole("button", { name: "重命名" }))
+    await user.clear(screen.getByRole("textbox", { name: "文件夹名称" }))
+    await user.type(screen.getByRole("textbox", { name: "文件夹名称" }), "不会保存{Escape}")
+    expect(screen.getByRole("button", { name: "资料库" })).toBeVisible()
+    expect((await db.knowledgeNodes.get(second.id))?.title).toBe("重复")
+  })
 
-    await user.click(screen.getByRole("button", { name: "打开笔记：未命名笔记" }))
-    await user.click(await screen.findByRole("button", { name: "笔记操作" }))
+  it("moves folders only to live folders outside their own subtree and restores a trashed group", async () => {
+    const source = await createFolder(db, { title: "数学", parentId: null }, 1)
+    const child = await createFolder(db, { title: "导数", parentId: source.id }, 2)
+    await createNote(db, { title: "极限", parentId: child.id }, 3)
+    const target = await createFolder(db, { title: "物理", parentId: null }, 4)
+    await createNote(db, { title: "不能作为目标", parentId: null }, 5)
+    const user = userEvent.setup()
+    renderWorkspace({ initialEntry: `/notes?note=${source.id}` })
+
+    await user.click(await screen.findByRole("button", { name: "节点操作：数学" }))
+    await user.click(screen.getByRole("button", { name: "移动" }))
+    const destination = screen.getByLabelText("移动到目录")
+    expect(destination).toHaveTextContent("笔记库根目录")
+    expect(destination).toHaveTextContent("物理")
+    expect(destination).not.toHaveTextContent("数学")
+    expect(destination).not.toHaveTextContent("导数")
+    expect(destination).not.toHaveTextContent("不能作为目标")
+    await user.selectOptions(destination, target.id)
+    await user.click(screen.getByRole("button", { name: "确认移动" }))
+    expect((await db.knowledgeNodes.get(source.id))?.parentId).toBe(target.id)
+
+    await user.click(await screen.findByRole("button", { name: "节点操作：数学" }))
     await user.click(screen.getByRole("button", { name: "移到回收站" }))
-    expect(screen.getByText("子笔记也会一起进入回收站，可随时恢复。")).toBeInTheDocument()
+    expect(screen.getByText("文件夹内的子文件夹和笔记会一起进入回收站，可随时恢复。")).toBeInTheDocument()
     await user.click(screen.getByRole("button", { name: "确认移到回收站" }))
-    await user.click(screen.getByRole("button", { name: "回收站" }))
-    await user.click(await screen.findByRole("button", { name: "打开笔记：未命名笔记" }))
-    await user.click(screen.getByRole("button", { name: "恢复笔记" }))
-    expect((await db.knowledgeNodes.get(childId!))?.deletedAt).toBeUndefined()
+    await user.click(screen.getByRole("button", { name: "恢复文件夹" }))
+    await waitFor(async () => expect((await db.knowledgeNodes.get(source.id))?.deletedAt).toBeUndefined())
+    await expect(db.knowledgeNodes.get(child.id)).resolves.toMatchObject({ deletedAt: undefined })
   })
 
   it("exports the latest saved subtree as Markdown", async () => {
-    const root = await createNote(db, { title: "复习资料", parentId: null, inbox: false }, 1)
+    const root = await createNote(db, { title: "复习资料", parentId: null }, 1)
     const createObjectURL = vi.spyOn(URL, "createObjectURL").mockReturnValue("blob:test")
     vi.spyOn(URL, "revokeObjectURL").mockImplementation(() => undefined)
     const click = vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => undefined)
@@ -316,7 +371,7 @@ describe("NotesWorkspace", () => {
   })
 
   it("keeps a stale local draft visible instead of overwriting a newer database revision", async () => {
-    const note = await createNote(db, { title: "并发笔记", parentId: null, inbox: false }, 1)
+    const note = await createNote(db, { title: "并发笔记", parentId: null }, 1)
     const user = userEvent.setup()
     renderWorkspace({ initialEntry: `/notes?note=${note.id}` })
     const body = await screen.findByLabelText("Markdown 正文")
@@ -334,7 +389,7 @@ describe("NotesWorkspace", () => {
   })
 
   it("recovers an older local draft as an explicit conflict after remounting", async () => {
-    const note = await createNote(db, { title: "课堂笔记", parentId: null, inbox: false }, 1)
+    const note = await createNote(db, { title: "课堂笔记", parentId: null }, 1)
     const initial = await loadNote(db, note.id)
     await saveNote(db, note.id, { title: "课堂笔记", markdown: "远端新版本" }, initial.revision ?? 0, 2)
     localStorage.setItem(`velow-note-draft:${note.id}`, JSON.stringify({

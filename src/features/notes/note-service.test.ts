@@ -29,12 +29,12 @@ afterEach(async () => {
 })
 
 describe('note service', () => {
-  test('exposes legacy inbox input only on createNote', () => {
+  test('uses the same node input for folders and notes', () => {
     type FolderInput = Parameters<typeof createFolder>[1]
     type NoteInput = Parameters<typeof createNote>[1]
 
     expectTypeOf<FolderInput>().toEqualTypeOf<{ title: string; parentId: string | null }>()
-    expectTypeOf<NoteInput>().toEqualTypeOf<{ title: string; parentId: string | null; inbox?: boolean }>()
+    expectTypeOf<NoteInput>().toEqualTypeOf<{ title: string; parentId: string | null }>()
   })
 
   test('creates folders without documents and notes with one document', async () => {
