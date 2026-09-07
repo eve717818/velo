@@ -162,7 +162,7 @@ test("knowledge tree creates folders and notes, persists, moves, and restores a 
   await page.getByRole("menuitem", { name: "新建文件夹" }).click()
   await page.getByRole("textbox", { name: "文件夹名称" }).fill("数学")
   await page.getByRole("textbox", { name: "文件夹名称" }).press("Enter")
-  await page.getByRole("button", { name: "数学", exact: true }).click()
+  await page.getByRole("complementary", { name: "笔记目录" }).getByRole("button", { name: "数学", exact: true }).click()
   await page.getByRole("button", { name: "节点操作：数学" }).click()
   await page.getByRole("dialog", { name: "数学" }).getByRole("button", { name: "新建笔记" }).click()
   await page.getByRole("textbox", { name: "笔记名称" }).fill("极限与连续")
