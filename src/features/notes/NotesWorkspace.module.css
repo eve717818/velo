@@ -4,6 +4,81 @@
   min-width: 0;
 }
 
+.dailyCalendar { margin: 0 auto; max-width: 560px; padding: 12px 12px 8px; width: 100%; }
+.dailyCalendarControls { align-items: center; display: flex; gap: 4px; }
+.dailyCalendarControls button,
+.dailyCalendarControls input,
+.dailyCalendarControls select {
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  color: #423b43;
+  font: inherit;
+  font-size: .875rem;
+  min-height: 44px;
+  min-width: 44px;
+}
+.dailyCalendarControls button { align-items: center; cursor: pointer; display: inline-flex; justify-content: center; padding: 0 8px; }
+.dailyCalendarControls input { border-color: #e4dfe3; padding: 0 4px 0 8px; width: 76px; }
+.dailyCalendarControls select { border-color: #e4dfe3; padding: 0 4px; }
+.dailyCalendarControls .dailyTodayButton { margin-left: auto; }
+.dailyWeekdays,.dailyDateGrid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); }
+.dailyWeekdays { color: #6c616a; font-size: .75rem; padding-top: 4px; text-align: center; }
+.dailyWeekdays span { line-height: 24px; }
+.dailyDateGrid { touch-action: pan-y; }
+.dailyDateGrid button {
+  align-items: center;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  color: #423b43;
+  cursor: pointer;
+  display: flex;
+  font: inherit;
+  font-size: .875rem;
+  justify-content: center;
+  min-height: 44px;
+  min-width: 44px;
+  padding: 0;
+  position: relative;
+}
+.dailyDateGrid button[data-outside-month="true"] { color: #756b73; }
+.dailyDateGrid button[aria-current="date"] > span { text-decoration: underline; text-underline-offset: 4px; }
+.dailyDateGrid button[aria-pressed="true"] { background: #f2e7ef; border-color: #99728e; color: #641a53; font-weight: 700; }
+.dailyCalendar button:disabled { cursor: default; opacity: .35; }
+.dailyContentDot { background: currentColor; border-radius: 50%; bottom: 4px; height: 3px; position: absolute; width: 3px; }
+.dailyEditor { min-width: 0; padding: 8px clamp(12px, 2vw, 24px) 24px; }
+.dailyPaper {
+  background-color: #fff8e7;
+  background-image: repeating-linear-gradient(0deg, rgb(139 105 52 / 2%), rgb(139 105 52 / 2%) 1px, transparent 1px, transparent 4px), repeating-linear-gradient(92deg, rgb(139 105 52 / 1.5%), rgb(139 105 52 / 1.5%) 1px, transparent 1px, transparent 7px);
+  border: 1px solid #e9dcc2;
+  border-radius: 8px;
+  box-shadow: 0 4px 16px -8px rgb(104 76 35 / 22%), 0 1px 3px rgb(104 76 35 / 5%);
+  min-width: 0;
+}
+.dailyText {
+  background: transparent;
+  border: 0;
+  border-radius: inherit;
+  box-sizing: border-box;
+  color: #40372d;
+  display: block;
+  font-family: inherit;
+  font-size: 1rem;
+  font-weight: 400;
+  line-height: 1.75;
+  min-height: max(360px, 48dvh);
+  overflow: hidden;
+  overflow-wrap: anywhere;
+  padding: 24px;
+  resize: none;
+  width: 100%;
+}
+.dailyError { align-items: center; background: #fff0f4; border: 1px solid #f2c3d0; border-radius: 12px; color: #7e1937; display: flex; flex-wrap: wrap; font-size: .875rem; gap: 8px; margin-bottom: 12px; padding: 8px 12px; }
+.dailyError span { flex: 1 1 180px; }
+.dailyError button { background: white; border: 1px solid #db91a5; border-radius: 8px; color: inherit; cursor: pointer; font: inherit; min-height: 44px; padding: 0 12px; }
+.dailyCalendar button:focus-visible,.dailyCalendar input:focus-visible,.dailyCalendar select:focus-visible,.dailyEditor textarea:focus-visible,.dailyError button:focus-visible { outline: 3px solid #4c8aa0; outline-offset: 2px; }
+
 .workspaceHeader {
   align-items: center;
   background: rgb(255 255 255 / 92%);
