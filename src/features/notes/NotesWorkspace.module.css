@@ -566,9 +566,8 @@
   .page { margin: -8px -8px 0; }
   .dailyCalendar { padding: 4px 12px 0; }
   .dailyWeekdays { padding-top: 0; }
-  .dailyWeekdays span { line-height: 20px; }
-  .dailyDateGrid { grid-auto-rows: 36px; padding-block: 5px; }
-  .dailyDateGrid button { align-self: center; }
+  .dailyWeekdays span { line-height: 16px; }
+  .dailyDateGrid { grid-auto-rows: 44px; padding-block: 0; }
   .dailyEditor { padding-top: 4px; }
   .dailyText { min-height: max(440px, 64dvh); }
   .workspaceHeader { border-radius: 20px; gap: 8px; padding: 12px; }

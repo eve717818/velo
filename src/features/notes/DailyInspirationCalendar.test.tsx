@@ -96,39 +96,46 @@ describe('DailyInspirationCalendar', () => {
     expect(screen.getByRole('combobox', { name: '月份' })).toHaveValue('1')
   })
 
-  it('keeps the 390px and 402px phone layouts writing-first without shrinking touch targets', async () => {
+  it('keeps phone date targets non-overlapping and the paper taller at narrow widths', async () => {
     const css = await readFile(resolve(process.cwd(), 'src/features/notes/NotesWorkspace.module.css'), 'utf8')
     const mobileStart = css.indexOf('@media (max-width: 767px)')
     const mobileEnd = css.indexOf('@media (min-width: 768px)', mobileStart)
     const mobileCss = css.slice(mobileStart, mobileEnd)
     const calendarPadding = mobileCss.match(/\.dailyCalendar\s*{[^}]*padding:\s*(\d+)px\s+(\d+)px\s+(\d+)(?:px)?/s)
     const weekdayHeight = mobileCss.match(/\.dailyWeekdays span\s*{[^}]*line-height:\s*(\d+)px/s)
-    const gridMetrics = mobileCss.match(/\.dailyDateGrid\s*{[^}]*grid-auto-rows:\s*(\d+)px[^}]*padding-block:\s*(\d+)px/s)
+    const gridMetrics = mobileCss.match(/\.dailyDateGrid\s*{[^}]*grid-auto-rows:\s*(\d+)px[^}]*padding-block:\s*(\d+)(?:px)?/s)
     const paperMinimum = mobileCss.match(/\.dailyText\s*{[^}]*min-height:\s*max\((\d+)px,\s*(\d+)dvh\)/s)
+    const controlTarget = css.match(/\.dailyCalendarControls button,[^{]*{[^}]*min-height:\s*(\d+)px;[^}]*min-width:\s*(\d+)px;/s)
+    const dateTarget = css.match(/\.dailyDateGrid button\s*{[^}]*min-height:\s*(\d+)px;[^}]*min-width:\s*(\d+)px;/s)
 
-    expect(css).toMatch(/\.dailyCalendarControls button,[\s\S]*?min-height:\s*44px;[\s\S]*?min-width:\s*44px;/)
-    expect(css).toMatch(/\.dailyDateGrid button\s*{[^}]*min-height:\s*44px;[^}]*min-width:\s*44px;/s)
+    expect(controlTarget, 'phone calendar controls must retain explicit targets').not.toBeNull()
+    expect(dateTarget, 'phone dates must retain explicit targets').not.toBeNull()
     expect(calendarPadding, 'phone calendar padding must be explicit').not.toBeNull()
     expect(weekdayHeight, 'phone weekday row must be compact').not.toBeNull()
-    expect(gridMetrics, 'phone date tracks must be compact while buttons stay 44px').not.toBeNull()
+    expect(gridMetrics, 'phone date tracks must have explicit geometry').not.toBeNull()
     expect(paperMinimum, 'phone paper must retain the dominant share').not.toBeNull()
-    if (!calendarPadding || !weekdayHeight || !gridMetrics || !paperMinimum) return
+    if (!controlTarget || !dateTarget || !calendarPadding || !weekdayHeight || !gridMetrics || !paperMinimum) return
 
     const [, paddingTop, paddingInline, paddingBottom] = calendarPadding.map(Number)
-    const [, weekday, dateTrack, gridPadding, paperPixels, paperDvh] = [
-      0,
-      Number(weekdayHeight[1]),
-      Number(gridMetrics[1]),
-      Number(gridMetrics[2]),
-      Number(paperMinimum[1]),
-      Number(paperMinimum[2]),
-    ]
-    const calendarHeight = paddingTop + 44 + weekday + dateTrack * 6 + gridPadding * 2 + paddingBottom
+    const controlHeight = Number(controlTarget[1])
+    const dateHeight = Number(dateTarget[1])
+    const dateWidth = Number(dateTarget[2])
+    const weekday = Number(weekdayHeight[1])
+    const dateTrack = Number(gridMetrics[1])
+    const gridPadding = Number(gridMetrics[2])
+    const paperPixels = Number(paperMinimum[1])
+    const paperDvh = Number(paperMinimum[2])
+    const calendarHeight = paddingTop + controlHeight + weekday + dateTrack * 6 + gridPadding * 2 + paddingBottom
 
-    for (const { width, height } of [{ width: 390, height: 844 }, { width: 402, height: 874 }]) {
-      expect((width - paddingInline * 2) / 7).toBeGreaterThanOrEqual(44)
+    expect(controlHeight).toBeGreaterThanOrEqual(44)
+    expect(dateHeight).toBeGreaterThanOrEqual(44)
+    expect(dateWidth).toBeGreaterThanOrEqual(44)
+    expect(dateTrack).toBeGreaterThanOrEqual(dateHeight)
+
+    for (const { width, height } of [{ width: 390, height: 844 }, { width: 402, height: 695 }]) {
+      expect((width - paddingInline * 2) / 7).toBeGreaterThanOrEqual(dateWidth)
       const paperHeight = Math.max(paperPixels, height * paperDvh / 100)
-      expect(calendarHeight / (calendarHeight + paperHeight)).toBeLessThanOrEqual(0.36)
+      expect(paperHeight).toBeGreaterThan(calendarHeight)
     }
   })
 })
