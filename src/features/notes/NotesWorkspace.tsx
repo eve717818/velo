@@ -220,7 +220,11 @@ export function NotesWorkspace({ db, services }: NotesWorkspaceProps) {
   }
 
   async function selectArea(nextArea: Area) {
-    if (nextArea === area) { setDrawerOpen(false); return }
+    if (nextArea === area) {
+      if (nextArea === "daily") dailyFocusPending.current = true
+      setDrawerOpen(false)
+      return
+    }
     if (!(await flush())) { setMessage(saveProblem("请先处理当前笔记的保存问题，再切换目录。", "请先处理当前灵感的保存问题，再切换目录。")); return }
     const next = new URLSearchParams()
     if (nextArea !== "all") next.set("area", nextArea)

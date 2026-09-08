@@ -199,6 +199,13 @@ describe("NotesWorkspace", () => {
 
     await waitFor(() => expect(screen.queryByRole("dialog", { name: "笔记目录" })).not.toBeInTheDocument())
     await waitFor(() => expect(screen.getByLabelText("灵感正文")).toHaveFocus())
+
+    await user.click(screen.getByRole("button", { name: "目录" }))
+    const reopenedDrawer = await screen.findByRole("dialog", { name: "笔记目录" })
+    await user.click(within(reopenedDrawer).getByRole("button", { name: "每日灵感" }))
+
+    await waitFor(() => expect(screen.queryByRole("dialog", { name: "笔记目录" })).not.toBeInTheDocument())
+    await waitFor(() => expect(screen.getByLabelText("灵感正文")).toHaveFocus())
   })
 
   it("shows full parent paths inline and the full selected node path in the content pane", async () => {
