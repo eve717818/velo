@@ -1,15 +1,19 @@
 import { useLiveQuery } from "dexie-react-hooks"
-import { Download, FolderOpen, Menu, MoreHorizontal, NotebookPen, PanelLeftClose, PanelLeftOpen, Plus, Trash2 } from "lucide-react"
+import { Download, FolderOpen, Lightbulb, Menu, MoreHorizontal, NotebookPen, PanelLeftClose, PanelLeftOpen, Plus, Trash2 } from "lucide-react"
 import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react"
 import { useLocation, useSearchParams } from "react-router-dom"
 import type { KnowledgeNode } from "@/db/types"
 import type { VeloDB } from "@/db/velo-db"
 import { PlanDialog } from "@/features/plans/components/PlanDialog"
 import { NoteActionsDialog } from "./NoteActionsDialog"
+import { DailyInspirationCalendar } from "./DailyInspirationCalendar"
+import { DailyInspirationEditor, type DailyInspirationEditorHandle } from "./DailyInspirationEditor"
 import { NoteEditor, type NoteEditorHandle } from "./NoteEditor"
 import { NoteTree, type TreeEditState } from "./NoteTree"
 import { NewKnowledgeNodeMenu, type NewKnowledgeNodeSelection } from "./NewKnowledgeNodeMenu"
 import { loadExpandedFolderIds, saveExpandedFolderIds } from "./tree-expansion"
+import { listDailyInspirationDates, localDateKey, parseLocalDateKey, saveDailyInspiration } from "./daily-inspiration-service"
+import { calendarGrid, type CalendarMonth } from "./daily-inspiration-state"
 import { createFolder, createNote, exportMarkdown, moveNode, renameNode, restoreNode, saveNote, trashNode } from "./note-service"
 import styles from "./NotesWorkspace.module.css"
 
@@ -21,11 +25,12 @@ export interface NoteServiceOverrides {
   renameNode?: typeof renameNode
   restoreNode?: typeof restoreNode
   saveNote?: typeof saveNote
+  saveDailyInspiration?: typeof saveDailyInspiration
   trashNode?: typeof trashNode
 }
 
 interface NotesWorkspaceProps { db: VeloDB; services?: NoteServiceOverrides }
-type Area = "all" | "trash"
+type Area = "all" | "daily" | "trash"
 type NotesLocationState = { selectedFolderId?: string | null }
 
 function downloadMarkdown(filename: string, text: string) {
@@ -65,24 +70,45 @@ function ancestorFolderIds(nodes: KnowledgeNode[], nodeId: string) {
   return ancestors
 }
 
+function validDateKey(value: string | null) {
+  if (!value) return null
+  try { parseLocalDateKey(value); return value }
+  catch { return null }
+}
+
+function monthForDateKey(dateKey: string): CalendarMonth {
+  const { year, month } = parseLocalDateKey(dateKey)
+  return { year, monthIndex: month - 1 }
+}
+
+function nodePath(nodes: KnowledgeNode[], node: KnowledgeNode | null) {
+  return ["笔记库", ...(node ? buildBreadcrumbs(nodes, node).map((item) => item.title) : [])].join(" / ")
+}
+
 export function NotesWorkspace({ db, services }: NotesWorkspaceProps) {
-  const api = useMemo(() => ({ createFolder, createNote, exportMarkdown, moveNode, renameNode, restoreNode, saveNote, trashNode, ...services }), [services])
+  const api = useMemo(() => ({ createFolder, createNote, exportMarkdown, moveNode, renameNode, restoreNode, saveNote, saveDailyInspiration, trashNode, ...services }), [services])
   const queriedNodes = useLiveQuery(() => db.knowledgeNodes.toArray(), [db])
   const nodes = useMemo(() => queriedNodes ?? [], [queriedNodes])
   const [params, setParams] = useSearchParams()
   const location = useLocation()
   const urlNoteId = params.get("note")
-  const area = params.get("area") === "trash" ? "trash" : "all"
+  const requestedArea = params.get("area")
+  const area: Area = requestedArea === "daily" || requestedArea === "trash" ? requestedArea : "all"
+  const requestedDailyDate = params.get("date")
+  const dailyDateKey = validDateKey(requestedDailyDate) ?? localDateKey(new Date())
   const selectedFolderId = typeof (location.state as NotesLocationState | null)?.selectedFolderId === "string" ? (location.state as NotesLocationState).selectedFolderId! : null
   const urlSelected = nodes.find((node) => node.id === urlNoteId && node.type === "note") ?? null
   const requestedSelected = urlSelected ?? nodes.find((node) => node.id === selectedFolderId) ?? null
-  const selected = requestedSelected && (area === "trash" ? requestedSelected.deletedAt !== undefined : requestedSelected.deletedAt === undefined) ? requestedSelected : null
+  const selected = area !== "daily" && requestedSelected && (area === "trash" ? requestedSelected.deletedAt !== undefined : requestedSelected.deletedAt === undefined) ? requestedSelected : null
   const selectedNodeId = selected?.id ?? null
   const editorRef = useRef<NoteEditorHandle>(null)
+  const dailyEditorRef = useRef<DailyInspirationEditorHandle>(null)
+  const dailyFocusPending = useRef(false)
   const [drawerOpen, setDrawerOpen] = useState(false)
   const [sidebarVisible, setSidebarVisible] = useState(true)
   const [mobileTree, setMobileTree] = useState(() => typeof window !== "undefined" && typeof window.matchMedia === "function" && window.matchMedia("(max-width: 767px)").matches)
   const [sidebarWidth, setSidebarWidth] = useState(272)
+  const [calendarView, setCalendarView] = useState<{ dateKey: string; month: CalendarMonth }>(() => ({ dateKey: dailyDateKey, month: monthForDateKey(dailyDateKey) }))
   const [actionsOpen, setActionsOpen] = useState(false)
   const [trashConfirmOpen, setTrashConfirmOpen] = useState(false)
   const [nodeEditor, setNodeEditor] = useState<TreeEditState | null>(null)
@@ -96,6 +122,19 @@ export function NotesWorkspace({ db, services }: NotesWorkspaceProps) {
   const [actionReturnFocus, setActionReturnFocus] = useState<HTMLElement | null>(null)
   const drawerTitleId = useId()
   const trashTitleId = useId()
+
+  useEffect(() => {
+    if (area !== "daily") return
+    if (requestedDailyDate === dailyDateKey && !urlNoteId && selectedFolderId === null) return
+    setParams(new URLSearchParams({ area: "daily", date: dailyDateKey }), { replace: true, state: null })
+  }, [area, dailyDateKey, requestedDailyDate, selectedFolderId, setParams, urlNoteId])
+
+  useEffect(() => {
+    if (area !== "daily" || drawerOpen || !dailyFocusPending.current) return
+    dailyFocusPending.current = false
+    const timer = window.setTimeout(() => dailyEditorRef.current?.focus(), 0)
+    return () => window.clearTimeout(timer)
+  }, [area, dailyDateKey, drawerOpen])
 
   useEffect(() => {
     if (queriedNodes === undefined || expansionDbRef.current === db) return
@@ -137,8 +176,25 @@ export function NotesWorkspace({ db, services }: NotesWorkspaceProps) {
     if (nextIds.size !== expandedIdsRef.current.size) void persistExpansion(nextIds)
   }, [hasLoadedExpansion, nodes, persistExpansion, selectedNodeId])
 
-  const visibleNodes = useMemo(() => nodes.filter((node) => area === "trash" ? node.deletedAt !== undefined : node.deletedAt === undefined), [area, nodes])
-  const flush = useCallback(async () => selected?.type === "note" && selected.deletedAt === undefined ? editorRef.current?.flush() ?? true : true, [selected])
+  const liveTreeNodes = useMemo(() => nodes.filter((node) => node.deletedAt === undefined), [nodes])
+  const deletedTreeNodes = useMemo(() => nodes.filter((node) => node.deletedAt !== undefined), [nodes])
+  const treeNodes = area === "trash" ? deletedTreeNodes : liveTreeNodes
+  const visibleMonth = calendarView.dateKey === dailyDateKey ? calendarView.month : monthForDateKey(dailyDateKey)
+  const changeVisibleMonth = useCallback((month: CalendarMonth) => setCalendarView({ dateKey: dailyDateKey, month }), [dailyDateKey])
+  const calendarRange = useMemo(() => calendarGrid(visibleMonth.year, visibleMonth.monthIndex).filter((cell) => cell.supported), [visibleMonth])
+  const queriedContentDates = useLiveQuery(
+    () => area === "daily" && calendarRange.length
+      ? listDailyInspirationDates(db, calendarRange[0].dateKey, calendarRange[calendarRange.length - 1].dateKey)
+      : Promise.resolve([]),
+    [area, calendarRange[0]?.dateKey, calendarRange[calendarRange.length - 1]?.dateKey, db],
+  )
+  const contentDateKeys = useMemo(() => new Set(queriedContentDates ?? []), [queriedContentDates])
+  const flush = useCallback(async () => {
+    if (area === "daily") return dailyEditorRef.current?.flush() ?? true
+    return selected?.type === "note" && selected.deletedAt === undefined ? editorRef.current?.flush() ?? true : true
+  }, [area, selected])
+
+  const saveProblem = useCallback((ordinary: string, daily: string) => area === "daily" ? daily : ordinary, [area])
 
   async function toggleFolder(nodeId: string) {
     const nextIds = new Set(expandedIdsRef.current)
@@ -149,13 +205,14 @@ export function NotesWorkspace({ db, services }: NotesWorkspaceProps) {
 
   async function selectNode(node: KnowledgeNode) {
     if (node.id !== selectedNodeId && !(await flush())) {
-      setMessage("请先处理当前笔记的保存问题，再切换笔记。")
+      setMessage(saveProblem("请先处理当前笔记的保存问题，再切换笔记。", "请先处理当前灵感的保存问题，再切换笔记。"))
       return
     }
     const nextIds = new Set(expandedIdsRef.current)
     for (const id of ancestorFolderIds(nodes, node.id)) nextIds.add(id)
     if (nextIds.size !== expandedIdsRef.current.size) await persistExpansion(nextIds)
-    const next = new URLSearchParams(params)
+    const next = new URLSearchParams()
+    if (node.deletedAt !== undefined) next.set("area", "trash")
     if (node.type === "note") next.set("note", node.id)
     else next.delete("note")
     setParams(next, { state: node.type === "folder" ? { selectedFolderId: node.id } satisfies NotesLocationState : null })
@@ -163,11 +220,23 @@ export function NotesWorkspace({ db, services }: NotesWorkspaceProps) {
   }
 
   async function selectArea(nextArea: Area) {
-    if (!(await flush())) { setMessage("请先处理当前笔记的保存问题，再切换目录。"); return }
+    if (nextArea === area) { setDrawerOpen(false); return }
+    if (!(await flush())) { setMessage(saveProblem("请先处理当前笔记的保存问题，再切换目录。", "请先处理当前灵感的保存问题，再切换目录。")); return }
     const next = new URLSearchParams()
-    if (nextArea === "trash") next.set("area", "trash")
+    if (nextArea !== "all") next.set("area", nextArea)
+    if (nextArea === "daily") {
+      next.set("date", dailyDateKey)
+      dailyFocusPending.current = true
+    }
     setParams(next, { state: null })
     setDrawerOpen(false)
+  }
+
+  async function selectDailyDate(nextDateKey: string) {
+    if (nextDateKey === dailyDateKey) return
+    if (!(await flush())) { setMessage("请先处理当前灵感的保存问题，再切换日期。"); return }
+    setCalendarView({ dateKey: nextDateKey, month: monthForDateKey(nextDateKey) })
+    setParams(new URLSearchParams({ area: "daily", date: nextDateKey }), { state: null })
   }
 
   function revealTreeEditor() {
@@ -177,14 +246,15 @@ export function NotesWorkspace({ db, services }: NotesWorkspaceProps) {
 
   async function startCreation(selection: NewKnowledgeNodeSelection, returnFocusTo: HTMLElement | null = null) {
     if (!(await flush())) {
-      setMessage("请先处理当前笔记的保存问题，再新建节点。")
+      setMessage(saveProblem("请先处理当前笔记的保存问题，再新建节点。", "请先处理当前灵感的保存问题，再新建节点。"))
       return false
     }
     if (selection.parentId) {
       const nextIds = new Set(expandedIdsRef.current).add(selection.parentId)
       await persistExpansion(nextIds)
     }
-    setNodeEditor({ mode: "create", ...selection, returnFocusTo })
+    const parent = selection.parentId ? nodes.find((node) => node.id === selection.parentId) ?? null : null
+    setNodeEditor({ mode: "create", ...selection, parentPath: nodePath(nodes, parent), returnFocusTo })
     revealTreeEditor()
     return true
   }
@@ -192,10 +262,11 @@ export function NotesWorkspace({ db, services }: NotesWorkspaceProps) {
   async function startRename(returnFocusTo: HTMLElement | null = null) {
     if (!selected) return false
     if (!(await flush())) {
-      setMessage("请先处理当前笔记的保存问题，再重命名。")
+      setMessage(saveProblem("请先处理当前笔记的保存问题，再重命名。", "请先处理当前灵感的保存问题，再重命名。"))
       return false
     }
-    setNodeEditor({ mode: "rename", node: selected, returnFocusTo })
+    const parent = selected.parentId ? nodes.find((node) => node.id === selected.parentId) ?? null : null
+    setNodeEditor({ mode: "rename", node: selected, parentPath: nodePath(nodes, parent), returnFocusTo })
     revealTreeEditor()
     return true
   }
@@ -222,7 +293,7 @@ export function NotesWorkspace({ db, services }: NotesWorkspaceProps) {
         const nextIds = new Set(expandedIdsRef.current).add(created.parentId)
         await persistExpansion(nextIds)
       }
-      const next = new URLSearchParams(params)
+      const next = new URLSearchParams()
       if (created.type === "note") next.set("note", created.id)
       else next.delete("note")
       setParams(next, { state: created.type === "folder" ? { selectedFolderId: created.id } satisfies NotesLocationState : null })
@@ -268,16 +339,20 @@ export function NotesWorkspace({ db, services }: NotesWorkspaceProps) {
   }
 
   const breadcrumbs = selected ? buildBreadcrumbs(nodes, selected) : []
+  const selectedPath = nodePath(nodes, selected)
   const folderChildCount = selected?.type === "folder" ? nodes.filter((node) => node.parentId === selected.id && node.deletedAt === undefined).length : 0
   function renderDirectory(showEditor: boolean) {
     return (
     <div className={styles.directoryBody}>
       <nav className={styles.areaNav} aria-label="笔记区域">
         <button aria-current={area === "all" ? "page" : undefined} onClick={() => void selectArea("all")} type="button"><FolderOpen aria-hidden="true" />全部笔记</button>
+        <button aria-current={area === "daily" ? "page" : undefined} onClick={() => void selectArea("daily")} type="button"><Lightbulb aria-hidden="true" />每日灵感</button>
+      </nav>
+      <div className={styles.treeHeader}><span>{area === "trash" ? "已删除" : "知识树"}</span><span>{treeNodes.length}</span></div>
+      <NoteTree editing={showEditor ? nodeEditor : null} expandedIds={expandedIds} focusNodeId={showEditor ? focusTreeNodeId : null} nodes={treeNodes} onCancelEdit={cancelNodeEditor} onCommitEdit={commitNodeTitle} onCreateRootFolder={area === "trash" ? undefined : (returnFocusTo) => startCreation({ type: "folder", parentId: null }, returnFocusTo)} onSelect={selectNode} onToggle={toggleFolder} selectedId={area === "daily" ? null : selectedNodeId} />
+      <nav className={`${styles.areaNav} ${styles.areaNavBottom}`} aria-label="回收站区域">
         <button aria-current={area === "trash" ? "page" : undefined} onClick={() => void selectArea("trash")} type="button"><Trash2 aria-hidden="true" />回收站</button>
       </nav>
-      <div className={styles.treeHeader}><span>{area === "trash" ? "已删除" : "知识目录"}</span><span>{visibleNodes.length}</span></div>
-      <NoteTree editing={showEditor ? nodeEditor : null} expandedIds={expandedIds} focusNodeId={showEditor ? focusTreeNodeId : null} nodes={visibleNodes} onCancelEdit={cancelNodeEditor} onCommitEdit={commitNodeTitle} onSelect={selectNode} onToggle={toggleFolder} selectedId={selectedNodeId} />
     </div>
     )
   }
@@ -295,7 +370,7 @@ export function NotesWorkspace({ db, services }: NotesWorkspaceProps) {
       <div className={styles.workspace} style={{ "--notes-sidebar-width": `${sidebarWidth}px` } as React.CSSProperties}>
         {sidebarVisible ? <aside className={styles.directory} aria-label="笔记目录"><div className={styles.directoryTop}><strong>目录</strong><button aria-label="收起目录" onClick={() => setSidebarVisible(false)} type="button"><PanelLeftClose aria-hidden="true" /></button></div>{renderDirectory(!mobileTree)}<label className={styles.widthControl}><span>目录宽度</span><input aria-label="目录宽度" max="360" min="220" onChange={(event) => setSidebarWidth(Number(event.target.value))} type="range" value={sidebarWidth} /></label></aside> : <button aria-label="展开目录" className={styles.reopenDirectory} onClick={() => setSidebarVisible(true)} type="button"><PanelLeftOpen aria-hidden="true" /></button>}
         <section className={styles.contentPane} aria-label="笔记内容">
-          {selected?.deletedAt !== undefined ? <div className={styles.deletedState}><Trash2 aria-hidden="true" /><h2>{selected.title}</h2><p>{selected.type === "folder" ? "该文件夹在回收站中，恢复后将带回所有子文件夹和笔记。" : "这篇笔记在回收站中，恢复后即可继续编辑。"}</p><button onClick={() => void doRestore()} type="button">恢复{selected.type === "folder" ? "文件夹" : "笔记"}</button></div> : selected?.type === "folder" ? <div className={styles.emptyState}><span><FolderOpen aria-hidden="true" /></span><h2>{selected.title}</h2><p>{breadcrumbs.map((node) => node.title).join(" / ")} · {folderChildCount} 个子节点</p><div className={styles.folderActions}><button onClick={(event) => void startCreation({ type: "folder", parentId: selected.id }, event.currentTarget)} type="button">新建子文件夹</button><button onClick={(event) => void startCreation({ type: "note", parentId: selected.id }, event.currentTarget)} type="button">新建笔记</button><button aria-label={`节点操作：${selected.title}`} onClick={(event) => { setActionReturnFocus(event.currentTarget); setActionsOpen(true) }} type="button"><MoreHorizontal aria-hidden="true" />操作</button></div></div> : selected ? <><div className={styles.noteToolbar}><nav aria-label="当前笔记路径" className={styles.breadcrumbs}>{breadcrumbs.map((node, index) => <span key={node.id}>{index ? <i aria-hidden="true">/</i> : null}<button onClick={() => void selectNode(node)} type="button">{node.title}</button></span>)}</nav><div className={styles.noteActions}><button onClick={() => void doExport()} type="button"><Download aria-hidden="true" />导出 Markdown</button><button aria-label={`节点操作：${selected.title}`} onClick={(event) => { setActionReturnFocus(event.currentTarget); setActionsOpen(true) }} type="button"><MoreHorizontal aria-hidden="true" /></button></div></div><NoteEditor db={db} key={`${selected.id}:${editorReloadKey}`} nodeId={selected.id} onSaved={() => undefined} ref={editorRef} saveNote={api.saveNote} /></> : <div className={styles.emptyState}><span><NotebookPen aria-hidden="true" /></span><p>{area === "trash" ? "回收站是空的" : "从第一个文件夹或笔记开始建立你的知识目录"}</p>{area !== "trash" ? <button onClick={(event) => void startCreation({ type: "note", parentId: null }, event.currentTarget)} type="button"><Plus aria-hidden="true" />开始记录</button> : null}</div>}
+          {area === "daily" ? <div className={styles.dailyWorkspace}><DailyInspirationCalendar contentDateKeys={contentDateKeys} onSelectDate={(dateKey) => void selectDailyDate(dateKey)} onVisibleMonthChange={changeVisibleMonth} selectedDateKey={dailyDateKey} visibleMonth={visibleMonth} /><DailyInspirationEditor db={db} dateKey={dailyDateKey} ref={dailyEditorRef} saveDailyInspiration={api.saveDailyInspiration} /></div> : selected?.deletedAt !== undefined ? <div className={styles.deletedState}><Trash2 aria-hidden="true" /><h2>{selected.title}</h2><p>{selected.type === "folder" ? "该文件夹在回收站中，恢复后将带回所有子文件夹和笔记。" : "这篇笔记在回收站中，恢复后即可继续编辑。"}</p><button onClick={() => void doRestore()} type="button">恢复{selected.type === "folder" ? "文件夹" : "笔记"}</button></div> : selected?.type === "folder" ? <div className={styles.emptyState}><span><FolderOpen aria-hidden="true" /></span><h2>{selected.title}</h2><p>{selectedPath} · {folderChildCount} 个子节点</p><div className={styles.folderActions}><button onClick={(event) => void startCreation({ type: "folder", parentId: selected.id }, event.currentTarget)} type="button">新建子文件夹</button><button onClick={(event) => void startCreation({ type: "note", parentId: selected.id }, event.currentTarget)} type="button">新建笔记</button><button aria-label={`节点操作：${selected.title}`} onClick={(event) => { setActionReturnFocus(event.currentTarget); setActionsOpen(true) }} type="button"><MoreHorizontal aria-hidden="true" />操作</button></div></div> : selected ? <><div className={styles.noteToolbar}><nav aria-label="当前笔记路径" className={styles.breadcrumbs}><span><button onClick={() => void selectArea("all")} type="button">笔记库</button></span>{breadcrumbs.map((node) => <span key={node.id}><i aria-hidden="true">/</i><button onClick={() => void selectNode(node)} type="button">{node.title}</button></span>)}</nav><div className={styles.noteActions}><button onClick={() => void doExport()} type="button"><Download aria-hidden="true" />导出 Markdown</button><button aria-label={`节点操作：${selected.title}`} onClick={(event) => { setActionReturnFocus(event.currentTarget); setActionsOpen(true) }} type="button"><MoreHorizontal aria-hidden="true" /></button></div></div><NoteEditor db={db} key={`${selected.id}:${editorReloadKey}`} nodeId={selected.id} onSaved={() => undefined} ref={editorRef} saveNote={api.saveNote} /></> : <div className={styles.emptyState}><span><NotebookPen aria-hidden="true" /></span><p>{area === "trash" ? "回收站是空的" : "从第一个文件夹或笔记开始建立你的知识目录"}</p>{area !== "trash" ? <button onClick={(event) => void startCreation({ type: "note", parentId: null }, event.currentTarget)} type="button"><Plus aria-hidden="true" />开始记录</button> : null}</div>}
         </section>
       </div>
       <PlanDialog labelledBy={drawerTitleId} onRequestClose={() => setDrawerOpen(false)} open={drawerOpen}><section className={styles.drawer}><header><h2 id={drawerTitleId}>笔记目录</h2><button aria-label="关闭目录" onClick={() => setDrawerOpen(false)} type="button">×</button></header>{renderDirectory(mobileTree)}</section></PlanDialog>

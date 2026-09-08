@@ -4,6 +4,8 @@
   min-width: 0;
 }
 
+.dailyWorkspace { display: flex; flex: 1; flex-direction: column; min-width: 0; }
+
 .dailyCalendar { margin: 0 auto; max-width: 560px; padding: 12px 12px 8px; width: 100%; }
 .dailyCalendarControls { align-items: center; display: flex; gap: 4px; }
 .dailyCalendarControls button,
@@ -344,9 +346,28 @@
   white-space: nowrap;
 }
 .treeNode[aria-current="page"] { background: #f1e8f0; color: #751460; }
-.treeEmpty { color: var(--color-text-muted); font-size: .78rem; margin: 12px 8px; }
+.treeEmpty { align-items: flex-start; display: flex; flex-direction: column; gap: 8px; margin: 8px; }
+.treeEmpty p,.treeEmptyMessage { color: var(--color-text-muted); font-size: .78rem; margin: 4px 0; }
+.treeEmpty button {
+  align-items: center;
+  background: #f5edf4;
+  border: 1px solid rgb(144 29 120 / 18%);
+  border-radius: 12px;
+  color: #751460;
+  cursor: pointer;
+  display: inline-flex;
+  font: inherit;
+  font-size: .8rem;
+  font-weight: 710;
+  justify-content: center;
+  min-height: 44px;
+  padding: 0 12px;
+}
+.treeEditGroup { display: grid; gap: 4px; grid-column: 2; min-width: 0; padding: 4px 8px 8px; }
+.treeEditGroup > span { color: var(--color-text-muted); font-size: .68rem; line-height: 1.35; overflow-wrap: anywhere; }
 .treeNodeEditor { display: grid; gap: 7px; width: min(100%, 360px); }
-.treeRow .treeNodeEditor { grid-column: 2; padding: 4px 8px 8px; width: 100%; }
+.treeRow > .treeNodeEditor { grid-column: 2; padding: 4px 8px 8px; width: 100%; }
+.treeEditGroup .treeNodeEditor { width: 100%; }
 .treeNodeEditor input {
   background: white;
   border: 1px solid var(--color-border);
