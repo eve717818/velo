@@ -39,7 +39,7 @@
 - Produce `localDateKey(date: Date): string`, `parseLocalDateKey(dateKey: string): { year; month; day }`, `loadDailyInspiration(db, dateKey)`, `listDailyInspirationDates(db, startKey, endKey)`, and `saveDailyInspiration(db, dateKey, { content, plainText }, expectedRevision, now)`.
 - `saveDailyInspiration` returns `DailyInspiration | null`; `null` means an empty existing card was deleted or an untouched empty date remained absent.
 
-- [ ] **Step 1: Write failing data and service tests**
+- [x] **Step 1: Write failing data and service tests**
 
 ```ts
 it("uses local calendar fields instead of UTC conversion", () => {
@@ -59,13 +59,13 @@ it("does not create an empty day and deletes a cleared existing day", async () =
 
 Also cover invalid real dates, leap day, month-range listing, structured-content/plain-text consistency, first revision, stale revision rejection, and v7-to-v8 preservation of all existing tables.
 
-- [ ] **Step 2: Run the focused tests and verify RED**
+- [x] **Step 2: Run the focused tests and verify RED**
 
 Run: `pnpm exec vitest run src/features/notes/daily-inspiration-service.test.ts src/db/velo-db.test.ts`
 
 Expected: FAIL because `dailyInspirations` and the service do not exist.
 
-- [ ] **Step 3: Add v8 and the transaction service**
+- [x] **Step 3: Add v8 and the transaction service**
 
 Append v8 without changing v1-v7. Re-declare every existing store unchanged and add:
 
@@ -81,7 +81,7 @@ Build structured plain-text content as:
 
 Validate `YYYY-MM-DD` by reconstructing a local noon `Date` and comparing year/month/day. Save/delete inside one Dexie transaction and reject a mismatched `expectedRevision` with a user-readable Chinese conflict message.
 
-- [ ] **Step 4: Run focused verification**
+- [x] **Step 4: Run focused verification**
 
 Run: `pnpm exec vitest run src/features/notes/daily-inspiration-service.test.ts src/db/velo-db.test.ts src/features/notes/note-service.test.ts`
 
@@ -89,7 +89,7 @@ Run: `pnpm typecheck`
 
 Run: `pnpm lint`
 
-- [ ] **Step 5: Commit the independently usable service**
+- [x] **Step 5: Commit the independently usable service**
 
 ```powershell
 git add -- src/db/types.ts src/db/velo-db.ts src/db/velo-db.test.ts src/features/notes/daily-inspiration-service.ts src/features/notes/daily-inspiration-service.test.ts
@@ -113,7 +113,7 @@ git commit -m "feat: 建立每日灵感本地数据服务"
 - `DailyInspirationEditor` consumes `db`, `dateKey`, `saveDailyInspiration`, and exposes `focus()` / `flush()` through a ref.
 - `calendarGrid(year, monthIndex)` always returns 42 local-date cells; adjacent-month cells are selectable but visually quiet.
 
-- [ ] **Step 1: Write calendar RED tests**
+- [x] **Step 1: Write calendar RED tests**
 
 ```tsx
 it("navigates any month and marks content without UTC conversion", async () => {
@@ -126,23 +126,23 @@ it("navigates any month and marks content without UTC conversion", async () => {
 
 Cover previous/next across years, direct year and month controls, today, 42 cells, selected/today/content states, arrow-key date navigation, and a horizontal pointer swipe above the movement threshold while ignoring vertical gestures.
 
-- [ ] **Step 2: Write editor RED tests**
+- [x] **Step 2: Write editor RED tests**
 
 Verify a blank card has no placeholder/title/status/action text, clicking focuses a normal-size textarea, composition input does not save early, 320ms debounce saves, failed saves keep text and show one external alert/retry action, date changes flush first, clearing deletes the row, and textarea height grows without an internal scrollbar.
 
-- [ ] **Step 3: Implement the pure calendar helpers and controlled calendar**
+- [x] **Step 3: Implement the pure calendar helpers and controlled calendar**
 
 Use local noon dates for arithmetic, ISO-like keys only after reading local fields, a numeric year field, a 12-month select, previous/next arrow buttons and a “今天” button. Calendar day buttons have precise accessible names; the visual dot is `aria-hidden`.
 
-- [ ] **Step 4: Implement the revision-safe auto-growing paper editor**
+- [x] **Step 4: Implement the revision-safe auto-growing paper editor**
 
 Use an empty `<textarea aria-label="灵感正文">` with no placeholder. On input, set its height to `auto` and then `scrollHeight`; keep `overflow: hidden`. Mirror the note editor's session/revision/in-flight protection, but show no normal save state. Store a recoverable local draft keyed by date and show controls only after failure or conflict.
 
-- [ ] **Step 5: Implement the approved paper visual**
+- [x] **Step 5: Implement the approved paper visual**
 
 Define a light-beige base near `#fff8e7`, a subtle 1px warm border, two low-opacity repeating gradients for fine fibre noise, and a soft low-spread shadow. Keep body text contrast at least 4.5:1, caret width/browser default, `font-size: 1rem`, `line-height: 1.75`, and a responsive minimum height that leaves the calendar near one-third of the phone's first screen.
 
-- [ ] **Step 6: Run component verification and commit**
+- [x] **Step 6: Run component verification and commit**
 
 Run: `pnpm exec vitest run src/features/notes/DailyInspirationCalendar.test.tsx src/features/notes/DailyInspirationEditor.test.tsx src/features/notes/daily-inspiration-service.test.ts`
 
@@ -168,21 +168,21 @@ git commit -m "feat: 构建每日灵感日历与书写卡片"
 - A Daily Inspiration area never sets `?note=` or `selectedFolderId`.
 - The existing mobile “目录” drawer remains the home for the tree and fixed entries.
 
-- [ ] **Step 1: Write workspace RED tests**
+- [x] **Step 1: Write workspace RED tests**
 
 Cover fixed entry order (“全部笔记”, “每日灵感”, knowledge tree, “回收站”), choosing daily closes the phone drawer, the selected day survives reload/history navigation, a pending daily save blocks leaving, a pending note save blocks entering, and the daily editor receives focus after drawer close. Also assert that each inline create/rename row announces and displays its full parent path; successful phone folder creation closes the drawer and shows the folder path/actions on the right, while successful phone note creation closes the drawer and opens the matching path/body.
 
 Add an empty-tree assertion: inside the directory, render “目录还是空的” plus a 44px “新建文件夹” action instead of a visually blank tree region. Once nodes exist, remove that empty prompt and render the actual connector tree unchanged.
 
-- [ ] **Step 2: Implement the fixed entry and route state**
+- [x] **Step 2: Implement the fixed entry and route state**
 
 Load month content dates with `useLiveQuery`, render calendar + editor only for `area=daily`, and flush the active note/daily editor before every area or node transition. When entering daily without a valid date, use `localDateKey(new Date())` and replace the URL rather than creating a database row.
 
-- [ ] **Step 3: Keep mobile and desktop behavior distinct but equivalent**
+- [x] **Step 3: Keep mobile and desktop behavior distinct but equivalent**
 
 On phone, “目录” opens the left drawer; “每日灵感” closes it before focusing the card. Selecting or successfully creating any folder/note also closes the drawer and renders that node's full breadcrumb path and folder actions or note body in the right pane. On desktop/tablet landscape, the sidebar stays visible. The empty-tree action starts inline folder creation in the visible tree instance. Do not seed demonstration folders or copy IndexedDB data between preview ports.
 
-- [ ] **Step 4: Run workspace verification and commit**
+- [x] **Step 4: Run workspace verification and commit**
 
 Run: `pnpm exec vitest run src/features/notes/NotesWorkspace.test.tsx src/features/notes/DailyInspirationCalendar.test.tsx src/features/notes/DailyInspirationEditor.test.tsx`
 
@@ -209,15 +209,15 @@ git commit -m "feat: 接入每日灵感笔记工作区"
 - Exercises the production route `/notes?area=daily&date=2026-09-07` without writing to the user's browser profile.
 - Records actual results only; physical Android use remains user-observed evidence.
 
-- [ ] **Step 1: Add a browser journey before product fixes**
+- [x] **Step 1: Add a browser journey before product fixes**
 
 Create a daily entry at 23:30 local time, type through IME-safe input, wait for autosave, reload and verify content/date. Navigate previous/next/direct month, confirm content dot, swipe one month on 390px, clear content and confirm the dot disappears. Assert no card title, placeholder, save text, action row, paperclip or internal scrollbar.
 
-- [ ] **Step 2: Verify responsive layout and accessibility**
+- [x] **Step 2: Verify responsive layout and accessibility**
 
 At 390/402/768/834/1024/1366, assert no global horizontal overflow, calendar is compact, card occupies the larger share of the first screen and grows with long content, fixed entry ordering is stable, all interactive controls are at least 44px, reduced motion is respected, and axe reports no serious/critical violations in the daily area.
 
-- [ ] **Step 3: Run full verification**
+- [x] **Step 3: Run full verification**
 
 Run: `pnpm verify`
 
@@ -225,11 +225,11 @@ Run: `pnpm exec playwright test e2e/notes.spec.ts`
 
 Run: `git diff --check`
 
-- [ ] **Step 4: Document observed evidence and current phase boundary**
+- [x] **Step 4: Document observed evidence and current phase boundary**
 
 Record v8 migration evidence, local-date cases, tested viewports, failure recovery, screenshots, and the current LAN URL. State that the knowledge tree and Daily Inspiration are implemented, while final WYSIWYG notes, search and PDF remain the next approved sub-projects.
 
-- [ ] **Step 5: Commit and publish a cache-isolated preview**
+- [x] **Step 5: Commit and publish a cache-isolated preview**
 
 ```powershell
 git add -- e2e/notes.spec.ts docs/qa/2026-09-07-notes-daily-inspiration.md README.md docs/superpowers/plans/2026-09-07-notes-daily-inspiration.md

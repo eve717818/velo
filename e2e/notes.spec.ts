@@ -19,8 +19,8 @@ interface StoredNote {
 }
 
 const viewportMatrix = [
-  { width: 390, height: 844 },
-  { width: 402, height: 874 },
+  { width: 390, height: 695 },
+  { width: 402, height: 695 },
   { width: 768, height: 1024 },
   { width: 834, height: 1112 },
   { width: 1024, height: 900 },
@@ -155,6 +155,21 @@ async function forceNextNoteWriteFailure(page: Page) {
   })
 }
 
+async function startComposing(locator: Locator, value: string) {
+  await locator.evaluate((element, text) => {
+    const textarea = element as HTMLTextAreaElement
+    textarea.dispatchEvent(new CompositionEvent("compositionstart", { bubbles: true, data: text }))
+    Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, "value")?.set?.call(textarea, text)
+    textarea.dispatchEvent(new InputEvent("input", { bubbles: true, data: text, inputType: "insertCompositionText", isComposing: true }))
+  }, value)
+}
+
+async function endComposition(locator: Locator, value: string) {
+  await locator.evaluate((element, text) => {
+    element.dispatchEvent(new CompositionEvent("compositionend", { bubbles: true, data: text }))
+  }, value)
+}
+
 test("knowledge tree creates folders and notes, persists, moves, and restores a subtree", async ({ page }) => {
   await page.setViewportSize({ width: 1024, height: 900 })
   await finishOnboarding(page)
@@ -180,7 +195,7 @@ test("knowledge tree creates folders and notes, persists, moves, and restores a 
   await page.getByRole("menuitem", { name: "新建文件夹" }).click()
   await page.getByRole("textbox", { name: "文件夹名称" }).fill("物理")
   await page.getByRole("textbox", { name: "文件夹名称" }).press("Enter")
-  await page.getByRole("button", { name: "数学", exact: true }).click()
+  await page.getByRole("complementary", { name: "笔记目录" }).getByRole("button", { name: "数学", exact: true }).click()
   await page.getByRole("button", { name: "节点操作：数学" }).click()
   const actions = page.getByRole("dialog", { name: "数学" })
   await actions.getByRole("button", { name: "移动" }).click()
@@ -388,6 +403,142 @@ test("two pages detect a stale revision and can reload the current version", asy
   await secondPage.getByRole("button", { name: "重新载入当前版本" }).click()
   await waitForSaved(secondPage)
   await expect(secondPage.getByLabel("Markdown 正文")).toHaveValue("页面一的新版本")
+})
+
+test("Daily Inspiration uses local dates, IME-safe autosave, month navigation, swipe and deletion", async ({ page }) => {
+  await page.addInitScript(() => window.localStorage.setItem("velow-notebook:onboarding-complete", "1"))
+  await page.setViewportSize({ width: 390, height: 695 })
+  await page.goto("/notes?area=daily&date=2026-09-07")
+
+  const editor = page.getByRole("region", { name: "灵感编辑器" })
+  const textarea = page.getByLabel("灵感正文")
+  const selectedDay = page.locator('[data-date-key="2026-09-07"]')
+  await expect(textarea).toBeVisible()
+  await expect(textarea).not.toHaveAttribute("placeholder")
+  await expect(editor.getByText("已保存", { exact: true })).toHaveCount(0)
+  await expect(editor.getByText("保存中…", { exact: true })).toHaveCount(0)
+  await expect(editor.getByText("每日灵感", { exact: true })).toHaveCount(0)
+  await expect(page.getByText("回形针", { exact: true })).toHaveCount(0)
+
+  const inspiration = "晚间课堂的一点灵感"
+  await startComposing(textarea, inspiration)
+  await page.waitForTimeout(450)
+  await expect(selectedDay.locator("i")).toHaveCount(0)
+  await endComposition(textarea, inspiration)
+  await expect(selectedDay.locator("i")).toHaveCount(1)
+
+  await page.reload()
+  await expect(page.getByLabel("灵感正文")).toHaveValue(inspiration)
+  await expect(page.locator('[data-date-key="2026-09-07"] i')).toHaveCount(1)
+
+  await page.getByRole("button", { name: "下个月" }).click()
+  await expect(page.getByLabel("月份")).toHaveValue("9")
+  await page.getByRole("button", { name: "上个月" }).click()
+  await expect(page.getByLabel("月份")).toHaveValue("8")
+  await page.getByLabel("年份").fill("2027")
+  await page.getByLabel("月份").selectOption("0")
+  await expect(page.getByRole("button", { name: "2027年1月1日" })).toBeVisible()
+
+  await page.getByLabel("年份").fill("2026")
+  await page.getByLabel("月份").selectOption("8")
+  const grid = page.getByRole("group", { name: "日期" })
+  await grid.dispatchEvent("pointerdown", { button: 0, clientX: 320, clientY: 180, isPrimary: true, pointerId: 7 })
+  await grid.dispatchEvent("pointerup", { button: 0, clientX: 120, clientY: 184, isPrimary: true, pointerId: 7 })
+  await expect(page.getByLabel("月份")).toHaveValue("9")
+
+  await page.getByLabel("月份").selectOption("8")
+  await page.getByLabel("灵感正文").fill("")
+  await expect(page.locator('[data-date-key="2026-09-07"] i')).toHaveCount(0)
+  await page.reload()
+  await expect(page.getByLabel("灵感正文")).toHaveValue("")
+})
+
+test("Daily Inspiration and the knowledge tree fit real phone and tablet viewports", async ({ page }, testInfo) => {
+  await mkdir(screenshotDirectory, { recursive: true })
+  await page.addInitScript(() => window.localStorage.setItem("velow-notebook:onboarding-complete", "1"))
+  await page.emulateMedia({ reducedMotion: "reduce" })
+
+  for (const size of viewportMatrix) {
+    await page.setViewportSize(size)
+    await page.goto("/notes?area=daily&date=2026-09-07")
+    await expectNoHorizontalOverflow(page)
+
+    const calendar = page.getByRole("region", { name: "灵感日历" })
+    const paper = page.getByLabel("灵感正文").locator("..")
+    const calendarBox = await expectSurfaceNotClipped(calendar, size)
+    const paperBox = await bounds(paper)
+    expect(paperBox.height).toBeGreaterThan(calendarBox.height)
+    expect(await page.getByLabel("灵感正文").evaluate((element) => getComputedStyle(element).overflowY)).toBe("hidden")
+
+    const dateButtons = await page.getByRole("group", { name: "日期" }).getByRole("button").all()
+    const firstRow = await expectTouchTarget(dateButtons[0], size)
+    const secondRow = await expectTouchTarget(dateButtons[7], size)
+    expect(firstRow.y + firstRow.height).toBeLessThanOrEqual(secondRow.y + 0.5)
+    for (const control of [page.getByRole("button", { name: "上个月" }), page.getByLabel("年份"), page.getByLabel("月份"), page.getByRole("button", { name: "下个月" }), page.getByRole("button", { name: "今天" })]) {
+      await expectTouchTarget(control, size)
+    }
+
+    const directory = size.width < 768
+      ? page.getByRole("dialog", { name: "笔记目录" })
+      : page.getByRole("complementary", { name: "笔记目录" })
+    if (size.width < 768) {
+      await page.getByRole("button", { name: "目录", exact: true }).click()
+      await expect(directory).toBeVisible()
+    } else {
+      await expect(directory).toBeVisible()
+    }
+    const all = directory.getByRole("button", { name: "全部笔记" })
+    const daily = directory.getByRole("button", { name: "每日灵感" })
+    const tree = directory.getByText("知识树")
+    const trash = directory.getByRole("button", { name: "回收站" })
+    expect((await bounds(all)).y).toBeLessThan((await bounds(daily)).y)
+    expect((await bounds(daily)).y).toBeLessThan((await bounds(tree)).y)
+    expect((await bounds(tree)).y).toBeLessThan((await bounds(trash)).y)
+    await expectTouchTarget(all, size)
+    await expectTouchTarget(daily, size)
+    await expectTouchTarget(trash, size)
+
+    await testInfo.attach(`daily-layout-${size.width}.json`, {
+      body: Buffer.from(JSON.stringify({ calendar: calendarBox, paper: paperBox, viewport: size }, null, 2)),
+      contentType: "application/json",
+    })
+    if (size.width === 402 || size.width === 1024) {
+      await page.screenshot({ path: resolve(screenshotDirectory, `daily-${size.width}.png`), fullPage: true })
+    }
+    if (size.width < 768) await page.keyboard.press("Escape")
+  }
+
+  await page.setViewportSize({ width: 402, height: 695 })
+  await page.goto("/notes?area=daily&date=2026-09-07")
+  const shortHeight = (await bounds(page.getByLabel("灵感正文").locator(".."))).height
+  await page.getByLabel("灵感正文").fill(Array.from({ length: 30 }, (_, index) => `第 ${index + 1} 行灵感`).join("\n"))
+  await expect.poll(async () => (await bounds(page.getByLabel("灵感正文").locator(".."))).height).toBeGreaterThan(shortHeight)
+  const axe = await new AxeBuilder({ page }).analyze()
+  expect(axe.violations.filter((violation) => violation.impact === "serious" || violation.impact === "critical")).toEqual([])
+})
+
+test("phone knowledge-tree creation shows its path and closes the directory drawer", async ({ page }) => {
+  await page.addInitScript(() => window.localStorage.setItem("velow-notebook:onboarding-complete", "1"))
+  await page.setViewportSize({ width: 402, height: 695 })
+  await page.goto("/notes")
+
+  await page.getByRole("button", { name: "新建", exact: true }).click()
+  await page.getByRole("menuitem", { name: "新建文件夹" }).click()
+  let drawer = page.getByRole("dialog", { name: "笔记目录" })
+  await expect(drawer.getByRole("group", { name: "文件夹名称，位置：笔记库" })).toBeVisible()
+  await drawer.getByRole("textbox", { name: "文件夹名称" }).fill("专业")
+  await drawer.getByRole("textbox", { name: "文件夹名称" }).press("Enter")
+  await expect(drawer).toBeHidden()
+  await expect(page.getByText("笔记库 / 专业 · 0 个子节点")).toBeVisible()
+
+  await page.getByRole("button", { name: "新建笔记" }).click()
+  drawer = page.getByRole("dialog", { name: "笔记目录" })
+  await expect(drawer.getByRole("group", { name: "笔记名称，位置：笔记库 / 专业" })).toBeVisible()
+  await drawer.getByRole("textbox", { name: "笔记名称" }).fill("课堂记录")
+  await drawer.getByRole("textbox", { name: "笔记名称" }).press("Enter")
+  await expect(drawer).toBeHidden()
+  await expect(page.getByRole("navigation", { name: "当前笔记路径" })).toContainText("笔记库/专业/课堂记录")
+  await expect(page.getByLabel("Markdown 正文")).toBeVisible()
 })
 
 test("HTTP preview creates stable IDs without crypto.randomUUID", async ({ page }) => {
