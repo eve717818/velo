@@ -1,5 +1,7 @@
 import { fireEvent, render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
+import { readFile } from 'node:fs/promises'
+import { resolve } from 'node:path'
 import { useState } from 'react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { DailyInspirationCalendar } from './DailyInspirationCalendar'
@@ -92,5 +94,41 @@ describe('DailyInspirationCalendar', () => {
     expect(screen.getByRole('combobox', { name: '月份' })).toHaveValue('2')
     swipe(290, 105)
     expect(screen.getByRole('combobox', { name: '月份' })).toHaveValue('1')
+  })
+
+  it('keeps the 390px and 402px phone layouts writing-first without shrinking touch targets', async () => {
+    const css = await readFile(resolve(process.cwd(), 'src/features/notes/NotesWorkspace.module.css'), 'utf8')
+    const mobileStart = css.indexOf('@media (max-width: 767px)')
+    const mobileEnd = css.indexOf('@media (min-width: 768px)', mobileStart)
+    const mobileCss = css.slice(mobileStart, mobileEnd)
+    const calendarPadding = mobileCss.match(/\.dailyCalendar\s*{[^}]*padding:\s*(\d+)px\s+(\d+)px\s+(\d+)(?:px)?/s)
+    const weekdayHeight = mobileCss.match(/\.dailyWeekdays span\s*{[^}]*line-height:\s*(\d+)px/s)
+    const gridMetrics = mobileCss.match(/\.dailyDateGrid\s*{[^}]*grid-auto-rows:\s*(\d+)px[^}]*padding-block:\s*(\d+)px/s)
+    const paperMinimum = mobileCss.match(/\.dailyText\s*{[^}]*min-height:\s*max\((\d+)px,\s*(\d+)dvh\)/s)
+
+    expect(css).toMatch(/\.dailyCalendarControls button,[\s\S]*?min-height:\s*44px;[\s\S]*?min-width:\s*44px;/)
+    expect(css).toMatch(/\.dailyDateGrid button\s*{[^}]*min-height:\s*44px;[^}]*min-width:\s*44px;/s)
+    expect(calendarPadding, 'phone calendar padding must be explicit').not.toBeNull()
+    expect(weekdayHeight, 'phone weekday row must be compact').not.toBeNull()
+    expect(gridMetrics, 'phone date tracks must be compact while buttons stay 44px').not.toBeNull()
+    expect(paperMinimum, 'phone paper must retain the dominant share').not.toBeNull()
+    if (!calendarPadding || !weekdayHeight || !gridMetrics || !paperMinimum) return
+
+    const [, paddingTop, paddingInline, paddingBottom] = calendarPadding.map(Number)
+    const [, weekday, dateTrack, gridPadding, paperPixels, paperDvh] = [
+      0,
+      Number(weekdayHeight[1]),
+      Number(gridMetrics[1]),
+      Number(gridMetrics[2]),
+      Number(paperMinimum[1]),
+      Number(paperMinimum[2]),
+    ]
+    const calendarHeight = paddingTop + 44 + weekday + dateTrack * 6 + gridPadding * 2 + paddingBottom
+
+    for (const { width, height } of [{ width: 390, height: 844 }, { width: 402, height: 874 }]) {
+      expect((width - paddingInline * 2) / 7).toBeGreaterThanOrEqual(44)
+      const paperHeight = Math.max(paperPixels, height * paperDvh / 100)
+      expect(calendarHeight / (calendarHeight + paperHeight)).toBeLessThanOrEqual(0.36)
+    }
   })
 })

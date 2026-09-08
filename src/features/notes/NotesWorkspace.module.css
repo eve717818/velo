@@ -564,6 +564,13 @@
 
 @media (max-width: 767px) {
   .page { margin: -8px -8px 0; }
+  .dailyCalendar { padding: 4px 12px 0; }
+  .dailyWeekdays { padding-top: 0; }
+  .dailyWeekdays span { line-height: 20px; }
+  .dailyDateGrid { grid-auto-rows: 36px; padding-block: 5px; }
+  .dailyDateGrid button { align-self: center; }
+  .dailyEditor { padding-top: 4px; }
+  .dailyText { min-height: max(440px, 64dvh); }
   .workspaceHeader { border-radius: 20px; gap: 8px; padding: 12px; }
   .workspaceHeader > div:first-child { flex: 1 1 auto; min-width: 0; }
   .workspaceHeader h1 { font-size: clamp(1.3rem, 5.8vw, 1.55rem); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
