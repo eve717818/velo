@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react"
-import { FolderPlus, NotebookPen } from "lucide-react"
+import { FolderPlus, NotebookPen, Plus } from "lucide-react"
 import styles from "./NotesWorkspace.module.css"
 
 export type NewKnowledgeNodeSelection = {
@@ -8,11 +8,12 @@ export type NewKnowledgeNodeSelection = {
 }
 
 interface NewKnowledgeNodeMenuProps {
+  containerTitle: string
   parentId?: string | null
   onSelect: (selection: NewKnowledgeNodeSelection, returnFocusTo: HTMLButtonElement | null) => void | Promise<boolean>
 }
 
-export function NewKnowledgeNodeMenu({ parentId = null, onSelect }: NewKnowledgeNodeMenuProps) {
+export function NewKnowledgeNodeMenu({ containerTitle, parentId = null, onSelect }: NewKnowledgeNodeMenuProps) {
   const [open, setOpen] = useState(false)
   const triggerRef = useRef<HTMLButtonElement>(null)
 
@@ -35,8 +36,8 @@ export function NewKnowledgeNodeMenu({ parentId = null, onSelect }: NewKnowledge
 
   return (
     <div className={styles.newNodeMenu}>
-      <button aria-expanded={open} aria-haspopup="menu" className={styles.primaryButton} onClick={() => setOpen((value) => !value)} ref={triggerRef} type="button">
-        <span>新建</span>
+      <button aria-expanded={open} aria-haspopup="menu" aria-label={`在${containerTitle}中新建`} className={styles.contextualCreateButton} onClick={() => setOpen((value) => !value)} ref={triggerRef} type="button">
+        <Plus aria-hidden="true" />
       </button>
       {open ? (
         <div aria-label="新建节点" className={styles.newNodeMenuPopup} role="menu">

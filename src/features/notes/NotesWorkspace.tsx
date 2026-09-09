@@ -1,5 +1,5 @@
 import { useLiveQuery } from "dexie-react-hooks"
-import { Download, FolderOpen, Lightbulb, Menu, MoreHorizontal, NotebookPen, PanelLeftClose, PanelLeftOpen, Plus, Trash2 } from "lucide-react"
+import { Download, FolderOpen, Lightbulb, MoreHorizontal, NotebookPen, PanelLeftClose, PanelLeftOpen, Trash2 } from "lucide-react"
 import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react"
 import { useLocation, useSearchParams } from "react-router-dom"
 import type { KnowledgeNode } from "@/db/types"
@@ -10,7 +10,7 @@ import { DailyInspirationCalendar } from "./DailyInspirationCalendar"
 import { DailyInspirationEditor, type DailyInspirationEditorHandle } from "./DailyInspirationEditor"
 import { NoteEditor, type NoteEditorHandle } from "./NoteEditor"
 import { NoteTree, type TreeEditState } from "./NoteTree"
-import { NewKnowledgeNodeMenu, type NewKnowledgeNodeSelection } from "./NewKnowledgeNodeMenu"
+import type { NewKnowledgeNodeSelection } from "./NewKnowledgeNodeMenu"
 import { loadExpandedFolderIds, saveExpandedFolderIds } from "./tree-expansion"
 import { listDailyInspirationDates, localDateKey, parseLocalDateKey, saveDailyInspiration } from "./daily-inspiration-service"
 import { calendarGrid, type CalendarMonth } from "./daily-inspiration-state"
@@ -236,6 +236,22 @@ export function NotesWorkspace({ db, services }: NotesWorkspaceProps) {
     setDrawerOpen(false)
   }
 
+  async function openKnowledgeTree() {
+    if (area !== "all") {
+      if (!(await flush())) { setMessage(saveProblem("请先处理当前笔记的保存问题，再打开知识树。", "请先处理当前灵感的保存问题，再打开知识树。")); return }
+      setParams(new URLSearchParams(), { state: null })
+    }
+    if (mobileTree) setDrawerOpen(true)
+    else setSidebarVisible(true)
+  }
+
+  async function selectRoot() {
+    if (area !== "all" || selectedNodeId !== null) {
+      if (!(await flush())) { setMessage(saveProblem("请先处理当前笔记的保存问题，再切换目录。", "请先处理当前灵感的保存问题，再切换目录。")); return }
+      setParams(new URLSearchParams(), { state: null })
+    }
+  }
+
   async function selectDailyDate(nextDateKey: string) {
     if (nextDateKey === dailyDateKey) return
     if (!(await flush())) { setMessage("请先处理当前灵感的保存问题，再切换日期。"); return }
@@ -348,12 +364,8 @@ export function NotesWorkspace({ db, services }: NotesWorkspaceProps) {
   function renderDirectory(showEditor: boolean) {
     return (
     <div className={styles.directoryBody}>
-      <nav className={styles.areaNav} aria-label="笔记区域">
-        <button aria-current={area === "all" ? "page" : undefined} onClick={() => void selectArea("all")} type="button"><FolderOpen aria-hidden="true" />全部笔记</button>
-        <button aria-current={area === "daily" ? "page" : undefined} onClick={() => void selectArea("daily")} type="button"><Lightbulb aria-hidden="true" />每日灵感</button>
-      </nav>
-      <div className={styles.treeHeader}><span>{area === "trash" ? "已删除" : "知识树"}</span><span>{treeNodes.length}</span></div>
-      <NoteTree editing={showEditor ? nodeEditor : null} expandedIds={expandedIds} focusNodeId={showEditor ? focusTreeNodeId : null} nodes={treeNodes} onCancelEdit={cancelNodeEditor} onCommitEdit={commitNodeTitle} onCreateRootFolder={area === "trash" ? undefined : (returnFocusTo) => startCreation({ type: "folder", parentId: null }, returnFocusTo)} onSelect={selectNode} onToggle={toggleFolder} selectedId={area === "daily" ? null : selectedNodeId} />
+      {area === "trash" ? <div className={styles.treeHeader}><span>已删除</span><span>{treeNodes.length}</span></div> : null}
+      <NoteTree editing={showEditor ? nodeEditor : null} expandedIds={expandedIds} focusNodeId={showEditor ? focusTreeNodeId : null} nodes={treeNodes} onCancelEdit={cancelNodeEditor} onCommitEdit={commitNodeTitle} onCreate={area === "all" ? startCreation : undefined} onSelect={selectNode} onSelectRoot={area === "trash" ? undefined : selectRoot} onToggle={toggleFolder} selectedId={area === "daily" ? null : selectedNodeId} />
       <nav className={`${styles.areaNav} ${styles.areaNavBottom}`} aria-label="回收站区域">
         <button aria-current={area === "trash" ? "page" : undefined} onClick={() => void selectArea("trash")} type="button"><Trash2 aria-hidden="true" />回收站</button>
       </nav>
@@ -365,20 +377,20 @@ export function NotesWorkspace({ db, services }: NotesWorkspaceProps) {
     <main className={styles.page}>
       <header className={styles.workspaceHeader}>
         <div><p>知识笔记</p><h1 data-nowrap="true">笔记工作台</h1></div>
-        <div className={styles.headerActions}>
-          <button className={styles.directoryButton} onClick={() => setDrawerOpen(true)} type="button"><Menu aria-hidden="true" /><span data-nowrap="true">目录</span></button>
-          <NewKnowledgeNodeMenu onSelect={startCreation} parentId={selected?.type === "folder" && selected.deletedAt === undefined ? selected.id : null} />
-        </div>
+        <nav aria-label="笔记工作区" className={styles.workspaceTabs}>
+          <button aria-pressed={area !== "daily"} onClick={() => void openKnowledgeTree()} type="button"><FolderOpen aria-hidden="true" /><span data-nowrap="true">知识树</span></button>
+          <button aria-pressed={area === "daily"} onClick={() => void selectArea("daily")} type="button"><Lightbulb aria-hidden="true" /><span data-nowrap="true">每日灵感</span></button>
+        </nav>
       </header>
       {message ? <div className={styles.workspaceMessage} role="alert"><span>{message}</span><button onClick={() => setMessage("")} type="button">关闭</button></div> : null}
       <div className={styles.workspace} style={{ "--notes-sidebar-width": `${sidebarWidth}px` } as React.CSSProperties}>
-        {sidebarVisible ? <aside className={styles.directory} aria-label="笔记目录"><div className={styles.directoryTop}><strong>目录</strong><button aria-label="收起目录" onClick={() => setSidebarVisible(false)} type="button"><PanelLeftClose aria-hidden="true" /></button></div>{renderDirectory(!mobileTree)}<label className={styles.widthControl}><span>目录宽度</span><input aria-label="目录宽度" max="360" min="220" onChange={(event) => setSidebarWidth(Number(event.target.value))} type="range" value={sidebarWidth} /></label></aside> : <button aria-label="展开目录" className={styles.reopenDirectory} onClick={() => setSidebarVisible(true)} type="button"><PanelLeftOpen aria-hidden="true" /></button>}
+        {sidebarVisible ? <aside className={styles.directory} aria-label="知识树"><div className={styles.directoryTop}><strong>知识树</strong><button aria-label="收起知识树" onClick={() => setSidebarVisible(false)} type="button"><PanelLeftClose aria-hidden="true" /></button></div>{renderDirectory(!mobileTree)}<label className={styles.widthControl}><span>知识树宽度</span><input aria-label="知识树宽度" max="360" min="220" onChange={(event) => setSidebarWidth(Number(event.target.value))} type="range" value={sidebarWidth} /></label></aside> : <button aria-label="展开知识树" className={styles.reopenDirectory} onClick={() => setSidebarVisible(true)} type="button"><PanelLeftOpen aria-hidden="true" /></button>}
         <section className={styles.contentPane} aria-label="笔记内容">
-          {area === "daily" ? <div className={styles.dailyWorkspace}><DailyInspirationCalendar contentDateKeys={contentDateKeys} onSelectDate={(dateKey) => void selectDailyDate(dateKey)} onVisibleMonthChange={changeVisibleMonth} selectedDateKey={dailyDateKey} visibleMonth={visibleMonth} /><DailyInspirationEditor db={db} dateKey={dailyDateKey} ref={dailyEditorRef} saveDailyInspiration={api.saveDailyInspiration} /></div> : selected?.deletedAt !== undefined ? <div className={styles.deletedState}><Trash2 aria-hidden="true" /><h2>{selected.title}</h2><p>{selected.type === "folder" ? "该文件夹在回收站中，恢复后将带回所有子文件夹和笔记。" : "这篇笔记在回收站中，恢复后即可继续编辑。"}</p><button onClick={() => void doRestore()} type="button">恢复{selected.type === "folder" ? "文件夹" : "笔记"}</button></div> : selected?.type === "folder" ? <div className={styles.emptyState}><span><FolderOpen aria-hidden="true" /></span><h2>{selected.title}</h2><p>{selectedPath} · {folderChildCount} 个子节点</p><div className={styles.folderActions}><button onClick={(event) => void startCreation({ type: "folder", parentId: selected.id }, event.currentTarget)} type="button">新建子文件夹</button><button onClick={(event) => void startCreation({ type: "note", parentId: selected.id }, event.currentTarget)} type="button">新建笔记</button><button aria-label={`节点操作：${selected.title}`} onClick={(event) => { setActionReturnFocus(event.currentTarget); setActionsOpen(true) }} type="button"><MoreHorizontal aria-hidden="true" />操作</button></div></div> : selected ? <><div className={styles.noteToolbar}><nav aria-label="当前笔记路径" className={styles.breadcrumbs}><span><button onClick={() => void selectArea("all")} type="button">笔记库</button></span>{breadcrumbs.map((node) => <span key={node.id}><i aria-hidden="true">/</i><button onClick={() => void selectNode(node)} type="button">{node.title}</button></span>)}</nav><div className={styles.noteActions}><button onClick={() => void doExport()} type="button"><Download aria-hidden="true" />导出 Markdown</button><button aria-label={`节点操作：${selected.title}`} onClick={(event) => { setActionReturnFocus(event.currentTarget); setActionsOpen(true) }} type="button"><MoreHorizontal aria-hidden="true" /></button></div></div><NoteEditor db={db} key={`${selected.id}:${editorReloadKey}`} nodeId={selected.id} onSaved={() => undefined} ref={editorRef} saveNote={api.saveNote} /></> : <div className={styles.emptyState}><span><NotebookPen aria-hidden="true" /></span><p>{area === "trash" ? "回收站是空的" : "从第一个文件夹或笔记开始建立你的知识目录"}</p>{area !== "trash" ? <button onClick={(event) => void startCreation({ type: "note", parentId: null }, event.currentTarget)} type="button"><Plus aria-hidden="true" />开始记录</button> : null}</div>}
+          {area === "daily" ? <div className={styles.dailyWorkspace}><DailyInspirationCalendar contentDateKeys={contentDateKeys} onSelectDate={(dateKey) => void selectDailyDate(dateKey)} onVisibleMonthChange={changeVisibleMonth} selectedDateKey={dailyDateKey} visibleMonth={visibleMonth} /><DailyInspirationEditor db={db} dateKey={dailyDateKey} ref={dailyEditorRef} saveDailyInspiration={api.saveDailyInspiration} /></div> : selected?.deletedAt !== undefined ? <div className={styles.deletedState}><Trash2 aria-hidden="true" /><h2>{selected.title}</h2><p>{selected.type === "folder" ? "该文件夹在回收站中，恢复后将带回所有子文件夹和笔记。" : "这篇笔记在回收站中，恢复后即可继续编辑。"}</p><button onClick={() => void doRestore()} type="button">恢复{selected.type === "folder" ? "文件夹" : "笔记"}</button></div> : selected?.type === "folder" ? <div className={styles.emptyState}><span><FolderOpen aria-hidden="true" /></span><h2>{selected.title}</h2><p>{selectedPath} · {folderChildCount} 个子节点</p><div className={styles.folderActions}><button aria-label={`节点操作：${selected.title}`} onClick={(event) => { setActionReturnFocus(event.currentTarget); setActionsOpen(true) }} type="button"><MoreHorizontal aria-hidden="true" />操作</button></div></div> : selected ? <><div className={styles.noteToolbar}><nav aria-label="当前笔记路径" className={styles.breadcrumbs}><span><button onClick={() => void selectRoot()} type="button">笔记库</button></span>{breadcrumbs.map((node) => <span key={node.id}><i aria-hidden="true">/</i><button onClick={() => void selectNode(node)} type="button">{node.title}</button></span>)}</nav><div className={styles.noteActions}><button onClick={() => void doExport()} type="button"><Download aria-hidden="true" />导出 Markdown</button><button aria-label={`节点操作：${selected.title}`} onClick={(event) => { setActionReturnFocus(event.currentTarget); setActionsOpen(true) }} type="button"><MoreHorizontal aria-hidden="true" /></button></div></div><NoteEditor db={db} key={`${selected.id}:${editorReloadKey}`} nodeId={selected.id} onSaved={() => undefined} ref={editorRef} saveNote={api.saveNote} /></> : <div className={styles.emptyState}><span><NotebookPen aria-hidden="true" /></span><p>{area === "trash" ? "回收站是空的" : "在知识树中选择笔记库或文件夹，再点击旁边的＋开始建立。"}</p></div>}
         </section>
       </div>
-      <PlanDialog labelledBy={drawerTitleId} onRequestClose={() => setDrawerOpen(false)} open={drawerOpen}><section className={styles.drawer}><header><h2 id={drawerTitleId}>笔记目录</h2><button aria-label="关闭目录" onClick={() => setDrawerOpen(false)} type="button">×</button></header>{renderDirectory(mobileTree)}</section></PlanDialog>
-      {selected && selected.deletedAt === undefined ? <NoteActionsDialog node={selected} nodes={nodes} onAdd={(type, parentId) => startCreation({ type, parentId }, actionReturnFocus)} onMove={doMove} onRename={() => startRename(actionReturnFocus)} onRequestClose={() => setActionsOpen(false)} onRequestTrash={() => { setActionsOpen(false); setTrashConfirmOpen(true) }} open={actionsOpen} returnFocusTo={actionReturnFocus} /> : null}
+      <PlanDialog labelledBy={drawerTitleId} onRequestClose={() => setDrawerOpen(false)} open={drawerOpen}><section className={styles.drawer}><header><h2 id={drawerTitleId}>知识树</h2><button aria-label="关闭知识树" onClick={() => setDrawerOpen(false)} type="button">×</button></header>{renderDirectory(mobileTree)}</section></PlanDialog>
+      {selected && selected.deletedAt === undefined ? <NoteActionsDialog node={selected} nodes={nodes} onMove={doMove} onRename={() => startRename(actionReturnFocus)} onRequestClose={() => setActionsOpen(false)} onRequestTrash={() => { setActionsOpen(false); setTrashConfirmOpen(true) }} open={actionsOpen} returnFocusTo={actionReturnFocus} /> : null}
       <PlanDialog labelledBy={trashTitleId} onRequestClose={() => setTrashConfirmOpen(false)} open={trashConfirmOpen}><section className={styles.confirmDialog}><h2 id={trashTitleId}>移到回收站？</h2><p>{selected?.type === "folder" ? "文件夹内的子文件夹和笔记会一起进入回收站，可随时恢复。" : "这篇笔记会进入回收站，可随时恢复。"}</p><div><button onClick={() => setTrashConfirmOpen(false)} type="button">取消</button><button className={styles.trashButton} onClick={() => void doTrash()} type="button">确认移到回收站</button></div></section></PlanDialog>
     </main>
   )

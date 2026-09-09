@@ -87,10 +87,11 @@ export function DailyInspirationCalendar({ selectedDateKey, visibleMonth, conten
         if (month) onVisibleMonthChange(month)
       }}>
       {cells.map((cell) => {
+        if (!cell.inMonth) return <span aria-hidden="true" className={styles.dailyDatePlaceholder} key={cell.dateKey} />
         const [year, month] = cell.dateKey.split('-').map(Number)
         const hasContent = contentDateKeys.has(cell.dateKey)
         return <button key={cell.dateKey} type="button" disabled={!cell.supported}
-          data-date-key={cell.dateKey} data-outside-month={!cell.inMonth} data-supported={cell.supported}
+          data-date-key={cell.dateKey} data-supported={cell.supported}
           aria-label={`${year}年${month}月${cell.day}日${hasContent ? '，有灵感' : ''}`}
           aria-pressed={cell.dateKey === selectedDateKey} aria-current={cell.dateKey === today ? 'date' : undefined}
           onClick={() => select(cell.dateKey)} onKeyDown={(event) => onDateKeyDown(event, cell.dateKey)}>

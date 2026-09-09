@@ -16,14 +16,20 @@ function Calendar({ date = '2028-02-29', month = { year: 2028, monthIndex: 1 } }
 afterEach(() => vi.useRealTimers())
 
 describe('DailyInspirationCalendar', () => {
-  it('renders 42 local dates, leap day content, selected state and quiet adjacent months', () => {
+  it('renders only the current month dates while retaining blank alignment cells', async () => {
     render(<Calendar />)
-    expect(within(screen.getByRole('group', { name: '日期' })).getAllByRole('button')).toHaveLength(42)
+    const dateGrid = screen.getByRole('group', { name: '日期' })
+    expect(within(dateGrid).getAllByRole('button')).toHaveLength(29)
+    expect(dateGrid.children).toHaveLength(42)
     const leapDay = screen.getByRole('button', { name: '2028年2月29日，有灵感' })
     expect(leapDay).toHaveAttribute('aria-pressed', 'true')
     expect(leapDay.querySelector('[aria-hidden="true"]')).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: '2028年1月31日' })).toHaveAttribute('data-outside-month', 'true')
+    expect(screen.queryByRole('button', { name: '2028年1月31日' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: '2028年3月1日' })).not.toBeInTheDocument()
     expect(calendarGrid(2028, 1)[0].dateKey).toBe('2028-01-31')
+
+    await userEvent.setup().click(screen.getByRole('button', { name: '下个月' }))
+    expect(screen.getByRole('button', { name: '2028年3月1日' })).toBeInTheDocument()
   })
 
   it('crosses years and accepts direct early years and all twelve months', async () => {

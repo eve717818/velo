@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react"
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { MemoryRouter, useLocation, useNavigate } from "react-router-dom"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
@@ -65,20 +65,48 @@ afterEach(async () => {
 })
 
 describe("NotesWorkspace", () => {
+  it("keeps only Knowledge Tree and Daily Inspiration in the top bar and scopes creation to the selected container", async () => {
+    const folder = await createFolder(db, { title: "大学数学", parentId: null }, 1)
+    const note = await createNote(db, { title: "线性代数", parentId: folder.id }, 2)
+    const user = userEvent.setup()
+    renderWorkspace()
+
+    const knowledgeTree = screen.getByRole("button", { name: "知识树" })
+    const daily = screen.getByRole("button", { name: "每日灵感" })
+    expect(knowledgeTree).toHaveAttribute("aria-pressed", "true")
+    expect(daily).toHaveAttribute("aria-pressed", "false")
+    expect(screen.queryByRole("button", { name: "新建" })).not.toBeInTheDocument()
+    expect(screen.getByRole("button", { name: "在笔记库中新建" })).toBeInTheDocument()
+
+    await user.click(await screen.findByRole("button", { name: "大学数学" }))
+    expect(await screen.findByRole("button", { name: "在大学数学中新建" })).toBeInTheDocument()
+    expect(screen.queryByRole("button", { name: "在笔记库中新建" })).not.toBeInTheDocument()
+
+    await user.click(screen.getByRole("button", { name: "展开大学数学" }))
+    await user.click(screen.getByRole("button", { name: `打开笔记：${note.title}` }))
+    await waitFor(() => expect(screen.queryByRole("button", { name: /中新建$/ })).not.toBeInTheDocument())
+
+    await user.click(daily)
+    await waitFor(() => expect(knowledgeTree).toHaveAttribute("aria-pressed", "false"))
+    expect(daily).toHaveAttribute("aria-pressed", "true")
+    expect(screen.queryByRole("button", { name: /中新建$/ })).not.toBeInTheDocument()
+  })
+
   it("orders the fixed entries around the knowledge tree and offers a useful empty-tree action", async () => {
     renderWorkspace()
 
-    const directory = screen.getByRole("complementary", { name: "笔记目录" })
-    const all = within(directory).getByRole("button", { name: "全部笔记" })
-    const daily = within(directory).getByRole("button", { name: "每日灵感" })
-    const tree = within(directory).getByText("知识树")
+    const directory = screen.getByRole("complementary", { name: "知识树" })
+    const knowledgeTree = screen.getByRole("button", { name: "知识树" })
+    const daily = screen.getByRole("button", { name: "每日灵感" })
+    const tree = within(directory).getByRole("button", { name: "笔记库" })
     const trash = within(directory).getByRole("button", { name: "回收站" })
-    expect(all.compareDocumentPosition(daily) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
-    expect(daily.compareDocumentPosition(tree) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    expect(knowledgeTree.compareDocumentPosition(daily) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
     expect(tree.compareDocumentPosition(trash) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
-    expect(within(directory).getByText("目录还是空的")).toBeInTheDocument()
+    expect(within(directory).getByText("知识树还是空的，请从笔记库开始建立。")).toBeInTheDocument()
 
-    await userEvent.setup().click(within(directory).getByRole("button", { name: "新建文件夹" }))
+    const user = userEvent.setup()
+    await user.click(within(directory).getByRole("button", { name: "在笔记库中新建" }))
+    await user.click(within(directory).getByRole("menuitem", { name: "新建文件夹" }))
     await waitFor(() => expect(within(directory).getByRole("textbox", { name: "文件夹名称" })).toHaveFocus())
     expect(within(directory).getByRole("group", { name: "文件夹名称，位置：笔记库" })).toBeInTheDocument()
   })
@@ -131,6 +159,7 @@ describe("NotesWorkspace", () => {
     )
 
     await waitFor(() => expect(screen.getByLabelText("灵感正文")).not.toHaveAttribute("readonly"))
+    await user.click(screen.getByRole("button", { name: "下个月" }))
     await user.click(screen.getByRole("button", { name: "2026年10月1日" }))
     await waitFor(() => expect(screen.getByRole("button", { name: "2026年10月1日" })).toHaveAttribute("aria-pressed", "true"))
     await user.click(screen.getByRole("button", { name: "历史后退" }))
@@ -155,7 +184,7 @@ describe("NotesWorkspace", () => {
     )
 
     await user.type(await screen.findByLabelText("灵感正文"), "先保存再离开")
-    await user.click(screen.getByRole("button", { name: "全部笔记" }))
+    await user.click(screen.getByRole("button", { name: "知识树" }))
     expect(screen.getByLabelText("当前地址")).toHaveTextContent("?area=daily&date=2026-09-07")
     release()
     await waitFor(() => expect(screen.getByLabelText("当前地址")).toHaveTextContent("/notes|null"))
@@ -168,9 +197,9 @@ describe("NotesWorkspace", () => {
       </MemoryRouter>,
     )
     await user.type(await screen.findByLabelText("灵感正文"), "仍留在这里")
-    await user.click(screen.getAllByRole("button", { name: "全部笔记" }).at(-1)!)
+    await user.click(screen.getAllByRole("button", { name: "知识树" }).at(-1)!)
     expect(screen.getAllByLabelText("当前地址").at(-1)).toHaveTextContent("?area=daily&date=2026-09-08")
-    expect(await screen.findByText("请先处理当前灵感的保存问题，再切换目录。")).toBeInTheDocument()
+    expect(await screen.findByText("请先处理当前灵感的保存问题，再打开知识树。")).toBeInTheDocument()
   })
 
   it("blocks entering Daily Inspiration while the ordinary note cannot flush", async () => {
@@ -193,18 +222,20 @@ describe("NotesWorkspace", () => {
     const user = userEvent.setup()
     renderWorkspace()
 
-    await user.click(screen.getByRole("button", { name: "目录" }))
-    const drawer = await screen.findByRole("dialog", { name: "笔记目录" })
-    await user.click(within(drawer).getByRole("button", { name: "每日灵感" }))
+    await user.click(screen.getByRole("button", { name: "知识树" }))
+    const drawer = await screen.findByRole("dialog", { name: "知识树" })
+    await user.click(within(drawer).getByRole("button", { name: "关闭知识树" }))
+    await user.click(screen.getByRole("button", { name: "每日灵感" }))
 
-    await waitFor(() => expect(screen.queryByRole("dialog", { name: "笔记目录" })).not.toBeInTheDocument())
+    await waitFor(() => expect(screen.queryByRole("dialog", { name: "知识树" })).not.toBeInTheDocument())
     await waitFor(() => expect(screen.getByLabelText("灵感正文")).toHaveFocus())
 
-    await user.click(screen.getByRole("button", { name: "目录" }))
-    const reopenedDrawer = await screen.findByRole("dialog", { name: "笔记目录" })
-    await user.click(within(reopenedDrawer).getByRole("button", { name: "每日灵感" }))
+    await user.click(screen.getByRole("button", { name: "知识树" }))
+    const reopenedDrawer = await screen.findByRole("dialog", { name: "知识树" })
+    await user.click(within(reopenedDrawer).getByRole("button", { name: "关闭知识树" }))
+    await user.click(screen.getByRole("button", { name: "每日灵感" }))
 
-    await waitFor(() => expect(screen.queryByRole("dialog", { name: "笔记目录" })).not.toBeInTheDocument())
+    await waitFor(() => expect(screen.queryByRole("dialog", { name: "知识树" })).not.toBeInTheDocument())
     await waitFor(() => expect(screen.getByLabelText("灵感正文")).toHaveFocus())
   })
 
@@ -217,7 +248,8 @@ describe("NotesWorkspace", () => {
     await user.click(await screen.findByRole("button", { name: "展开专业" }))
     await user.click(screen.getByRole("button", { name: "数学" }))
     expect(await screen.findByText("笔记库 / 专业 / 数学 · 0 个子节点")).toBeInTheDocument()
-    await user.click(screen.getByRole("button", { name: "新建笔记" }))
+    await user.click(screen.getByRole("button", { name: "在数学中新建" }))
+    await user.click(screen.getByRole("menuitem", { name: "新建笔记" }))
     const createGroup = screen.getByRole("group", { name: "笔记名称，位置：笔记库 / 专业 / 数学" })
     expect(within(createGroup).getByText("位置：笔记库 / 专业 / 数学")).toBeInTheDocument()
     await user.type(within(createGroup).getByRole("textbox", { name: "笔记名称" }), "极限{Enter}")
@@ -235,15 +267,16 @@ describe("NotesWorkspace", () => {
     const user = userEvent.setup()
     renderWorkspace()
 
-    await user.click(screen.getByRole("button", { name: "目录" }))
-    const drawer = await screen.findByRole("dialog", { name: "笔记目录" })
-    await user.click(within(drawer).getByRole("button", { name: "新建文件夹" }))
+    await user.click(screen.getByRole("button", { name: "知识树" }))
+    const drawer = await screen.findByRole("dialog", { name: "知识树" })
+    await user.click(within(drawer).getByRole("button", { name: "在笔记库中新建" }))
+    await user.click(within(drawer).getByRole("menuitem", { name: "新建文件夹" }))
     await user.type(within(drawer).getByRole("textbox", { name: "文件夹名称" }), "理科{Enter}")
 
-    await waitFor(() => expect(screen.queryByRole("dialog", { name: "笔记目录" })).not.toBeInTheDocument())
+    await waitFor(() => expect(screen.queryByRole("dialog", { name: "知识树" })).not.toBeInTheDocument())
     expect(await screen.findByText("笔记库 / 理科 · 0 个子节点")).toBeInTheDocument()
-    expect(screen.getByRole("button", { name: "新建子文件夹" })).toBeInTheDocument()
-    expect(screen.getByRole("button", { name: "新建笔记" })).toBeInTheDocument()
+    expect(screen.queryByRole("button", { name: "新建子文件夹" })).not.toBeInTheDocument()
+    expect(screen.queryByRole("button", { name: "新建笔记" })).not.toBeInTheDocument()
   })
 
   it("closes the phone drawer after selecting a folder or creating its note and opens the matching path and body", async () => {
@@ -252,16 +285,18 @@ describe("NotesWorkspace", () => {
     const user = userEvent.setup()
     renderWorkspace()
 
-    await user.click(screen.getByRole("button", { name: "目录" }))
-    await user.click(within(await screen.findByRole("dialog", { name: "笔记目录" })).getByRole("button", { name: "课程" }))
-    await waitFor(() => expect(screen.queryByRole("dialog", { name: "笔记目录" })).not.toBeInTheDocument())
+    await user.click(screen.getByRole("button", { name: "知识树" }))
+    await user.click(within(await screen.findByRole("dialog", { name: "知识树" })).getByRole("button", { name: "课程" }))
+    await waitFor(() => expect(screen.queryByRole("dialog", { name: "知识树" })).not.toBeInTheDocument())
     expect(await screen.findByText("笔记库 / 课程 · 0 个子节点")).toBeInTheDocument()
 
-    await user.click(screen.getByRole("button", { name: "新建笔记" }))
-    const drawer = await screen.findByRole("dialog", { name: "笔记目录" })
+    await user.click(screen.getByRole("button", { name: "知识树" }))
+    const drawer = await screen.findByRole("dialog", { name: "知识树" })
+    await user.click(within(drawer).getByRole("button", { name: "在课程中新建" }))
+    await user.click(within(drawer).getByRole("menuitem", { name: "新建笔记" }))
     expect(within(drawer).getByRole("group", { name: "笔记名称，位置：笔记库 / 课程" })).toBeInTheDocument()
     await user.type(within(drawer).getByRole("textbox", { name: "笔记名称" }), "第一课{Enter}")
-    await waitFor(() => expect(screen.queryByRole("dialog", { name: "笔记目录" })).not.toBeInTheDocument())
+    await waitFor(() => expect(screen.queryByRole("dialog", { name: "知识树" })).not.toBeInTheDocument())
     expect(await screen.findByRole("navigation", { name: "当前笔记路径" })).toHaveTextContent("笔记库/课程/第一课")
     expect(await screen.findByLabelText("Markdown 正文")).toBeInTheDocument()
     expect((await db.knowledgeNodes.toArray()).find((node) => node.title === "第一课")?.parentId).toBe(folder.id)
@@ -271,12 +306,12 @@ describe("NotesWorkspace", () => {
     const user = userEvent.setup()
     renderWorkspace()
 
-    await user.click(screen.getByRole("button", { name: "新建" }))
+    await user.click(screen.getByRole("button", { name: "在笔记库中新建" }))
     await user.click(screen.getByRole("menuitem", { name: "新建文件夹" }))
     await user.type(screen.getByRole("textbox", { name: "文件夹名称" }), "数学{Enter}")
     await user.click(await screen.findByRole("button", { name: "数学" }))
-    await user.click(screen.getByRole("button", { name: "节点操作：数学" }))
-    await user.click(within(screen.getByRole("dialog", { name: "数学" })).getByRole("button", { name: "新建笔记" }))
+    await user.click(screen.getByRole("button", { name: "在数学中新建" }))
+    await user.click(screen.getByRole("menuitem", { name: "新建笔记" }))
     await user.type(screen.getByRole("textbox", { name: "笔记名称" }), "导数{Enter}")
 
     expect(await screen.findByRole("button", { name: "打开笔记：导数" })).toBeVisible()
@@ -298,15 +333,16 @@ describe("NotesWorkspace", () => {
   })
 
   it("closes the phone directory drawer after opening a note", async () => {
+    usePhoneViewport()
     await createNote(db, { title: "手机笔记", parentId: null }, 1)
     const user = userEvent.setup()
     renderWorkspace()
 
-    await user.click(screen.getByRole("button", { name: "目录" }))
-    const drawer = await screen.findByRole("dialog", { name: "笔记目录" })
+    await user.click(screen.getByRole("button", { name: "知识树" }))
+    const drawer = await screen.findByRole("dialog", { name: "知识树" })
     await user.click(within(drawer).getByRole("button", { name: "打开笔记：手机笔记" }))
 
-    expect(screen.queryByRole("dialog", { name: "笔记目录" })).not.toBeInTheDocument()
+    expect(screen.queryByRole("dialog", { name: "知识树" })).not.toBeInTheDocument()
     expect(await screen.findByLabelText("Markdown 正文")).toBeInTheDocument()
   })
 
@@ -348,7 +384,7 @@ describe("NotesWorkspace", () => {
 
     renderWorkspace({ initialEntry: `/notes?note=${note.id}` })
 
-    const directory = screen.getByRole("complementary", { name: "笔记目录" })
+    const directory = screen.getByRole("complementary", { name: "知识树" })
     const rootButton = await within(directory).findByRole("button", { name: "理科" })
     await within(directory).findByRole("button", { name: "收起对称" })
     const deepestFolderButton = within(directory).getByRole("button", { name: "对称" })
@@ -393,45 +429,28 @@ describe("NotesWorkspace", () => {
     renderWorkspace()
 
     expect(screen.getByRole("heading", { name: "笔记工作台" })).toHaveAttribute("data-nowrap", "true")
-    expect(screen.getByRole("button", { name: "目录" }).querySelector("[data-nowrap='true']")).toHaveTextContent("目录")
-    expect(screen.getByRole("button", { name: "新建" })).toHaveTextContent("新建")
+    expect(screen.getByRole("button", { name: "知识树" }).querySelector("[data-nowrap='true']")).toHaveTextContent("知识树")
+    expect(screen.getByRole("button", { name: "每日灵感" }).querySelector("[data-nowrap='true']")).toHaveTextContent("每日灵感")
+    expect(screen.queryByRole("button", { name: "新建" })).not.toBeInTheDocument()
   })
 
-  it("only offers split view at a sufficiently wide viewport and falls back when it narrows", async () => {
+  it("shows one direct writing surface without reading modes or Markdown format buttons", async () => {
     const note = await createNote(db, { title: "响应式编辑", parentId: null }, 1)
-    let matches = false
-    const listeners = new Set<(event: MediaQueryListEvent) => void>()
-    vi.stubGlobal("matchMedia", vi.fn(() => ({
-      matches,
-      media: "(min-width: 1051px)",
-      onchange: null,
-      addEventListener: (_type: string, listener: (event: MediaQueryListEvent) => void) => listeners.add(listener),
-      removeEventListener: (_type: string, listener: (event: MediaQueryListEvent) => void) => listeners.delete(listener),
-      addListener: () => undefined,
-      removeListener: () => undefined,
-      dispatchEvent: () => true,
-    })))
     renderWorkspace({ initialEntry: `/notes?note=${note.id}` })
 
-    await screen.findByLabelText("Markdown 正文")
+    expect(await screen.findByLabelText("Markdown 正文")).toBeInTheDocument()
+    expect(screen.queryByRole("button", { name: "编辑" })).not.toBeInTheDocument()
+    expect(screen.queryByRole("button", { name: "阅读" })).not.toBeInTheDocument()
     expect(screen.queryByRole("button", { name: "分栏" })).not.toBeInTheDocument()
-
-    matches = true
-    act(() => listeners.forEach((listener) => listener({ matches } as MediaQueryListEvent)))
-    await userEvent.setup().click(await screen.findByRole("button", { name: "分栏" }))
-    expect(await screen.findByLabelText("Markdown 阅读内容")).toBeInTheDocument()
-
-    matches = false
-    act(() => listeners.forEach((listener) => listener({ matches } as MediaQueryListEvent)))
-    expect(screen.queryByRole("button", { name: "分栏" })).not.toBeInTheDocument()
-    expect(screen.queryByLabelText("Markdown 阅读内容")).not.toBeInTheDocument()
-    expect(screen.getByLabelText("Markdown 正文")).toBeInTheDocument()
+    for (const name of ["二级标题", "加粗", "列表", "引用", "行内代码"]) {
+      expect(screen.queryByRole("button", { name })).not.toBeInTheDocument()
+    }
   })
   it("creates an empty note, edits it and announces a successful autosave", async () => {
     const user = userEvent.setup()
     renderWorkspace()
 
-    await user.click(screen.getByRole("button", { name: "新建" }))
+    await user.click(screen.getByRole("button", { name: "在笔记库中新建" }))
     await user.click(screen.getByRole("menuitem", { name: "新建笔记" }))
     await user.type(screen.getByRole("textbox", { name: "笔记名称" }), "未命名笔记{Enter}")
     const body = await screen.findByLabelText("Markdown 正文")
@@ -441,26 +460,6 @@ describe("NotesWorkspace", () => {
 
     expect(await screen.findByText("已保存")).toBeInTheDocument()
     expect((await db.notes.toArray()).some((note) => note.markdown?.includes("我的课堂笔记"))).toBe(true)
-  })
-
-  it("reads safe Markdown without rendering raw HTML or remote images", async () => {
-    const note = await createNote(db, { title: "安全预览", parentId: null }, 1)
-    const loadedDocument = await loadNote(db, note.id)
-    await saveNote(
-      db,
-      note.id,
-      { title: note.title, markdown: "## 标题\n<script>alert(1)</script>\n![远程](https://example.com/pixel.png)" },
-      loadedDocument.revision ?? 0,
-      2,
-    )
-    const user = userEvent.setup()
-    renderWorkspace({ initialEntry: `/notes?note=${note.id}` })
-
-    await user.click(await screen.findByRole("button", { name: "阅读" }))
-
-    expect(await screen.findByRole("heading", { name: "标题" })).toBeInTheDocument()
-    expect(window.document.querySelector("script")).toBeNull()
-    expect(window.document.querySelector('img[src^="http"]')).toBeNull()
   })
 
   it("flushes the current draft before switching to another note", async () => {
@@ -478,7 +477,7 @@ describe("NotesWorkspace", () => {
     expect(second.id).not.toBe(first.id)
   })
 
-  it("blocks every creation entry while the current editor cannot save", async () => {
+  it("blocks selecting a creation container while the current editor cannot save", async () => {
     const note = await createNote(db, { title: "未保存笔记", parentId: null }, 1)
     const rejectSave = vi.fn<typeof saveNote>().mockRejectedValue(new Error("模拟保存失败"))
     const user = userEvent.setup()
@@ -486,26 +485,26 @@ describe("NotesWorkspace", () => {
 
     await user.type(await screen.findByLabelText("Markdown 正文"), "不要丢失")
     await screen.findByText("保存失败，草稿仍在本机")
-    await user.click(screen.getByRole("button", { name: "新建" }))
-    await user.click(screen.getByRole("menuitem", { name: "新建文件夹" }))
+    const directory = screen.getByRole("complementary", { name: "知识树" })
+    await user.click(within(directory).getByRole("button", { name: "笔记库" }))
 
     expect(screen.getByLabelText("Markdown 正文")).toHaveValue("不要丢失")
     expect(screen.queryByRole("textbox", { name: "文件夹名称" })).not.toBeInTheDocument()
-    expect(screen.getByText("请先处理当前笔记的保存问题，再新建节点。")).toBeInTheDocument()
-    await user.click(screen.getByRole("button", { name: "新建" }))
+    expect(screen.getByText("请先处理当前笔记的保存问题，再切换目录。")).toBeInTheDocument()
+    expect(screen.queryByRole("button", { name: "在笔记库中新建" })).not.toBeInTheDocument()
     await user.click(screen.getByRole("button", { name: "节点操作：未保存笔记" }))
     await user.click(screen.getByRole("button", { name: "重命名" }))
     expect(screen.queryByRole("textbox", { name: "笔记名称" })).not.toBeInTheDocument()
     expect(screen.getByRole("dialog", { name: "未保存笔记" })).toBeInTheDocument()
   })
 
-  it("creates from the header beneath the currently selected live folder", async () => {
+  it("creates from the selected folder's contextual action", async () => {
     const folder = await createFolder(db, { title: "课程", parentId: null }, 1)
     const user = userEvent.setup()
     renderWorkspace()
 
     await user.click(await screen.findByRole("button", { name: "课程" }))
-    await user.click(screen.getByRole("button", { name: "新建" }))
+    await user.click(screen.getByRole("button", { name: "在课程中新建" }))
     await user.click(screen.getByRole("menuitem", { name: "新建笔记" }))
     await user.type(screen.getByRole("textbox", { name: "笔记名称" }), "第一讲{Enter}")
 
@@ -549,7 +548,7 @@ describe("NotesWorkspace", () => {
     await db.knowledgeNodes.update(note.id, { deletedAt: 2, updatedAt: 2 })
     renderWorkspace({ initialEntry: "/notes?area=trash" })
 
-    const directory = screen.getByRole("complementary", { name: "笔记目录" })
+    const directory = screen.getByRole("complementary", { name: "知识树" })
     await userEvent.setup().click(await within(directory).findByRole("button", { name: "打开笔记：待恢复笔记" }))
 
     expect(await screen.findByRole("heading", { name: "待恢复笔记" })).toBeInTheDocument()
@@ -565,7 +564,7 @@ describe("NotesWorkspace", () => {
     await user.click(screen.getByRole("button", { name: "节点操作：树内编辑" }))
     await user.click(screen.getByRole("button", { name: "重命名" }))
 
-    const directory = screen.getByRole("complementary", { name: "笔记目录" })
+    const directory = screen.getByRole("complementary", { name: "知识树" })
     expect(within(directory).getByRole("textbox", { name: "文件夹名称" })).toBeInTheDocument()
     expect(screen.getByRole("heading", { name: folder.title })).toBeInTheDocument()
   })
@@ -597,10 +596,11 @@ describe("NotesWorkspace", () => {
     })))
     renderWorkspace()
 
-    await user.click(screen.getByRole("button", { name: "新建" }))
+    await user.click(screen.getByRole("button", { name: "知识树" }))
+    const drawer = await screen.findByRole("dialog", { name: "知识树" })
+    await user.click(within(drawer).getByRole("button", { name: "在笔记库中新建" }))
     await user.click(screen.getByRole("menuitem", { name: "新建文件夹" }))
 
-    const drawer = await screen.findByRole("dialog", { name: "笔记目录" })
     const input = within(drawer).getByRole("textbox", { name: "文件夹名称" })
     await waitFor(() => expect(input).toHaveFocus())
   })
@@ -609,22 +609,24 @@ describe("NotesWorkspace", () => {
     const user = userEvent.setup()
     renderWorkspace()
 
-    await user.click(screen.getByRole("button", { name: "收起目录" }))
-    await user.click(screen.getByRole("button", { name: "新建" }))
+    await user.click(screen.getByRole("button", { name: "收起知识树" }))
+    await user.click(screen.getByRole("button", { name: "知识树" }))
+    const directory = await screen.findByRole("complementary", { name: "知识树" })
+    await user.click(within(directory).getByRole("button", { name: "在笔记库中新建" }))
     await user.click(screen.getByRole("menuitem", { name: "新建文件夹" }))
 
-    const directory = await screen.findByRole("complementary", { name: "笔记目录" })
-    expect(within(directory).getByRole("textbox", { name: "文件夹名称" })).toHaveFocus()
+    await waitFor(() => expect(within(directory).getByRole("textbox", { name: "文件夹名称" })).toHaveFocus())
   })
 
-  it("returns focus to the action trigger after cancelling a root sibling creation", async () => {
+  it("returns focus to the root creation trigger after cancelling", async () => {
     const note = await createNote(db, { title: "根笔记", parentId: null }, 1)
     const user = userEvent.setup()
     renderWorkspace({ initialEntry: `/notes?note=${note.id}` })
 
-    const trigger = await screen.findByRole("button", { name: "节点操作：根笔记" })
+    await user.click(await screen.findByRole("button", { name: "笔记库" }))
+    const trigger = screen.getByRole("button", { name: "在笔记库中新建" })
     await user.click(trigger)
-    await user.click(screen.getByRole("button", { name: "新建同级文件夹" }))
+    await user.click(screen.getByRole("menuitem", { name: "新建文件夹" }))
     const input = screen.getByRole("textbox", { name: "文件夹名称" })
     await waitFor(() => expect(input).toHaveFocus())
     await user.keyboard("{Escape}")

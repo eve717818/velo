@@ -6,7 +6,6 @@ import styles from "./NotesWorkspace.module.css"
 interface NoteActionsDialogProps {
   node: KnowledgeNode
   nodes: KnowledgeNode[]
-  onAdd: (type: "folder" | "note", parentId: string | null) => boolean | void | Promise<boolean | void>
   onMove: (parentId: string | null) => void | Promise<void>
   onRename: () => boolean | void | Promise<boolean | void>
   onRequestClose: () => void
@@ -70,17 +69,6 @@ function ActionSheet({ titleId, ...props }: NoteActionsDialogProps & { titleId: 
           <button aria-label={`关闭${kind}操作`} onClick={props.onRequestClose} type="button">×</button>
         </header>
         <div className={styles.actionGrid}>
-          {props.node.type === "folder" ? (
-            <>
-              <button onClick={() => void closeForNextAction(() => props.onAdd("folder", props.node.id))} type="button">新建子文件夹</button>
-              <button onClick={() => void closeForNextAction(() => props.onAdd("note", props.node.id))} type="button">新建笔记</button>
-            </>
-          ) : (
-            <>
-              <button onClick={() => void closeForNextAction(() => props.onAdd("note", props.node.parentId))} type="button">新建同级笔记</button>
-              <button onClick={() => void closeForNextAction(() => props.onAdd("folder", props.node.parentId))} type="button">新建同级文件夹</button>
-            </>
-          )}
           <button onClick={() => void closeForNextAction(props.onRename)} type="button">重命名</button>
           <button onClick={() => setMoveState({ ...moveState, error: "", open: !moveState.open })} type="button">移动</button>
         </div>

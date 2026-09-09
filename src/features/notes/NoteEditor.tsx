@@ -1,21 +1,9 @@
-import { Bold, Code2, Heading2, List, Quote } from "lucide-react"
-import { forwardRef, lazy, Suspense, useCallback, useEffect, useImperativeHandle, useRef, useState } from "react"
+import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useState } from "react"
 import type { NoteDocument } from "@/db/types"
 import type { VeloDB } from "@/db/velo-db"
 import { loadNote, saveNote as saveNoteService } from "./note-service"
-import { clearStoredDraft, draftStorageKey, readStoredDraft, writeStoredDraft, type EditorMode, type SaveStatus } from "./editor-state"
+import { clearStoredDraft, draftStorageKey, readStoredDraft, writeStoredDraft, type SaveStatus } from "./editor-state"
 import styles from "./NotesWorkspace.module.css"
-
-const MarkdownView = lazy(async () => {
-  const module = await import("./MarkdownView")
-  return { default: module.MarkdownView }
-})
-
-const SPLIT_VIEW_QUERY = "(min-width: 1051px)"
-
-function splitViewAvailable() {
-  return typeof window.matchMedia === "function" && window.matchMedia(SPLIT_VIEW_QUERY).matches
-}
 
 export interface NoteEditorHandle {
   flush: () => Promise<boolean>
@@ -38,14 +26,6 @@ function downloadText(filename: string, text: string) {
   URL.revokeObjectURL(url)
 }
 
-function wrapSelection(textarea: HTMLTextAreaElement, before: string, after = before) {
-  const start = textarea.selectionStart
-  const end = textarea.selectionEnd
-  const value = textarea.value
-  const selected = value.slice(start, end) || "文字"
-  return { value: `${value.slice(0, start)}${before}${selected}${after}${value.slice(end)}`, cursor: start + before.length + selected.length + after.length }
-}
-
 export const NoteEditor = forwardRef<NoteEditorHandle, NoteEditorProps>(function NoteEditor(
   { db, nodeId, saveNote = saveNoteService, onSaved },
   ref,
@@ -53,11 +33,8 @@ export const NoteEditor = forwardRef<NoteEditorHandle, NoteEditorProps>(function
   const [document, setDocument] = useState<NoteDocument | null>(null)
   const [title, setTitle] = useState("")
   const [markdown, setMarkdown] = useState("")
-  const [mode, setMode] = useState<EditorMode>("edit")
-  const [canSplit, setCanSplit] = useState(splitViewAvailable)
   const [status, setStatus] = useState<SaveStatus>("loading")
   const [error, setError] = useState("")
-  const textareaRef = useRef<HTMLTextAreaElement>(null)
   const composingRef = useRef(false)
   const timerRef = useRef<number | undefined>(undefined)
   const inFlightRef = useRef<Promise<boolean> | null>(null)
@@ -100,17 +77,6 @@ export const NoteEditor = forwardRef<NoteEditorHandle, NoteEditorProps>(function
       if (timerRef.current !== undefined) window.clearTimeout(timerRef.current)
     }
   }, [load])
-
-  useEffect(() => {
-    if (typeof window.matchMedia !== "function") return undefined
-    const media = window.matchMedia(SPLIT_VIEW_QUERY)
-    const onChange = (event: MediaQueryListEvent) => {
-      setCanSplit(event.matches)
-      if (!event.matches) setMode((current) => current === "split" ? "edit" : current)
-    }
-    media.addEventListener("change", onChange)
-    return () => media.removeEventListener("change", onChange)
-  }, [])
 
   const performSave = useCallback(async () => {
     if (composingRef.current || conflictRef.current) return false
@@ -194,16 +160,6 @@ export const NoteEditor = forwardRef<NoteEditorHandle, NoteEditorProps>(function
     exportDraft: () => ({ title: latestRef.current.title, markdown: latestRef.current.markdown }),
   }), [performSave])
 
-  function insert(before: string, after?: string) {
-    if (composingRef.current || !textareaRef.current) return
-    const result = wrapSelection(textareaRef.current, before, after)
-    updateDraft(title, result.value)
-    requestAnimationFrame(() => {
-      textareaRef.current?.focus()
-      textareaRef.current?.setSelectionRange(result.cursor, result.cursor)
-    })
-  }
-
   function reloadCurrentVersion() {
     conflictRef.current = false
     clearStoredDraft(nodeId)
@@ -223,25 +179,6 @@ export const NoteEditor = forwardRef<NoteEditorHandle, NoteEditorProps>(function
         <span className={`${styles.saveStatus} ${styles[status]}`} aria-live="polite">{statusText}</span>
       </div>
 
-      <div className={styles.editorControls}>
-        <div className={styles.modeSwitcher} aria-label="显示模式">
-          {(["edit", "read", ...(canSplit ? ["split" as const] : [])] as EditorMode[]).map((value) => (
-            <button aria-pressed={mode === value} key={value} onClick={() => setMode(value)} type="button">
-              {{ edit: "编辑", read: "阅读", split: "分栏" }[value]}
-            </button>
-          ))}
-        </div>
-        {(mode === "edit" || mode === "split") ? (
-          <div className={styles.formatBar} aria-label="Markdown 格式工具">
-            <button aria-label="二级标题" onClick={() => insert("## ", "")} type="button"><Heading2 aria-hidden="true" /></button>
-            <button aria-label="加粗" onClick={() => insert("**")} type="button"><Bold aria-hidden="true" /></button>
-            <button aria-label="列表" onClick={() => insert("- ", "")} type="button"><List aria-hidden="true" /></button>
-            <button aria-label="引用" onClick={() => insert("> ", "")} type="button"><Quote aria-hidden="true" /></button>
-            <button aria-label="行内代码" onClick={() => insert("`")} type="button"><Code2 aria-hidden="true" /></button>
-          </div>
-        ) : null}
-      </div>
-
       {status === "failed" ? (
         <div className={styles.saveError} role="alert">
           <span>{error || "保存失败，请重试"}</span>
@@ -258,21 +195,17 @@ export const NoteEditor = forwardRef<NoteEditorHandle, NoteEditorProps>(function
         </div>
       ) : null}
 
-      <div className={`${styles.editorBody} ${mode === "split" ? styles.split : ""}`}>
-        {mode !== "read" ? (
-          <label className={styles.markdownField}>
-            <span>Markdown 正文</span>
-            <textarea
-              onChange={(event) => updateDraft(title, event.target.value)}
-              onCompositionEnd={() => { composingRef.current = false; scheduleSave() }}
-              onCompositionStart={() => { composingRef.current = true; if (timerRef.current !== undefined) window.clearTimeout(timerRef.current) }}
-              ref={textareaRef}
-              spellCheck="true"
-              value={markdown}
-            />
-          </label>
-        ) : null}
-        {mode !== "edit" ? <Suspense fallback={<div className={styles.editorMessage}>正在生成阅读视图…</div>}><MarkdownView markdown={markdown} /></Suspense> : null}
+      <div className={styles.editorBody}>
+        <label className={styles.markdownField}>
+          <span>Markdown 正文</span>
+          <textarea
+            onChange={(event) => updateDraft(title, event.target.value)}
+            onCompositionEnd={() => { composingRef.current = false; scheduleSave() }}
+            onCompositionStart={() => { composingRef.current = true; if (timerRef.current !== undefined) window.clearTimeout(timerRef.current) }}
+            spellCheck="true"
+            value={markdown}
+          />
+        </label>
       </div>
       <span className={styles.storageHint}>草稿保存在此设备 · {draftStorageKey(nodeId).includes(nodeId) ? "本地优先" : ""}</span>
     </section>

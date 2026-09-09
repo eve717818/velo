@@ -44,7 +44,7 @@
   padding: 0;
   position: relative;
 }
-.dailyDateGrid button[data-outside-month="true"] { color: #756b73; }
+.dailyDatePlaceholder { min-height: 44px; min-width: 0; }
 .dailyDateGrid button[aria-current="date"] > span { text-decoration: underline; text-underline-offset: 4px; }
 .dailyDateGrid button[aria-pressed="true"] { background: #f2e7ef; border-color: #99728e; color: #641a53; font-weight: 700; }
 .dailyCalendar button:disabled { cursor: default; opacity: .35; }
@@ -110,11 +110,8 @@
   margin: 0;
 }
 
-.headerActions,
+.workspaceTabs,
 .noteActions,
-.editorControls,
-.modeSwitcher,
-.formatBar,
 .conflict > div,
 .confirmDialog > div {
   align-items: center;
@@ -157,15 +154,13 @@
 
 .headerActions button,
 .noteActions button,
-.primaryButton,
-.directoryButton,
+.contextualCreateButton,
+.workspaceTabs button,
 .reopenDirectory,
 .directoryTop button,
 .treeToggle,
 .treeNode,
 .areaNav button,
-.modeSwitcher button,
-.formatBar button,
 .saveError button,
 .conflict button,
 .emptyState button,
@@ -186,19 +181,12 @@
   min-height: 44px;
 }
 
-.primaryButton {
-  background: var(--color-brand);
-  border: 1px solid var(--color-brand);
-  color: white;
-  padding: 0 16px;
-}
-
-.directoryButton {
-  background: #edf4f7;
-  border: 1px solid #cddde4;
-  color: #244d5c;
-  padding: 0 14px;
-}
+.workspaceTabs { background: #f3f1f4; border: 1px solid var(--color-border); border-radius: 16px; padding: 3px; }
+.workspaceTabs button { background: transparent; border: 0; color: var(--color-text-muted); padding: 0 14px; }
+.workspaceTabs button[aria-pressed="true"] { background: var(--color-brand); box-shadow: 0 4px 12px rgb(144 29 120 / 18%); color: white; }
+.contextualCreateButton { background: #f7eef5; border: 1px solid rgb(144 29 120 / 22%); color: #751460; min-width: 44px; padding: 0; }
+.contextualCreateButton[aria-expanded="true"] { background: var(--color-brand); color: white; }
+.contextualCreateButton svg { height: 18px; width: 18px; }
 
 .workspaceMessage {
   align-items: center;
@@ -319,6 +307,8 @@
   grid-template-columns: 44px minmax(0, 1fr);
   min-height: 44px;
 }
+.treeRowWithAction { grid-template-columns: 44px minmax(0, 1fr) 44px; }
+.treeRootItem { margin-bottom: 6px; }
 .treeToggle {
   background: transparent;
   border: 0;
@@ -347,7 +337,7 @@
 }
 .treeNode[aria-current="page"] { background: #f1e8f0; color: #751460; }
 .treeEmpty { align-items: flex-start; display: flex; flex-direction: column; gap: 8px; margin: 8px; }
-.treeEmpty p,.treeEmptyMessage { color: var(--color-text-muted); font-size: .78rem; margin: 4px 0; }
+.treeEmpty p,.treeEmptyMessage { color: var(--color-text-muted); font-size: .78rem; margin: 4px 8px 10px 52px; }
 .treeEmpty button {
   align-items: center;
   background: #f5edf4;
@@ -475,26 +465,6 @@
 .saving,.dirty,.loading { background: #e9eff8; color: #385f76; }
 .failed,.conflict { background: #fde8ef; color: #932043; }
 
-.editorControls { flex-wrap: wrap; justify-content: space-between; margin: 20px 0 12px; }
-.modeSwitcher { background: #f2f1f4; border: 1px solid var(--color-border); border-radius: 13px; padding: 3px; }
-.modeSwitcher button {
-  background: transparent;
-  border: 0;
-  color: var(--color-text-muted);
-  min-height: 38px;
-  padding: 0 13px;
-}
-.modeSwitcher button[aria-pressed="true"] { background: white; box-shadow: 0 2px 8px rgb(35 24 35 / 8%); color: #761763; }
-.formatBar button {
-  background: transparent;
-  border: 1px solid transparent;
-  color: var(--color-text-muted);
-  min-width: 44px;
-  padding: 0;
-}
-.formatBar button:hover { background: #eef4f7; color: #2c687d; }
-.formatBar svg { height: 18px; width: 18px; }
-
 .saveError,.conflict {
   background: #fff0f4;
   border: 1px solid #f2c3d0;
@@ -509,7 +479,6 @@
 .conflict p { margin: 0 0 8px; }
 
 .editorBody { display: grid; flex: 1; min-height: 420px; }
-.editorBody.split { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
 .markdownField { display: flex; flex-direction: column; min-height: 0; }
 .markdownField > span { margin-bottom: 7px; }
 .markdownField textarea {
@@ -524,7 +493,6 @@
   resize: none;
   width: 100%;
 }
-.split .markdownField textarea { border-radius: 16px 0 0 16px; }
 
 .markdownView {
   color: #24232a;
@@ -536,7 +504,6 @@
   padding: 8px 8px 40px;
   user-select: text;
 }
-.split .markdownView { border: 1px solid var(--color-border); border-left: 0; border-radius: 0 16px 16px 0; max-width: none; overflow-y: auto; padding: 18px; }
 .markdownView h1,.markdownView h2,.markdownView h3 { font-family: "Outfit Variable", Outfit, sans-serif; letter-spacing: -.025em; line-height: 1.25; margin: 1.4em 0 .55em; }
 .markdownView h1:first-child,.markdownView h2:first-child { margin-top: 0; }
 .markdownView pre { background: #25242a; border-radius: 12px; color: #f7f4f7; overflow-x: auto; padding: 14px; }
@@ -605,19 +572,13 @@
   .editor { padding: 18px 14px 24px; }
   .editorTopline { align-items: start; }
   .saveStatus { margin-top: 22px; }
-  .editorControls { align-items: flex-start; gap: 8px; }
-  .modeSwitcher { flex: 1; }
-  .modeSwitcher button { flex: 1; }
-  .formatBar { gap: 2px; width: 100%; }
-  .formatBar button { flex: 1; }
   .markdownField textarea { min-height: 48dvh; padding: 15px; }
-  .headerActions { flex: 0 0 auto; gap: 5px; }
-  .headerActions button { font-size: .75rem; gap: 4px; padding: 0 9px; white-space: nowrap; }
-  .headerActions button svg { height: 17px; width: 17px; }
+  .workspaceTabs { flex: 0 0 auto; gap: 2px; }
+  .workspaceTabs button { font-size: .75rem; gap: 4px; padding: 0 9px; white-space: nowrap; }
+  .workspaceTabs button svg { height: 17px; width: 17px; }
 }
 
 @media (min-width: 768px) {
-  .directoryButton { display: none; }
   .drawer,.actionSheet,.confirmDialog { border-radius: 0; min-height: 100dvh; padding: 24px; }
 }
 
@@ -632,8 +593,6 @@
   .noteToolbar { align-items: flex-start; flex-direction: column; }
   .noteActions { align-self: flex-end; }
   .editor { padding: 18px; }
-  .formatBar { gap: 2px; width: 100%; }
-  .formatBar button { flex: 1; }
 }
 
 @media (prefers-reduced-motion: reduce) {

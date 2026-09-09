@@ -52,7 +52,13 @@ async function editCurrentNote(page: Page, title: string, markdown: string) {
 
 async function createFromHeader(page: Page) {
   const previousId = new URL(page.url()).searchParams.get("note")
-  await page.getByRole("button", { name: "新建", exact: true }).click()
+  const isPhone = (page.viewportSize()?.width ?? 1024) < 768
+  if (isPhone) await page.getByRole("button", { name: "知识树", exact: true }).click()
+  const tree = isPhone
+    ? page.getByRole("dialog", { name: "知识树" })
+    : page.getByRole("complementary", { name: "知识树" })
+  await tree.getByRole("button", { name: "笔记库", exact: true }).click()
+  await tree.getByRole("button", { name: "在笔记库中新建" }).click()
   await page.getByRole("menuitem", { name: "新建笔记" }).click()
   await page.getByRole("textbox", { name: "笔记名称" }).fill("未命名笔记")
   await page.getByRole("textbox", { name: "笔记名称" }).press("Enter")
@@ -173,13 +179,14 @@ async function endComposition(locator: Locator, value: string) {
 test("knowledge tree creates folders and notes, persists, moves, and restores a subtree", async ({ page }) => {
   await page.setViewportSize({ width: 1024, height: 900 })
   await finishOnboarding(page)
-  await page.getByRole("button", { name: "新建" }).click()
+  const knowledgeTree = page.getByRole("complementary", { name: "知识树" })
+  await knowledgeTree.getByRole("button", { name: "在笔记库中新建" }).click()
   await page.getByRole("menuitem", { name: "新建文件夹" }).click()
   await page.getByRole("textbox", { name: "文件夹名称" }).fill("数学")
   await page.getByRole("textbox", { name: "文件夹名称" }).press("Enter")
-  await page.getByRole("complementary", { name: "笔记目录" }).getByRole("button", { name: "数学", exact: true }).click()
-  await page.getByRole("button", { name: "节点操作：数学" }).click()
-  await page.getByRole("dialog", { name: "数学" }).getByRole("button", { name: "新建笔记" }).click()
+  await knowledgeTree.getByRole("button", { name: "数学", exact: true }).click()
+  await knowledgeTree.getByRole("button", { name: "在数学中新建" }).click()
+  await page.getByRole("menuitem", { name: "新建笔记" }).click()
   await page.getByRole("textbox", { name: "笔记名称" }).fill("极限与连续")
   await page.getByRole("textbox", { name: "笔记名称" }).press("Enter")
   await expect(page.getByRole("button", { name: "打开笔记：极限与连续" })).toBeVisible()
@@ -191,11 +198,12 @@ test("knowledge tree creates folders and notes, persists, moves, and restores a 
   await page.reload()
   await expect(page.getByRole("button", { name: "打开笔记：极限与连续" })).toBeVisible()
 
-  await page.getByRole("button", { name: "新建" }).click()
+  await knowledgeTree.getByRole("button", { name: "笔记库", exact: true }).click()
+  await knowledgeTree.getByRole("button", { name: "在笔记库中新建" }).click()
   await page.getByRole("menuitem", { name: "新建文件夹" }).click()
   await page.getByRole("textbox", { name: "文件夹名称" }).fill("物理")
   await page.getByRole("textbox", { name: "文件夹名称" }).press("Enter")
-  await page.getByRole("complementary", { name: "笔记目录" }).getByRole("button", { name: "数学", exact: true }).click()
+  await knowledgeTree.getByRole("button", { name: "数学", exact: true }).click()
   await page.getByRole("button", { name: "节点操作：数学" }).click()
   const actions = page.getByRole("dialog", { name: "数学" })
   await actions.getByRole("button", { name: "移动" }).click()
@@ -233,15 +241,17 @@ test("notes workspace reflows at required widths with large text and reduced mot
     await expectNoHorizontalOverflow(page)
     const heading = page.getByRole("heading", { name: "笔记工作台" })
     const header = heading.locator("xpath=ancestor::header[1]")
-    const newButton = page.getByRole("button", { name: "新建", exact: true })
+    const knowledgeButton = page.getByRole("button", { name: "知识树", exact: true })
+    const dailyButton = page.getByRole("button", { name: "每日灵感", exact: true })
     const content = page.getByRole("region", { name: "笔记内容" })
     const editor = page.getByRole("region", { name: "笔记编辑器" })
     const textarea = page.getByLabel("Markdown 正文")
     const headerBox = await expectSurfaceNotClipped(header, size)
     const headingBox = await bounds(heading)
     expectInsideViewport(headingBox, size)
-    const newButtonBox = await expectTouchTarget(newButton, size)
-    expect(headingBox.x + headingBox.width).toBeLessThanOrEqual(newButtonBox.x + 1)
+    const knowledgeButtonBox = await expectTouchTarget(knowledgeButton, size)
+    const dailyButtonBox = await expectTouchTarget(dailyButton, size)
+    expect(headingBox.x + headingBox.width).toBeLessThanOrEqual(knowledgeButtonBox.x + 1)
     const contentBox = await expectSurfaceNotClipped(content, size)
     const editorBox = await expectSurfaceNotClipped(editor, size)
     const textareaBox = await expectSurfaceNotClipped(textarea, size)
@@ -254,17 +264,18 @@ test("notes workspace reflows at required widths with large text and reduced mot
       content: contentBox,
       editor: editorBox,
       header: headerBox,
-      newButton: newButtonBox,
+      dailyButton: dailyButtonBox,
+      knowledgeButton: knowledgeButtonBox,
       textarea: textareaBox,
       viewport: size,
     }
 
     if (size.width < 768) {
-      const trigger = page.getByRole("button", { name: "目录", exact: true })
+      const trigger = knowledgeButton
       const triggerBox = await expectTouchTarget(trigger, size)
-      expect(triggerBox.x + triggerBox.width).toBeLessThanOrEqual(newButtonBox.x + 1)
+      expect(triggerBox.x + triggerBox.width).toBeLessThanOrEqual(dailyButtonBox.x + 1)
       if (size.width === 402) {
-        for (const label of [heading, trigger.locator("span"), newButton.locator("span")]) {
+        for (const label of [heading, trigger.locator("span"), dailyButton.locator("span")]) {
           expect(await label.evaluate((element) => ({
             unclipped: element.scrollWidth <= element.clientWidth + 1,
             whiteSpace: getComputedStyle(element).whiteSpace,
@@ -272,19 +283,14 @@ test("notes workspace reflows at required widths with large text and reduced mot
         }
       }
       await trigger.click()
-      const drawer = page.getByRole("dialog", { name: "笔记目录" })
+      const drawer = page.getByRole("dialog", { name: "知识树" })
       await expect(drawer).toBeVisible()
       const drawerBox = await expectSurfaceNotClipped(drawer, size)
       const treeBox = await expectTouchTarget(drawer.getByRole("button", { name: "打开笔记：响应式样本" }), size)
-      const navBoxes = []
-      for (const button of await drawer.getByRole("navigation", { name: "笔记区域" }).getByRole("button").all()) {
-        navBoxes.push(await expectTouchTarget(button, size))
-      }
       expect(treeBox.x).toBeGreaterThanOrEqual(drawerBox.x - 1)
       expect(treeBox.x + treeBox.width).toBeLessThanOrEqual(drawerBox.x + drawerBox.width + 1)
       measurement.tree = treeBox
       measurement.directory = drawerBox
-      measurement.navigation = navBoxes
       if (size.width === 402) {
         await page.screenshot({ path: resolve(screenshotDirectory, "notes-402-directory.png"), fullPage: true })
       }
@@ -292,19 +298,14 @@ test("notes workspace reflows at required widths with large text and reduced mot
       await expect(drawer).toBeHidden()
       await expectFocusRing(trigger)
     } else {
-      const directory = page.getByRole("complementary", { name: "笔记目录" })
+      const directory = page.getByRole("complementary", { name: "知识树" })
       const directoryBox = await expectSurfaceNotClipped(directory, size)
       const treeBox = await expectTouchTarget(page.getByRole("button", { name: "打开笔记：响应式样本" }), size)
-      const navBoxes = []
-      for (const button of await directory.getByRole("navigation", { name: "笔记区域" }).getByRole("button").all()) {
-        navBoxes.push(await expectTouchTarget(button, size))
-      }
       expect(directoryBox.x + directoryBox.width).toBeLessThanOrEqual(contentBox.x + 1)
       expect(treeBox.x).toBeGreaterThanOrEqual(directoryBox.x - 1)
       expect(treeBox.x + treeBox.width).toBeLessThanOrEqual(directoryBox.x + directoryBox.width + 1)
       measurement.tree = treeBox
       measurement.directory = directoryBox
-      measurement.navigation = navBoxes
     }
 
     await testInfo.attach(`notes-layout-${size.width}.json`, {
@@ -320,32 +321,26 @@ test("notes workspace reflows at required widths with large text and reduced mot
     await expect.poll(() => page.getByLabel("Markdown 正文").evaluate((element) => Number.parseFloat(getComputedStyle(element).fontSize))).toBe(initialFont * 2)
     await expectNoHorizontalOverflow(page)
     const zoomedHeadingBox = await bounds(heading)
-    const zoomedNewButtonBox = await expectTouchTarget(newButton, size)
+    const zoomedKnowledgeButtonBox = await expectTouchTarget(knowledgeButton, size)
     expectInsideViewport(await bounds(header), size)
-    expect(zoomedHeadingBox.x + zoomedHeadingBox.width).toBeLessThanOrEqual(zoomedNewButtonBox.x + 1)
+    expect(zoomedHeadingBox.x + zoomedHeadingBox.width).toBeLessThanOrEqual(zoomedKnowledgeButtonBox.x + 1)
     await expectSurfaceNotClipped(content, size)
     await expectSurfaceNotClipped(editor, size)
     await expectSurfaceNotClipped(textarea, size)
     if (size.width < 768) {
-      const trigger = page.getByRole("button", { name: "目录", exact: true })
+      const trigger = knowledgeButton
       const triggerBox = await expectTouchTarget(trigger, size)
-      expect(triggerBox.x + triggerBox.width).toBeLessThanOrEqual(zoomedNewButtonBox.x + 1)
+      expect(triggerBox.x + triggerBox.width).toBeLessThanOrEqual((await bounds(dailyButton)).x + 1)
       await trigger.click()
-      const drawer = page.getByRole("dialog", { name: "笔记目录" })
+      const drawer = page.getByRole("dialog", { name: "知识树" })
       await expectSurfaceNotClipped(drawer, size)
-      for (const button of await drawer.getByRole("navigation", { name: "笔记区域" }).getByRole("button").all()) {
-        await expectTouchTarget(button, size)
-      }
       await expectTouchTarget(drawer.getByRole("button", { name: "打开笔记：响应式样本" }), size)
       await page.keyboard.press("Escape")
     } else {
-      const directory = page.getByRole("complementary", { name: "笔记目录" })
+      const directory = page.getByRole("complementary", { name: "知识树" })
       const zoomedDirectoryBox = await expectSurfaceNotClipped(directory, size)
       const zoomedContentBox = await bounds(content)
       expect(zoomedDirectoryBox.x + zoomedDirectoryBox.width).toBeLessThanOrEqual(zoomedContentBox.x + 1)
-      for (const button of await directory.getByRole("navigation", { name: "笔记区域" }).getByRole("button").all()) {
-        await expectTouchTarget(button, size)
-      }
       await expectTouchTarget(page.getByRole("button", { name: "打开笔记：响应式样本" }), size)
     }
     await page.evaluate(() => { document.documentElement.style.fontSize = "" })
@@ -479,23 +474,18 @@ test("Daily Inspiration and the knowledge tree fit real phone and tablet viewpor
     }
 
     const directory = size.width < 768
-      ? page.getByRole("dialog", { name: "笔记目录" })
-      : page.getByRole("complementary", { name: "笔记目录" })
+      ? page.getByRole("dialog", { name: "知识树" })
+      : page.getByRole("complementary", { name: "知识树" })
     if (size.width < 768) {
-      await page.getByRole("button", { name: "目录", exact: true }).click()
+      await page.getByRole("button", { name: "知识树", exact: true }).click()
       await expect(directory).toBeVisible()
     } else {
       await expect(directory).toBeVisible()
     }
-    const all = directory.getByRole("button", { name: "全部笔记" })
-    const daily = directory.getByRole("button", { name: "每日灵感" })
-    const tree = directory.getByText("知识树")
-    const trash = directory.getByRole("button", { name: "回收站" })
-    expect((await bounds(all)).y).toBeLessThan((await bounds(daily)).y)
-    expect((await bounds(daily)).y).toBeLessThan((await bounds(tree)).y)
-    expect((await bounds(tree)).y).toBeLessThan((await bounds(trash)).y)
-    await expectTouchTarget(all, size)
-    await expectTouchTarget(daily, size)
+    const root = directory.getByRole("button", { name: "笔记库", exact: true })
+    const trash = directory.getByRole("button", { name: "回收站", exact: true })
+    expect((await bounds(root)).y).toBeLessThan((await bounds(trash)).y)
+    await expectTouchTarget(root, size)
     await expectTouchTarget(trash, size)
 
     await testInfo.attach(`daily-layout-${size.width}.json`, {
@@ -517,22 +507,25 @@ test("Daily Inspiration and the knowledge tree fit real phone and tablet viewpor
   expect(axe.violations.filter((violation) => violation.impact === "serious" || violation.impact === "critical")).toEqual([])
 })
 
-test("phone knowledge-tree creation shows its path and closes the directory drawer", async ({ page }) => {
+test("phone knowledge-tree creation shows its path and closes the knowledge-tree drawer", async ({ page }) => {
   await page.addInitScript(() => window.localStorage.setItem("velow-notebook:onboarding-complete", "1"))
   await page.setViewportSize({ width: 402, height: 695 })
   await page.goto("/notes")
 
-  await page.getByRole("button", { name: "新建", exact: true }).click()
+  await page.getByRole("button", { name: "知识树", exact: true }).click()
+  let drawer = page.getByRole("dialog", { name: "知识树" })
+  await drawer.getByRole("button", { name: "在笔记库中新建" }).click()
   await page.getByRole("menuitem", { name: "新建文件夹" }).click()
-  let drawer = page.getByRole("dialog", { name: "笔记目录" })
   await expect(drawer.getByRole("group", { name: "文件夹名称，位置：笔记库" })).toBeVisible()
   await drawer.getByRole("textbox", { name: "文件夹名称" }).fill("专业")
   await drawer.getByRole("textbox", { name: "文件夹名称" }).press("Enter")
   await expect(drawer).toBeHidden()
   await expect(page.getByText("笔记库 / 专业 · 0 个子节点")).toBeVisible()
 
-  await page.getByRole("button", { name: "新建笔记" }).click()
-  drawer = page.getByRole("dialog", { name: "笔记目录" })
+  await page.getByRole("button", { name: "知识树", exact: true }).click()
+  drawer = page.getByRole("dialog", { name: "知识树" })
+  await drawer.getByRole("button", { name: "在专业中新建" }).click()
+  await page.getByRole("menuitem", { name: "新建笔记" }).click()
   await expect(drawer.getByRole("group", { name: "笔记名称，位置：笔记库 / 专业" })).toBeVisible()
   await drawer.getByRole("textbox", { name: "笔记名称" }).fill("课堂记录")
   await drawer.getByRole("textbox", { name: "笔记名称" }).press("Enter")
