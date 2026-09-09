@@ -4,7 +4,7 @@
 
 **Goal:** Replace the global notes creation action with two clear top-level entries and show creation only beside the selected knowledge-tree container.
 
-**Architecture:** `NotesWorkspace` owns the active top-level area and creation state. `NoteTree` renders a synthetic root row plus folder and note rows; it receives one contextual creation callback and exposes the plus trigger only for the selected root or folder. Existing inline `TreeNodeEditor` creation remains the single data-writing path, so parent-path confirmation, mobile drawer closing, and persistence behavior stay intact.
+**Architecture:** `NotesWorkspace` owns the active top-level area and creation state. `NoteTree` renders a synthetic root row plus folder and note rows; it receives one contextual creation callback and exposes the plus trigger only for the selected root or folder. Existing inline `TreeNodeEditor` creation remains the single data-writing path. On phones, folder creation keeps the drawer open for continuous hierarchy work; note creation closes it and opens the editor.
 
 **Tech Stack:** React 19, TypeScript, React Router, Dexie, CSS Modules, Vitest, Testing Library, Playwright.
 
@@ -15,7 +15,7 @@
 - The top bar contains only `知识树` and `每日灵感`; no global plus is rendered.
 - Only the selected root or live folder may show a plus; note and Daily Inspiration states never show one.
 - Creating a node must show the full parent path and reuse the current inline editor.
-- On a phone, selecting or creating a node closes the left drawer and opens the matching right-side content.
+- On a phone, selecting or creating a folder keeps the left drawer open; selecting or creating a note closes it and opens the matching right-side content.
 - Touch targets remain at least 44 CSS pixels where space permits, with WCAG 2.2 AA semantics and keyboard access.
 
 ---
@@ -82,7 +82,7 @@ The root row is selected when `selectedId === null` in the live knowledge-tree a
 
 - [ ] **Step 2: Add the selected-folder plus**
 
-Render `NewKnowledgeNodeMenu` after a selected folder row. Do not render it for notes, deleted rows, unselected folders, or Daily Inspiration.
+Render `NewKnowledgeNodeMenu` immediately after a selected folder name. Its menu creates a sibling folder through the selected folder's parent, a child folder through the selected folder, or a note inside the selected folder. Do not render it for notes, deleted rows, unselected folders, or Daily Inspiration.
 
 - [ ] **Step 3: Replace the global header action with two top-level entry buttons**
 
@@ -95,7 +95,7 @@ On narrow layouts, `知识树` opens the left drawer. On wide layouts it selects
 
 - [ ] **Step 4: Preserve full-path inline creation**
 
-Route root and folder plus selections through `startCreation`. Keep `nodePath` as the source of `parentPath`, expand the chosen folder, focus the inline editor, and close the phone drawer only after commit.
+Route root and folder plus selections through `startCreation`. Keep `nodePath` as the source of `parentPath`, expand the chosen folder, and focus the inline editor. Keep the phone drawer open after folder commit and close it only after note commit.
 
 - [ ] **Step 5: Run focused tests and verify GREEN**
 
@@ -130,7 +130,7 @@ await expect(page.getByRole("button", { name: "新建" })).toHaveCount(0)
 
 - [ ] **Step 2: Add the phone root-to-note journey**
 
-At 402px, open `知识树`, select the root, use its contextual plus, create a folder, confirm the drawer closes, reopen the tree, select the folder plus, create a note, and confirm the note opens on the right.
+At 402px, open `知识树`, select the root, create a folder, confirm the drawer stays open and the plus moves beside it, then create both a child and sibling folder. Create a note last and confirm only that step closes the drawer and opens the right-side editor.
 
 - [ ] **Step 3: Run the Notes browser suite**
 
@@ -153,4 +153,3 @@ Update the QA note with the tested routes, widths, keyboard flow, touch targets,
 ```text
 test: verify contextual knowledge tree creation
 ```
-

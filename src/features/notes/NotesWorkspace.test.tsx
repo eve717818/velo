@@ -262,7 +262,7 @@ describe("NotesWorkspace", () => {
     expect(subject.parentId).toBe(root.id)
   })
 
-  it("closes the phone drawer after empty-tree creation and shows the new folder path and actions", async () => {
+  it("keeps the phone knowledge tree open after folder creation and moves creation beside it", async () => {
     usePhoneViewport()
     const user = userEvent.setup()
     renderWorkspace()
@@ -273,25 +273,25 @@ describe("NotesWorkspace", () => {
     await user.click(within(drawer).getByRole("menuitem", { name: "新建文件夹" }))
     await user.type(within(drawer).getByRole("textbox", { name: "文件夹名称" }), "理科{Enter}")
 
-    await waitFor(() => expect(screen.queryByRole("dialog", { name: "知识树" })).not.toBeInTheDocument())
-    expect(await screen.findByText("笔记库 / 理科 · 0 个子节点")).toBeInTheDocument()
+    expect(await screen.findByRole("dialog", { name: "知识树" })).toBeInTheDocument()
+    expect(within(drawer).getByRole("button", { name: "在理科中新建" })).toBeInTheDocument()
+    expect(within(drawer).queryByRole("button", { name: "在笔记库中新建" })).not.toBeInTheDocument()
     expect(screen.queryByRole("button", { name: "新建子文件夹" })).not.toBeInTheDocument()
     expect(screen.queryByRole("button", { name: "新建笔记" })).not.toBeInTheDocument()
   })
 
-  it("closes the phone drawer after selecting a folder or creating its note and opens the matching path and body", async () => {
+  it("keeps the phone tree open for a folder and closes it after creating a note", async () => {
     usePhoneViewport()
     const folder = await createFolder(db, { title: "课程", parentId: null }, 1)
     const user = userEvent.setup()
     renderWorkspace()
 
     await user.click(screen.getByRole("button", { name: "知识树" }))
-    await user.click(within(await screen.findByRole("dialog", { name: "知识树" })).getByRole("button", { name: "课程" }))
-    await waitFor(() => expect(screen.queryByRole("dialog", { name: "知识树" })).not.toBeInTheDocument())
-    expect(await screen.findByText("笔记库 / 课程 · 0 个子节点")).toBeInTheDocument()
-
-    await user.click(screen.getByRole("button", { name: "知识树" }))
     const drawer = await screen.findByRole("dialog", { name: "知识树" })
+    await user.click(within(drawer).getByRole("button", { name: "课程" }))
+    expect(drawer).toBeInTheDocument()
+    expect(within(drawer).getByRole("button", { name: "在课程中新建" })).toBeInTheDocument()
+
     await user.click(within(drawer).getByRole("button", { name: "在课程中新建" }))
     await user.click(within(drawer).getByRole("menuitem", { name: "新建笔记" }))
     expect(within(drawer).getByRole("group", { name: "笔记名称，位置：笔记库 / 课程" })).toBeInTheDocument()

@@ -216,7 +216,7 @@ export function NotesWorkspace({ db, services }: NotesWorkspaceProps) {
     if (node.type === "note") next.set("note", node.id)
     else next.delete("note")
     setParams(next, { state: node.type === "folder" ? { selectedFolderId: node.id } satisfies NotesLocationState : null })
-    setDrawerOpen(false)
+    if (node.type === "note") setDrawerOpen(false)
   }
 
   async function selectArea(nextArea: Area) {
@@ -301,6 +301,7 @@ export function NotesWorkspace({ db, services }: NotesWorkspaceProps) {
 
   async function commitNodeTitle(title: string) {
     if (!nodeEditor) return
+    const keepDrawerOpen = nodeEditor.mode === "create" && nodeEditor.type === "folder"
     if (nodeEditor.mode === "rename") {
       const renamed = await api.renameNode(db, nodeEditor.node.id, title, Date.now())
       setFocusTreeNodeId(renamed.id)
@@ -320,7 +321,7 @@ export function NotesWorkspace({ db, services }: NotesWorkspaceProps) {
       setFocusTreeNodeId(created.id)
     }
     setNodeEditor(null)
-    setDrawerOpen(false)
+    if (!keepDrawerOpen) setDrawerOpen(false)
   }
 
   async function doMove(parentId: string | null) {

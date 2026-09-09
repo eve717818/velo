@@ -52,10 +52,9 @@ function Branch({ node, childrenByParent, visited, selectedId, expandedIds, edit
   const renaming = editing?.mode === "rename" && editing.node.id === node.id
   const showCreate = node.type === "folder" && selectedId === node.id && onCreate !== undefined
   return <li>
-    <div className={`${styles.treeRow} ${showCreate ? styles.treeRowWithAction : ""}`}>
+    <div className={styles.treeRow}>
       {expandable ? <button aria-controls={childrenId} aria-expanded={expanded} aria-label={`${expanded ? "收起" : "展开"}${node.title}`} className={styles.treeToggle} onClick={() => void onToggle(node.id)} type="button">{expanded ? <ChevronDown aria-hidden="true" size={16} /> : <ChevronRight aria-hidden="true" size={16} />}</button> : <span className={styles.treeTogglePlaceholder} />}
-      {renaming ? <div aria-label={`${editorLabel(editing)}，位置：${editing.parentPath}`} className={styles.treeEditGroup} role="group"><span>位置：{editing.parentPath}</span><TreeNodeEditor ariaLabel={editorLabel(editing)} initialValue={node.title} onCancel={onCancelEdit} onCommit={onCommitEdit} /></div> : <button aria-current={selectedId === node.id ? "page" : undefined} aria-label={node.type === "folder" ? node.title : `打开笔记：${node.title}`} className={styles.treeNode} onClick={() => void onSelect(node)} ref={(element) => { if (element) nodeRefs.current.set(node.id, element); else nodeRefs.current.delete(node.id) }} type="button"><NodeIcon aria-hidden="true" size={16} /><span className={styles.treeLabel}>{node.title}</span></button>}
-      {showCreate ? <NewKnowledgeNodeMenu containerTitle={node.title} onSelect={onCreate} parentId={node.id} /> : null}
+      {renaming ? <div aria-label={`${editorLabel(editing)}，位置：${editing.parentPath}`} className={styles.treeEditGroup} role="group"><span>位置：{editing.parentPath}</span><TreeNodeEditor ariaLabel={editorLabel(editing)} initialValue={node.title} onCancel={onCancelEdit} onCommit={onCommitEdit} /></div> : <div className={styles.treeNodeGroup}><button aria-current={selectedId === node.id ? "page" : undefined} aria-label={node.type === "folder" ? node.title : `打开笔记：${node.title}`} className={styles.treeNode} onClick={() => void onSelect(node)} ref={(element) => { if (element) nodeRefs.current.set(node.id, element); else nodeRefs.current.delete(node.id) }} type="button"><NodeIcon aria-hidden="true" size={16} /><span className={styles.treeLabel}>{node.title}</span></button>{showCreate ? <NewKnowledgeNodeMenu containerTitle={node.title} onSelect={onCreate} parentId={node.id} siblingParentId={node.parentId} /> : null}</div>}
     </div>
     {(children.length || temporaryChild) ? <ul className={styles.treeChildren} hidden={!expanded} id={childrenId}>
       {children.map((child) => <Branch key={child.id} {...{ childrenByParent, editing, expandedIds, focusNodeId: _focusNodeId, node: child, nodeRefs, nodes: [], onCancelEdit, onCommitEdit, onCreate, onSelect, onToggle, selectedId, visited: nextVisited }} />)}
@@ -86,10 +85,9 @@ export function NoteTree({ nodes, selectedId, expandedIds, editing, focusNodeId,
   if (!roots.length && !temporaryRoot && !onSelectRoot) return <p className={styles.treeEmptyMessage}>这里还没有已删除项目。</p>
   return <ul className={styles.treeList}>
     {onSelectRoot ? <li className={styles.treeRootItem}>
-      <div className={`${styles.treeRow} ${selectedId === null ? styles.treeRowWithAction : ""}`}>
+      <div className={styles.treeRow}>
         <span className={styles.treeTogglePlaceholder} />
-        <button aria-current={selectedId === null ? "page" : undefined} className={styles.treeNode} onClick={() => void onSelectRoot()} type="button"><FolderOpen aria-hidden="true" size={16} /><span className={styles.treeLabel}>笔记库</span></button>
-        {selectedId === null && onCreate ? <NewKnowledgeNodeMenu containerTitle="笔记库" onSelect={onCreate} parentId={null} /> : null}
+        <div className={styles.treeNodeGroup}><button aria-current={selectedId === null ? "page" : undefined} className={styles.treeNode} onClick={() => void onSelectRoot()} type="button"><FolderOpen aria-hidden="true" size={16} /><span className={styles.treeLabel}>笔记库</span></button>{selectedId === null && onCreate ? <NewKnowledgeNodeMenu containerTitle="笔记库" onSelect={onCreate} parentId={null} /> : null}</div>
       </div>
       {!roots.length && !temporaryRoot ? <p className={styles.treeEmptyMessage}>知识树还是空的，请从笔记库开始建立。</p> : null}
     </li> : null}

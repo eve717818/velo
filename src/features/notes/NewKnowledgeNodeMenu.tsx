@@ -10,10 +10,11 @@ export type NewKnowledgeNodeSelection = {
 interface NewKnowledgeNodeMenuProps {
   containerTitle: string
   parentId?: string | null
+  siblingParentId?: string | null
   onSelect: (selection: NewKnowledgeNodeSelection, returnFocusTo: HTMLButtonElement | null) => void | Promise<boolean>
 }
 
-export function NewKnowledgeNodeMenu({ containerTitle, parentId = null, onSelect }: NewKnowledgeNodeMenuProps) {
+export function NewKnowledgeNodeMenu({ containerTitle, parentId = null, siblingParentId, onSelect }: NewKnowledgeNodeMenuProps) {
   const [open, setOpen] = useState(false)
   const triggerRef = useRef<HTMLButtonElement>(null)
 
@@ -29,8 +30,8 @@ export function NewKnowledgeNodeMenu({ containerTitle, parentId = null, onSelect
     return () => document.removeEventListener("keydown", onKeyDown)
   }, [open])
 
-  async function choose(type: NewKnowledgeNodeSelection["type"]) {
-    const started = await onSelect({ type, parentId }, triggerRef.current)
+  async function choose(type: NewKnowledgeNodeSelection["type"], targetParentId = parentId) {
+    const started = await onSelect({ type, parentId: targetParentId }, triggerRef.current)
     if (started !== false) setOpen(false)
   }
 
@@ -41,7 +42,10 @@ export function NewKnowledgeNodeMenu({ containerTitle, parentId = null, onSelect
       </button>
       {open ? (
         <div aria-label="新建节点" className={styles.newNodeMenuPopup} role="menu">
-          <button onClick={() => void choose("folder")} role="menuitem" type="button"><FolderPlus aria-hidden="true" />新建文件夹</button>
+          {siblingParentId === undefined ? <button onClick={() => void choose("folder")} role="menuitem" type="button"><FolderPlus aria-hidden="true" />新建文件夹</button> : <>
+            <button onClick={() => void choose("folder", siblingParentId)} role="menuitem" type="button"><FolderPlus aria-hidden="true" />新建同级文件夹</button>
+            <button onClick={() => void choose("folder")} role="menuitem" type="button"><FolderPlus aria-hidden="true" />新建下一级文件夹</button>
+          </>}
           <button onClick={() => void choose("note")} role="menuitem" type="button"><NotebookPen aria-hidden="true" />新建笔记</button>
         </div>
       ) : null}

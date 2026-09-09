@@ -307,7 +307,6 @@
   grid-template-columns: 44px minmax(0, 1fr);
   min-height: 44px;
 }
-.treeRowWithAction { grid-template-columns: 44px minmax(0, 1fr) 44px; }
 .treeRootItem { margin-bottom: 6px; }
 .treeToggle {
   background: transparent;
@@ -318,6 +317,11 @@
   padding: 0;
 }
 .treeTogglePlaceholder { display: block; width: 44px; }
+.treeNodeGroup {
+  align-items: center;
+  display: flex;
+  min-width: 0;
+}
 .treeNode {
   background: transparent;
   border: 0;
@@ -328,6 +332,8 @@
   text-align: left;
   width: 100%;
 }
+.treeNodeGroup .treeNode { flex: 0 1 auto; width: auto; }
+.treeNodeGroup .contextualCreateButton { flex: 0 0 44px; margin-left: 2px; }
 .treeNode svg { flex: 0 0 auto; }
 .treeLabel {
   min-width: 0;
@@ -335,7 +341,7 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.treeNode[aria-current="page"] { background: #f1e8f0; color: #751460; }
+.treeNode[aria-current="page"] { background: transparent; color: #751460; font-weight: 760; }
 .treeEmpty { align-items: flex-start; display: flex; flex-direction: column; gap: 8px; margin: 8px; }
 .treeEmpty p,.treeEmptyMessage { color: var(--color-text-muted); font-size: .78rem; margin: 4px 8px 10px 52px; }
 .treeEmpty button {
