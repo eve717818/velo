@@ -1,6 +1,6 @@
 import { formatLocalDate } from "../lib/local-date"
 import { createId } from "../lib/create-id"
-import type { KnowledgeNode, NoteDocument, PlanTask } from "./types"
+import type { PlanTask } from "./types"
 import { type VeloDB } from "./velo-db"
 
 const HOME_DEMO_SEED_KEY = "homeDemoSeed"
@@ -31,8 +31,6 @@ export async function seedHomeDemo(db: VeloDB, now: Date): Promise<void> {
       return
     }
 
-    const nodeId = createId()
-    const noteId = createId()
     const tasks: PlanTask[] = [
       {
         id: createId(),
@@ -85,28 +83,7 @@ export async function seedHomeDemo(db: VeloDB, now: Date): Promise<void> {
         updatedAt: timestamp,
       },
     ]
-    const node: KnowledgeNode = {
-      id: nodeId,
-      parentId: null,
-      type: "note",
-      title: "线性代数：矩阵的秩",
-      order: 1,
-      createdAt: timestamp,
-      updatedAt: timestamp,
-    }
-    const note: NoteDocument = {
-      id: noteId,
-      nodeId,
-      title: "线性代数：矩阵的秩",
-      content: { type: "doc", content: [] },
-      plainText: "矩阵的秩",
-      createdAt: timestamp,
-      updatedAt: timestamp,
-    }
-
     await db.planTasks.bulkAdd(tasks)
-    await db.knowledgeNodes.add(node)
-    await db.notes.add(note)
     await db.appMeta.put({
       key: HOME_DEMO_SEED_KEY,
       value: `${HOME_DEMO_SEED_VERSION}:applied`,

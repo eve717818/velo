@@ -9,7 +9,6 @@ interface NoteActionsDialogProps {
   onMove: (parentId: string | null) => void | Promise<void>
   onRename: () => boolean | void | Promise<boolean | void>
   onRequestClose: () => void
-  onRequestTrash: () => void
   open: boolean
   returnFocusTo?: HTMLElement | null
 }
@@ -85,7 +84,6 @@ function ActionSheet({ titleId, ...props }: NoteActionsDialogProps & { titleId: 
             <button className={styles.moveButton} onClick={() => void confirmMove()} type="button">确认移动</button>
           </>
         ) : null}
-        <button className={styles.trashButton} onClick={props.onRequestTrash} type="button">移到回收站</button>
       </section>
   )
 }

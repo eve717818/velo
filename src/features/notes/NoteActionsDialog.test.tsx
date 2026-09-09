@@ -11,7 +11,7 @@ describe("NoteActionsDialog", () => {
   it("resets the move chooser after switching the selected node", async () => {
     const user = userEvent.setup()
     const onMove = vi.fn()
-    const common = { onAdd: vi.fn(), onRename: vi.fn(), onRequestClose: vi.fn(), onRequestTrash: vi.fn(), open: true }
+    const common = { onAdd: vi.fn(), onRename: vi.fn(), onRequestClose: vi.fn(), open: true }
     const { rerender } = render(<NoteActionsDialog {...common} node={source} nodes={[source, target]} onMove={onMove} />)
 
     await user.click(screen.getByRole("button", { name: "移动" }))
@@ -25,7 +25,7 @@ describe("NoteActionsDialog", () => {
   it("does not submit a destination that became illegal while the dialog stayed open", async () => {
     const user = userEvent.setup()
     const onMove = vi.fn()
-    const common = { onAdd: vi.fn(), onRename: vi.fn(), onRequestClose: vi.fn(), onRequestTrash: vi.fn(), open: true }
+    const common = { onAdd: vi.fn(), onRename: vi.fn(), onRequestClose: vi.fn(), open: true }
     const { rerender } = render(<NoteActionsDialog {...common} node={source} nodes={[source, target]} onMove={onMove} />)
 
     await user.click(screen.getByRole("button", { name: "移动" }))
@@ -39,7 +39,7 @@ describe("NoteActionsDialog", () => {
 
   it("resets move state when the same node dialog closes and reopens", async () => {
     const user = userEvent.setup()
-    const common = { onAdd: vi.fn(), onMove: vi.fn(), onRename: vi.fn(), onRequestClose: vi.fn(), onRequestTrash: vi.fn() }
+    const common = { onAdd: vi.fn(), onMove: vi.fn(), onRename: vi.fn(), onRequestClose: vi.fn() }
     const { rerender } = render(<NoteActionsDialog {...common} node={source} nodes={[source, target]} open />)
 
     await user.click(screen.getByRole("button", { name: "移动" }))
@@ -50,5 +50,11 @@ describe("NoteActionsDialog", () => {
     await user.click(screen.getByRole("button", { name: "移动" }))
     expect(screen.getByRole("combobox", { name: "移动到目录" })).toHaveValue("")
     expect(screen.queryByRole("alert")).not.toBeInTheDocument()
+  })
+
+  it("does not offer a recycle-bin action", () => {
+    render(<NoteActionsDialog node={source} nodes={[source, target]} onMove={vi.fn()} onRename={vi.fn()} onRequestClose={vi.fn()} open />)
+
+    expect(screen.queryByRole("button", { name: "移到回收站" })).not.toBeInTheDocument()
   })
 })

@@ -65,7 +65,8 @@ describe("HomePage", () => {
         expect(screen.getByRole("heading", { name: headingName }).closest("[data-bento-card]")).not.toBeNull()
       }
       expect(screen.getByText("高等数学 · 导数复习")).toBeInTheDocument()
-      expect(screen.getByText("线性代数：矩阵的秩")).toBeInTheDocument()
+      expect(screen.getByText("还没有笔记")).toBeInTheDocument()
+      expect(screen.queryByText("线性代数：矩阵的秩")).not.toBeInTheDocument()
       expect(screen.getByRole("link", { name: "新建笔记" })).toHaveAttribute("href", "/notes?new=1")
       expect(screen.getByRole("link", { name: "拍照录入" })).toHaveAttribute("href", "/notes?capture=1")
       expect(screen.getByRole("link", { name: "开始专注" })).toHaveAttribute("href", "/focus?start=1")

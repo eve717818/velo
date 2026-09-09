@@ -309,13 +309,14 @@ describe("VeloDB and seedHomeDemo", () => {
     })
   })
 
-  it("seeds the deterministic home demo into a fresh database", async () => {
+  it("seeds the deterministic plan demo without inserting a sample knowledge-tree row", async () => {
     await withDatabase(async (db) => {
       await seedHomeDemo(db, seedDate)
 
       expect(await db.planTasks.where("[scope+periodKey]").equals(["day", "2026-08-25"]).count()).toBe(5)
       expect(await db.planTasks.where("isCompleted").equals(1).count()).toBe(3)
-      expect(await db.notes.orderBy("updatedAt").last()).toMatchObject({ title: "线性代数：矩阵的秩" })
+      expect(await db.knowledgeNodes.count()).toBe(0)
+      expect(await db.notes.count()).toBe(0)
       expect(await db.appMeta.get("homeDemoSeed")).toMatchObject({ key: "homeDemoSeed", value: "v1:applied" })
     })
   })
@@ -326,8 +327,8 @@ describe("VeloDB and seedHomeDemo", () => {
       await seedHomeDemo(db, seedDate)
 
       expect(await db.planTasks.count()).toBe(5)
-      expect(await db.knowledgeNodes.count()).toBe(1)
-      expect(await db.notes.count()).toBe(1)
+      expect(await db.knowledgeNodes.count()).toBe(0)
+      expect(await db.notes.count()).toBe(0)
       expect(await db.appMeta.get("homeDemoSeed")).toMatchObject({ value: "v1:applied" })
     })
   })

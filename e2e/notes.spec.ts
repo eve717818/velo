@@ -176,7 +176,7 @@ async function endComposition(locator: Locator, value: string) {
   }, value)
 }
 
-test("knowledge tree creates folders and notes, persists, moves, and restores a subtree", async ({ page }) => {
+test("knowledge tree creates folders and notes, persists, and moves without a recycle bin", async ({ page }) => {
   await page.setViewportSize({ width: 1024, height: 900 })
   await finishOnboarding(page)
   const knowledgeTree = page.getByRole("complementary", { name: "知识树" })
@@ -210,11 +210,12 @@ test("knowledge tree creates folders and notes, persists, moves, and restores a 
   await actions.getByLabel("移动到目录").selectOption({ label: "物理" })
   await actions.getByRole("button", { name: "确认移动" }).click()
   await page.getByRole("button", { name: "节点操作：数学" }).click()
-  await page.getByRole("dialog", { name: "数学" }).getByRole("button", { name: "移到回收站" }).click()
-  await page.getByRole("dialog", { name: "移到回收站？" }).getByRole("button", { name: "确认移到回收站" }).click()
-  await page.getByRole("button", { name: "恢复文件夹" }).click()
-  const restored = await readNotesStore(page)
-  expect(restored.nodes.find((node) => node.title === "数学")?.deletedAt).toBeUndefined()
+  await expect(page.getByRole("dialog", { name: "数学" }).getByRole("button", { name: "移到回收站" })).toHaveCount(0)
+  await expect(knowledgeTree.getByRole("button", { name: "回收站" })).toHaveCount(0)
+  const stored = await readNotesStore(page)
+  const mathematics = stored.nodes.find((node) => node.title === "数学")
+  const physics = stored.nodes.find((node) => node.title === "物理")
+  expect(mathematics?.parentId).toBe(physics?.id)
 })
 
 test("notes primary state is accessible and keyboard focus is visible", async ({ page }) => {
@@ -483,10 +484,8 @@ test("Daily Inspiration and the knowledge tree fit real phone and tablet viewpor
       await expect(directory).toBeVisible()
     }
     const root = directory.getByRole("button", { name: "笔记库", exact: true })
-    const trash = directory.getByRole("button", { name: "回收站", exact: true })
-    expect((await bounds(root)).y).toBeLessThan((await bounds(trash)).y)
     await expectTouchTarget(root, size)
-    await expectTouchTarget(trash, size)
+    await expect(directory.getByRole("button", { name: "回收站", exact: true })).toHaveCount(0)
 
     await testInfo.attach(`daily-layout-${size.width}.json`, {
       body: Buffer.from(JSON.stringify({ calendar: calendarBox, paper: paperBox, viewport: size }, null, 2)),
@@ -536,6 +535,11 @@ test("phone knowledge tree keeps folder creation visible and offers sibling or c
   expect(plusBox.x).toBeGreaterThanOrEqual(mathematicsBox.x + mathematicsBox.width - 1)
   expect(plusBox.x - (mathematicsBox.x + mathematicsBox.width)).toBeLessThanOrEqual(8)
   await expect(mathematics).toHaveCSS("background-color", "rgba(0, 0, 0, 0)")
+  await expect(mathematicsPlus).toHaveCSS("background-color", "rgba(0, 0, 0, 0)")
+  await expect(mathematicsPlus).toHaveCSS("border-top-width", "0px")
+  const mathematicsLabelBox = await bounds(mathematics.locator("span"))
+  const plusIconBox = await bounds(mathematicsPlus.locator("svg"))
+  expect(plusIconBox.x - (mathematicsLabelBox.x + mathematicsLabelBox.width)).toBeLessThanOrEqual(6)
 
   await mathematicsPlus.click()
   await page.getByRole("menuitem", { name: "新建同级文件夹" }).click()

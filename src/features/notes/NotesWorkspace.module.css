@@ -184,8 +184,8 @@
 .workspaceTabs { background: #f3f1f4; border: 1px solid var(--color-border); border-radius: 16px; padding: 3px; }
 .workspaceTabs button { background: transparent; border: 0; color: var(--color-text-muted); padding: 0 14px; }
 .workspaceTabs button[aria-pressed="true"] { background: var(--color-brand); box-shadow: 0 4px 12px rgb(144 29 120 / 18%); color: white; }
-.contextualCreateButton { background: #f7eef5; border: 1px solid rgb(144 29 120 / 22%); color: #751460; min-width: 44px; padding: 0; }
-.contextualCreateButton[aria-expanded="true"] { background: var(--color-brand); color: white; }
+.contextualCreateButton { background: transparent; border: 0; color: #751460; justify-content: flex-start; min-width: 32px; padding: 0 4px; }
+.contextualCreateButton[aria-expanded="true"] { background: transparent; color: var(--color-brand); }
 .contextualCreateButton svg { height: 18px; width: 18px; }
 
 .workspaceMessage {
@@ -328,12 +328,12 @@
   color: var(--color-text);
   justify-content: flex-start;
   min-width: 0;
-  padding: 0 8px;
+  padding: 0 2px 0 8px;
   text-align: left;
   width: 100%;
 }
 .treeNodeGroup .treeNode { flex: 0 1 auto; width: auto; }
-.treeNodeGroup .contextualCreateButton { flex: 0 0 44px; margin-left: 2px; }
+.treeNodeGroup .contextualCreateButton { flex: 0 0 32px; margin-left: 0; }
 .treeNode svg { flex: 0 0 auto; }
 .treeLabel {
   min-width: 0;

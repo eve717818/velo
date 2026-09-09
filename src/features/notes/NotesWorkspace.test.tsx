@@ -92,16 +92,16 @@ describe("NotesWorkspace", () => {
     expect(screen.queryByRole("button", { name: /中新建$/ })).not.toBeInTheDocument()
   })
 
-  it("orders the fixed entries around the knowledge tree and offers a useful empty-tree action", async () => {
+  it("shows a focused knowledge tree without a recycle bin and offers a useful empty-tree action", async () => {
     renderWorkspace()
 
     const directory = screen.getByRole("complementary", { name: "知识树" })
     const knowledgeTree = screen.getByRole("button", { name: "知识树" })
     const daily = screen.getByRole("button", { name: "每日灵感" })
     const tree = within(directory).getByRole("button", { name: "笔记库" })
-    const trash = within(directory).getByRole("button", { name: "回收站" })
     expect(knowledgeTree.compareDocumentPosition(daily) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
-    expect(tree.compareDocumentPosition(trash) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    expect(tree).toBeInTheDocument()
+    expect(within(directory).queryByRole("button", { name: "回收站" })).not.toBeInTheDocument()
     expect(within(directory).getByText("知识树还是空的，请从笔记库开始建立。")).toBeInTheDocument()
 
     const user = userEvent.setup()
@@ -531,7 +531,7 @@ describe("NotesWorkspace", () => {
     expect(await screen.findByRole("heading", { name: "历史目录" })).toBeInTheDocument()
   })
 
-  it("does not show a live folder when history state belongs to the trash area", async () => {
+  it("normalizes a legacy trash URL to the live knowledge tree", async () => {
     const folder = await createFolder(db, { title: "仅在全部笔记", parentId: null }, 1)
     render(
       <MemoryRouter initialEntries={[{ pathname: "/notes", search: "?area=trash", state: { selectedFolderId: folder.id } }]}>
@@ -539,20 +539,20 @@ describe("NotesWorkspace", () => {
       </MemoryRouter>,
     )
 
-    expect(screen.queryByRole("heading", { name: folder.title })).not.toBeInTheDocument()
-    expect(screen.queryByRole("button", { name: "节点操作：仅在全部笔记" })).not.toBeInTheDocument()
+    expect(await screen.findByRole("heading", { name: folder.title })).toBeInTheDocument()
+    expect(screen.getByRole("button", { name: "节点操作：仅在全部笔记" })).toBeInTheDocument()
+    expect(screen.queryByRole("button", { name: "回收站" })).not.toBeInTheDocument()
   })
 
-  it("lists deleted nodes in the trash tree so they remain browsable and recoverable", async () => {
+  it("keeps previously deleted nodes hidden when opening a legacy trash URL", async () => {
     const note = await createNote(db, { title: "待恢复笔记", parentId: null }, 1)
     await db.knowledgeNodes.update(note.id, { deletedAt: 2, updatedAt: 2 })
     renderWorkspace({ initialEntry: "/notes?area=trash" })
 
     const directory = screen.getByRole("complementary", { name: "知识树" })
-    await userEvent.setup().click(await within(directory).findByRole("button", { name: "打开笔记：待恢复笔记" }))
-
-    expect(await screen.findByRole("heading", { name: "待恢复笔记" })).toBeInTheDocument()
-    expect(screen.getByRole("button", { name: "恢复笔记" })).toBeInTheDocument()
+    expect(within(directory).queryByRole("button", { name: "打开笔记：待恢复笔记" })).not.toBeInTheDocument()
+    expect(within(directory).getByRole("button", { name: "笔记库" })).toBeInTheDocument()
+    expect(screen.queryByRole("button", { name: "恢复笔记" })).not.toBeInTheDocument()
   })
 
   it("renders title entry in the tree while retaining the selected folder panel", async () => {
@@ -708,7 +708,7 @@ describe("NotesWorkspace", () => {
     expect((await db.knowledgeNodes.get(second.id))?.title).toBe("重复")
   })
 
-  it("moves folders only to live folders outside their own subtree and restores a trashed group", async () => {
+  it("moves folders only to live folders outside their own subtree without offering a recycle bin", async () => {
     const source = await createFolder(db, { title: "数学", parentId: null }, 1)
     const child = await createFolder(db, { title: "导数", parentId: source.id }, 2)
     await createNote(db, { title: "极限", parentId: child.id }, 3)
@@ -731,12 +731,9 @@ describe("NotesWorkspace", () => {
     expect((await db.knowledgeNodes.get(source.id))?.parentId).toBe(target.id)
 
     await user.click(await screen.findByRole("button", { name: "节点操作：数学" }))
-    await user.click(screen.getByRole("button", { name: "移到回收站" }))
-    expect(screen.getByText("文件夹内的子文件夹和笔记会一起进入回收站，可随时恢复。")).toBeInTheDocument()
-    await user.click(screen.getByRole("button", { name: "确认移到回收站" }))
-    await user.click(await screen.findByRole("button", { name: "恢复文件夹" }))
-    await waitFor(async () => expect((await db.knowledgeNodes.get(source.id))?.deletedAt).toBeUndefined())
-    await waitFor(async () => expect((await db.knowledgeNodes.get(child.id))?.deletedAt).toBeUndefined())
+    expect(screen.queryByRole("button", { name: "移到回收站" })).not.toBeInTheDocument()
+    expect((await db.knowledgeNodes.get(source.id))?.parentId).toBe(target.id)
+    expect((await db.knowledgeNodes.get(child.id))?.parentId).toBe(source.id)
   })
 
   it("exports the latest saved subtree as Markdown", async () => {

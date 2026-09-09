@@ -14,7 +14,8 @@ for (const width of widths) {
     await page.goto("/")
 
     await expect(page.getByText("高等数学 · 导数复习")).toBeVisible()
-    await expect(page.getByText("线性代数：矩阵的秩")).toBeVisible()
+    await expect(page.getByText("还没有笔记")).toBeVisible()
+    await expect(page.getByText("线性代数：矩阵的秩")).toHaveCount(0)
     await expect(page.getByRole("region", { name: "今日学习工作台" })).toHaveAttribute("data-layout", "bento")
     expect(
       await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth),
