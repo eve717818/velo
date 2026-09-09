@@ -110,6 +110,12 @@ describe("NotesWorkspace", () => {
     expect(within(directory).getByRole("group", { name: "文件夹名称，位置：笔记库" })).toBeInTheDocument()
   })
 
+  it("explains that the inline plus saves a newly created tree item", () => {
+    renderWorkspace()
+
+    expect(screen.getByText("在知识树中选择笔记库或文件夹，再点击旁边的＋开始建立，创建后点击旁边的＋可保存。")).toBeInTheDocument()
+  })
+
   it("normalizes an invalid Daily Inspiration URL to today without creating data or retaining node selection", async () => {
     const folder = await createFolder(db, { title: "不应保留", parentId: null }, 1)
     const note = await createNote(db, { title: "也不应保留", parentId: folder.id }, 2)
@@ -601,6 +607,19 @@ describe("NotesWorkspace", () => {
 
     const input = within(drawer).getByRole("textbox", { name: "文件夹名称" })
     await waitFor(() => expect(input).toHaveFocus())
+  })
+
+  it("opens the knowledge tree from the note toolbar on a phone", async () => {
+    usePhoneViewport()
+    const folder = await createFolder(db, { title: "数学", parentId: null }, 1)
+    const note = await createNote(db, { title: "矩阵", parentId: folder.id }, 2)
+    const user = userEvent.setup()
+    renderWorkspace({ initialEntry: `/notes?note=${note.id}` })
+
+    await user.click(await screen.findByRole("button", { name: "返回知识树" }))
+
+    const drawer = await screen.findByRole("dialog", { name: "知识树" })
+    expect(within(drawer).getByRole("button", { name: "打开笔记：矩阵" })).toHaveAttribute("aria-current", "page")
   })
 
   it("restores a hidden desktop sidebar before opening a tree editor", async () => {

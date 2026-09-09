@@ -37,7 +37,7 @@ export function NewKnowledgeNodeMenu({ containerTitle, parentId = null, siblingP
   }
 
   return (
-    <div className={styles.newNodeMenu}>
+    <div className={open ? `${styles.newNodeMenu} ${styles.newNodeMenuOpen}` : styles.newNodeMenu}>
       <button aria-expanded={createsRootFolderDirectly ? undefined : open} aria-haspopup={createsRootFolderDirectly ? undefined : "menu"} aria-label={createsRootFolderDirectly ? `在${containerTitle}中新建文件夹` : `在${containerTitle}中新建`} className={styles.contextualCreateButton} onClick={() => createsRootFolderDirectly ? void choose("folder") : setOpen((value) => !value)} ref={triggerRef} type="button">
         <Plus aria-hidden="true" />
       </button>

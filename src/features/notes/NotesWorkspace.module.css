@@ -434,6 +434,26 @@
   min-height: 62px;
   padding: 8px 14px 8px 20px;
 }
+.noteToolbarStart {
+  align-items: center;
+  display: flex;
+  gap: 4px;
+  min-width: 0;
+}
+.noteBackButton {
+  align-items: center;
+  background: transparent;
+  border: 0;
+  border-radius: 12px;
+  color: var(--color-text);
+  cursor: pointer;
+  display: inline-flex;
+  flex: 0 0 44px;
+  justify-content: center;
+  min-height: 44px;
+  padding: 0;
+}
+.noteBackButton svg { height: 20px; width: 20px; }
 .breadcrumbs {
   align-items: center;
   display: flex;
@@ -593,8 +613,18 @@
   .workspace { display: block; min-height: calc(100dvh - 230px); }
   .directory,.reopenDirectory { display: none; }
   .contentPane { border-radius: 20px; min-height: calc(100dvh - 230px); }
-  .noteToolbar { align-items: flex-start; padding: 8px 10px 8px 14px; }
+  .noteToolbar { align-items: flex-start; padding: 8px 10px 8px 8px; }
+  .noteToolbarStart { flex: 1 1 auto; }
   .breadcrumbs { padding-top: 4px; }
+  .treeNodeGroup { flex-wrap: wrap; }
+  .newNodeMenuOpen { display: contents; }
+  .newNodeMenuOpen .newNodeMenuPopup {
+    flex: 1 0 100%;
+    margin: 2px 0 6px;
+    min-width: 0;
+    position: static;
+    width: 100%;
+  }
   .noteActions button:first-child { font-size: 0; min-width: 44px; padding: 0; }
   .noteActions button:first-child svg { height: 19px; width: 19px; }
   .editor { padding: 18px 14px 24px; }

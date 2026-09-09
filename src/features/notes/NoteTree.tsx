@@ -37,7 +37,7 @@ function editorLabel(editing: TreeEditState) {
 function TemporaryRow({ editing, onCancelEdit, onCommitEdit }: Pick<NoteTreeProps, "editing" | "onCancelEdit" | "onCommitEdit">) {
   if (!editing || editing.mode !== "create") return null
   const label = editorLabel(editing)
-  return <li className={styles.temporaryTreeRow}><div className={styles.treeRow}><span className={styles.treeTogglePlaceholder} /><div aria-label={`${label}，位置：${editing.parentPath}`} className={styles.treeEditGroup} role="group"><span>位置：{editing.parentPath}</span><TreeNodeEditor ariaLabel={label} initialValue="" onCancel={onCancelEdit} onCommit={onCommitEdit} showSubmitPlus={editing.type === "folder"} /></div></div></li>
+  return <li className={styles.temporaryTreeRow}><div className={styles.treeRow}><span className={styles.treeTogglePlaceholder} /><div aria-label={`${label}，位置：${editing.parentPath}`} className={styles.treeEditGroup} role="group"><span>位置：{editing.parentPath}</span><TreeNodeEditor ariaLabel={label} initialValue="" onCancel={onCancelEdit} onCommit={onCommitEdit} showSubmitPlus /></div></div></li>
 }
 
 function Branch({ node, childrenByParent, visited, selectedId, expandedIds, editing, focusNodeId: _focusNodeId, onCancelEdit, onCommitEdit, onCreate, onSelect, onToggle, nodeRefs }: BranchProps) {

@@ -557,6 +557,15 @@ test("phone knowledge tree keeps folder creation visible and offers sibling or c
   expect(plusIconBox.x - (mathematicsLabelBox.x + mathematicsLabelBox.width)).toBeLessThanOrEqual(6)
 
   await mathematicsPlus.click()
+  const creationMenu = page.getByRole("menu", { name: "新建节点" })
+  await expect(creationMenu).toHaveCSS("position", "static")
+  for (const option of ["新建同级文件夹", "新建下一级文件夹", "新建笔记"]) {
+    await expect(creationMenu.getByRole("menuitem", { name: option })).toBeVisible()
+  }
+  const drawerBox = await bounds(drawer)
+  const menuBox = await bounds(creationMenu)
+  expect(menuBox.x).toBeGreaterThanOrEqual(drawerBox.x)
+  expect(menuBox.x + menuBox.width).toBeLessThanOrEqual(drawerBox.x + drawerBox.width)
   await page.getByRole("menuitem", { name: "新建同级文件夹" }).click()
   await expect(drawer.getByRole("group", { name: "文件夹名称，位置：笔记库 / 专业" })).toBeVisible()
   await drawer.getByRole("textbox", { name: "文件夹名称" }).fill("物理")
@@ -567,10 +576,15 @@ test("phone knowledge tree keeps folder creation visible and offers sibling or c
   await page.getByRole("menuitem", { name: "新建笔记" }).click()
   await expect(drawer.getByRole("group", { name: "笔记名称，位置：笔记库 / 专业 / 物理" })).toBeVisible()
   await drawer.getByRole("textbox", { name: "笔记名称" }).fill("课堂记录")
-  await drawer.getByRole("textbox", { name: "笔记名称" }).press("Enter")
+  await expect(drawer.getByRole("button", { name: "保存笔记名称" })).toBeVisible()
+  await drawer.getByRole("button", { name: "保存笔记名称" }).click()
   await expect(drawer).toBeHidden()
   await expect(page.getByRole("navigation", { name: "当前笔记路径" })).toContainText("笔记库/专业/物理/课堂记录")
   await expect(page.getByLabel("Markdown 正文")).toBeVisible()
+  await expectTouchTarget(page.getByRole("button", { name: "返回知识树" }), { width: 402, height: 695 })
+  await page.getByRole("button", { name: "返回知识树" }).click()
+  await expect(drawer).toBeVisible()
+  await expect(drawer.getByRole("button", { name: "打开笔记：课堂记录" })).toHaveAttribute("aria-current", "page")
 })
 
 test("HTTP preview creates stable IDs without crypto.randomUUID", async ({ page }) => {
