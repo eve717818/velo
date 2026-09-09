@@ -290,7 +290,7 @@
 .treeChildren { list-style: none; margin: 0; padding: 0; }
 .treeChildren {
   border-left: 1px solid rgb(117 20 96 / 18%);
-  margin-left: 12px;
+  margin-left: 16px;
 }
 .treeChildren > li { position: relative; }
 .treeChildren > li::before {
@@ -298,25 +298,25 @@
   content: "";
   left: 0;
   position: absolute;
-  top: 22px;
+  top: 19px;
   width: 8px;
 }
 .treeRow {
   align-items: center;
   display: grid;
-  grid-template-columns: 44px minmax(0, 1fr);
-  min-height: 44px;
+  grid-template-columns: 32px minmax(0, 1fr);
+  min-height: 38px;
 }
-.treeRootItem { margin-bottom: 6px; }
+.treeRootItem { margin-bottom: 2px; }
 .treeToggle {
   background: transparent;
   border: 0;
   border-radius: 9px;
-  min-height: 44px;
-  min-width: 44px;
+  min-height: 38px;
+  min-width: 32px;
   padding: 0;
 }
-.treeTogglePlaceholder { display: block; width: 44px; }
+.treeTogglePlaceholder { display: block; width: 32px; }
 .treeNodeGroup {
   align-items: center;
   display: flex;
@@ -327,13 +327,14 @@
   border: 0;
   color: var(--color-text);
   justify-content: flex-start;
+  min-height: 38px;
   min-width: 0;
   padding: 0 2px 0 8px;
   text-align: left;
   width: 100%;
 }
 .treeNodeGroup .treeNode { flex: 0 1 auto; width: auto; }
-.treeNodeGroup .contextualCreateButton { flex: 0 0 32px; margin-left: 0; }
+.treeNodeGroup .contextualCreateButton { flex: 0 0 32px; margin-left: 0; min-height: 38px; }
 .treeNode svg { flex: 0 0 auto; }
 .treeLabel {
   min-width: 0;
@@ -343,7 +344,7 @@
 }
 .treeNode[aria-current="page"] { background: transparent; color: #751460; font-weight: 760; }
 .treeEmpty { align-items: flex-start; display: flex; flex-direction: column; gap: 8px; margin: 8px; }
-.treeEmpty p,.treeEmptyMessage { color: var(--color-text-muted); font-size: .78rem; margin: 4px 8px 10px 52px; }
+.treeEmpty p,.treeEmptyMessage { color: var(--color-text-muted); font-size: .78rem; margin: 4px 8px 10px 40px; }
 .treeEmpty button {
   align-items: center;
   background: #f5edf4;
@@ -364,17 +365,38 @@
 .treeNodeEditor { display: grid; gap: 7px; width: min(100%, 360px); }
 .treeRow > .treeNodeEditor { grid-column: 2; padding: 4px 8px 8px; width: 100%; }
 .treeEditGroup .treeNodeEditor { width: 100%; }
+.treeNodeEditorControls { align-items: center; display: flex; min-width: 0; }
 .treeNodeEditor input {
-  background: white;
-  border: 1px solid var(--color-border);
-  border-radius: 13px;
+  background: transparent;
+  border: 0;
+  border-bottom: 1px solid rgb(117 20 96 / 28%);
+  border-radius: 0;
   color: var(--color-text);
+  flex: 1 1 auto;
   font: inherit;
   min-height: 44px;
-  padding: 0 12px;
-  width: 100%;
+  min-width: 0;
+  padding: 0 2px;
 }
-.treeNodeEditor input[aria-invalid="true"] { border-color: #a51f46; }
+.treeNodeEditor input[aria-invalid="true"] { border-bottom-color: #a51f46; }
+.page .treeNodeEditor input:focus-visible {
+  border-bottom-color: #4c8aa0;
+  box-shadow: 0 2px 0 #4c8aa0;
+  outline: 0;
+}
+.treeNodeEditorSubmit {
+  align-items: center;
+  background: transparent;
+  border: 0;
+  color: #751460;
+  cursor: pointer;
+  display: inline-flex;
+  flex: 0 0 44px;
+  justify-content: center;
+  min-height: 44px;
+  padding: 0;
+}
+.treeNodeEditorSubmit svg { height: 18px; width: 18px; }
 .treeNodeEditor p { color: #972344; font-size: .78rem; margin: 0; text-align: left; }
 .folderActions { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; }
 .folderActions button { background: white; border: 1px solid var(--color-border); border-radius: 13px; color: var(--color-text); cursor: pointer; font: inherit; font-weight: 710; min-height: 44px; padding: 0 14px; }

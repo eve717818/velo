@@ -28,4 +28,15 @@ describe("TreeNodeEditor", () => {
     expect(await screen.findByRole("alert")).toHaveTextContent("服务暂时不可用")
     expect(input).toHaveValue("新资料")
   })
+
+  it("lets a new folder be saved from the inline plus", async () => {
+    const user = userEvent.setup()
+    const onCommit = vi.fn()
+    render(<TreeNodeEditor ariaLabel="文件夹名称" initialValue="" onCancel={vi.fn()} onCommit={onCommit} showSubmitPlus />)
+
+    await user.type(screen.getByRole("textbox", { name: "文件夹名称" }), "数字媒体艺术")
+    await user.click(screen.getByRole("button", { name: "保存文件夹名称" }))
+
+    expect(onCommit).toHaveBeenCalledWith("数字媒体艺术")
+  })
 })

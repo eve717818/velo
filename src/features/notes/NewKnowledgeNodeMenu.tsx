@@ -17,6 +17,7 @@ interface NewKnowledgeNodeMenuProps {
 export function NewKnowledgeNodeMenu({ containerTitle, parentId = null, siblingParentId, onSelect }: NewKnowledgeNodeMenuProps) {
   const [open, setOpen] = useState(false)
   const triggerRef = useRef<HTMLButtonElement>(null)
+  const createsRootFolderDirectly = siblingParentId === undefined
 
   useEffect(() => {
     if (!open) return
@@ -37,10 +38,10 @@ export function NewKnowledgeNodeMenu({ containerTitle, parentId = null, siblingP
 
   return (
     <div className={styles.newNodeMenu}>
-      <button aria-expanded={open} aria-haspopup="menu" aria-label={`在${containerTitle}中新建`} className={styles.contextualCreateButton} onClick={() => setOpen((value) => !value)} ref={triggerRef} type="button">
+      <button aria-expanded={createsRootFolderDirectly ? undefined : open} aria-haspopup={createsRootFolderDirectly ? undefined : "menu"} aria-label={createsRootFolderDirectly ? `在${containerTitle}中新建文件夹` : `在${containerTitle}中新建`} className={styles.contextualCreateButton} onClick={() => createsRootFolderDirectly ? void choose("folder") : setOpen((value) => !value)} ref={triggerRef} type="button">
         <Plus aria-hidden="true" />
       </button>
-      {open ? (
+      {!createsRootFolderDirectly && open ? (
         <div aria-label="新建节点" className={styles.newNodeMenuPopup} role="menu">
           {siblingParentId === undefined ? <button onClick={() => void choose("folder")} role="menuitem" type="button"><FolderPlus aria-hidden="true" />新建文件夹</button> : <>
             <button onClick={() => void choose("folder", siblingParentId)} role="menuitem" type="button"><FolderPlus aria-hidden="true" />新建同级文件夹</button>

@@ -58,7 +58,10 @@ async function createFromHeader(page: Page) {
     ? page.getByRole("dialog", { name: "知识树" })
     : page.getByRole("complementary", { name: "知识树" })
   await tree.getByRole("button", { name: "笔记库", exact: true }).click()
-  await tree.getByRole("button", { name: "在笔记库中新建" }).click()
+  await tree.getByRole("button", { name: "在笔记库中新建文件夹" }).click()
+  await page.getByRole("textbox", { name: "文件夹名称" }).fill("新笔记目录")
+  await page.getByRole("textbox", { name: "文件夹名称" }).press("Enter")
+  await tree.getByRole("button", { name: "在新笔记目录中新建" }).click()
   await page.getByRole("menuitem", { name: "新建笔记" }).click()
   await page.getByRole("textbox", { name: "笔记名称" }).fill("未命名笔记")
   await page.getByRole("textbox", { name: "笔记名称" }).press("Enter")
@@ -113,12 +116,12 @@ function expectInsideViewport(box: { x: number; y: number; width: number; height
   expect(box.y).toBeLessThan(viewport.height)
 }
 
-async function expectTouchTarget(locator: Locator, viewport: { width: number; height: number }) {
+async function expectTouchTarget(locator: Locator, viewport: { width: number; height: number }, minimumHeight = 44) {
   await expect(locator).toBeVisible()
   const box = await bounds(locator)
   expectInsideViewport(box, viewport)
   expect(box.width).toBeGreaterThanOrEqual(44)
-  expect(box.height).toBeGreaterThanOrEqual(44)
+  expect(box.height).toBeGreaterThanOrEqual(minimumHeight)
   const clipped = await locator.evaluate((element) => ({
     horizontal: element.scrollWidth > element.clientWidth + 1,
     vertical: element.scrollHeight > element.clientHeight + 1,
@@ -180,8 +183,7 @@ test("knowledge tree creates folders and notes, persists, and moves without a re
   await page.setViewportSize({ width: 1024, height: 900 })
   await finishOnboarding(page)
   const knowledgeTree = page.getByRole("complementary", { name: "知识树" })
-  await knowledgeTree.getByRole("button", { name: "在笔记库中新建" }).click()
-  await page.getByRole("menuitem", { name: "新建文件夹" }).click()
+  await knowledgeTree.getByRole("button", { name: "在笔记库中新建文件夹" }).click()
   await page.getByRole("textbox", { name: "文件夹名称" }).fill("数学")
   await page.getByRole("textbox", { name: "文件夹名称" }).press("Enter")
   await knowledgeTree.getByRole("button", { name: "数学", exact: true }).click()
@@ -199,8 +201,7 @@ test("knowledge tree creates folders and notes, persists, and moves without a re
   await expect(page.getByRole("button", { name: "打开笔记：极限与连续" })).toBeVisible()
 
   await knowledgeTree.getByRole("button", { name: "笔记库", exact: true }).click()
-  await knowledgeTree.getByRole("button", { name: "在笔记库中新建" }).click()
-  await page.getByRole("menuitem", { name: "新建文件夹" }).click()
+  await knowledgeTree.getByRole("button", { name: "在笔记库中新建文件夹" }).click()
   await page.getByRole("textbox", { name: "文件夹名称" }).fill("物理")
   await page.getByRole("textbox", { name: "文件夹名称" }).press("Enter")
   await knowledgeTree.getByRole("button", { name: "数学", exact: true }).click()
@@ -287,7 +288,7 @@ test("notes workspace reflows at required widths with large text and reduced mot
       const drawer = page.getByRole("dialog", { name: "知识树" })
       await expect(drawer).toBeVisible()
       const drawerBox = await expectSurfaceNotClipped(drawer, size)
-      const treeBox = await expectTouchTarget(drawer.getByRole("button", { name: "打开笔记：响应式样本" }), size)
+      const treeBox = await expectTouchTarget(drawer.getByRole("button", { name: "打开笔记：响应式样本" }), size, 38)
       expect(treeBox.x).toBeGreaterThanOrEqual(drawerBox.x - 1)
       expect(treeBox.x + treeBox.width).toBeLessThanOrEqual(drawerBox.x + drawerBox.width + 1)
       measurement.tree = treeBox
@@ -301,7 +302,7 @@ test("notes workspace reflows at required widths with large text and reduced mot
     } else {
       const directory = page.getByRole("complementary", { name: "知识树" })
       const directoryBox = await expectSurfaceNotClipped(directory, size)
-      const treeBox = await expectTouchTarget(page.getByRole("button", { name: "打开笔记：响应式样本" }), size)
+      const treeBox = await expectTouchTarget(page.getByRole("button", { name: "打开笔记：响应式样本" }), size, 38)
       expect(directoryBox.x + directoryBox.width).toBeLessThanOrEqual(contentBox.x + 1)
       expect(treeBox.x).toBeGreaterThanOrEqual(directoryBox.x - 1)
       expect(treeBox.x + treeBox.width).toBeLessThanOrEqual(directoryBox.x + directoryBox.width + 1)
@@ -335,14 +336,14 @@ test("notes workspace reflows at required widths with large text and reduced mot
       await trigger.click()
       const drawer = page.getByRole("dialog", { name: "知识树" })
       await expectSurfaceNotClipped(drawer, size)
-      await expectTouchTarget(drawer.getByRole("button", { name: "打开笔记：响应式样本" }), size)
+      await expectTouchTarget(drawer.getByRole("button", { name: "打开笔记：响应式样本" }), size, 38)
       await page.keyboard.press("Escape")
     } else {
       const directory = page.getByRole("complementary", { name: "知识树" })
       const zoomedDirectoryBox = await expectSurfaceNotClipped(directory, size)
       const zoomedContentBox = await bounds(content)
       expect(zoomedDirectoryBox.x + zoomedDirectoryBox.width).toBeLessThanOrEqual(zoomedContentBox.x + 1)
-      await expectTouchTarget(page.getByRole("button", { name: "打开笔记：响应式样本" }), size)
+      await expectTouchTarget(page.getByRole("button", { name: "打开笔记：响应式样本" }), size, 38)
     }
     await page.evaluate(() => { document.documentElement.style.fontSize = "" })
   }
@@ -484,7 +485,7 @@ test("Daily Inspiration and the knowledge tree fit real phone and tablet viewpor
       await expect(directory).toBeVisible()
     }
     const root = directory.getByRole("button", { name: "笔记库", exact: true })
-    await expectTouchTarget(root, size)
+    await expectTouchTarget(root, size, 38)
     await expect(directory.getByRole("button", { name: "回收站", exact: true })).toHaveCount(0)
 
     await testInfo.attach(`daily-layout-${size.width}.json`, {
@@ -513,11 +514,14 @@ test("phone knowledge tree keeps folder creation visible and offers sibling or c
 
   await page.getByRole("button", { name: "知识树", exact: true }).click()
   const drawer = page.getByRole("dialog", { name: "知识树" })
-  await drawer.getByRole("button", { name: "在笔记库中新建" }).click()
-  await page.getByRole("menuitem", { name: "新建文件夹" }).click()
+  await drawer.getByRole("button", { name: "在笔记库中新建文件夹" }).click()
   await expect(drawer.getByRole("group", { name: "文件夹名称，位置：笔记库" })).toBeVisible()
-  await drawer.getByRole("textbox", { name: "文件夹名称" }).fill("专业")
-  await drawer.getByRole("textbox", { name: "文件夹名称" }).press("Enter")
+  const rootFolderInput = drawer.getByRole("textbox", { name: "文件夹名称" })
+  await expect(rootFolderInput).toHaveCSS("border-top-width", "0px")
+  await expect(rootFolderInput).toHaveCSS("border-left-width", "0px")
+  await expect(rootFolderInput).toHaveCSS("outline-style", "none")
+  await rootFolderInput.fill("专业")
+  await drawer.getByRole("button", { name: "保存文件夹名称" }).click()
   await expect(drawer).toBeVisible()
   await drawer.getByRole("button", { name: "在专业中新建" }).click()
   await expect(page.getByRole("menuitem", { name: "新建同级文件夹" })).toBeVisible()
@@ -527,11 +531,22 @@ test("phone knowledge tree keeps folder creation visible and offers sibling or c
   await drawer.getByRole("textbox", { name: "文件夹名称" }).press("Enter")
   await expect(drawer).toBeVisible()
 
+  const professional = drawer.getByRole("button", { name: "专业", exact: true })
+  const professionalToggle = drawer.getByRole("button", { name: "收起专业" })
+  const professionalToggleIcon = await bounds(professionalToggle.locator("svg"))
+  const professionalFolderIcon = await bounds(professional.locator("svg"))
+  const professionalChildren = await bounds(professional.locator("xpath=ancestor::li[1]/ul"))
+  expect((await bounds(professional)).height).toBeLessThanOrEqual(38)
+  expect((await bounds(professionalToggle)).height).toBeLessThanOrEqual(38)
+  expect(Math.abs(professionalChildren.x - (professionalToggleIcon.x + professionalToggleIcon.width / 2))).toBeLessThanOrEqual(1)
+  expect(professionalFolderIcon.x - (professionalToggleIcon.x + professionalToggleIcon.width)).toBeLessThanOrEqual(16)
+
   const mathematics = drawer.getByRole("button", { name: "数学", exact: true })
   const mathematicsPlus = drawer.getByRole("button", { name: "在数学中新建" })
   await expect(mathematicsPlus).toBeVisible()
   const mathematicsBox = await bounds(mathematics)
   const plusBox = await bounds(mathematicsPlus)
+  expect(plusBox.height).toBeLessThanOrEqual(38)
   expect(plusBox.x).toBeGreaterThanOrEqual(mathematicsBox.x + mathematicsBox.width - 1)
   expect(plusBox.x - (mathematicsBox.x + mathematicsBox.width)).toBeLessThanOrEqual(8)
   await expect(mathematics).toHaveCSS("background-color", "rgba(0, 0, 0, 0)")

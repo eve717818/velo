@@ -76,11 +76,11 @@ describe("NotesWorkspace", () => {
     expect(knowledgeTree).toHaveAttribute("aria-pressed", "true")
     expect(daily).toHaveAttribute("aria-pressed", "false")
     expect(screen.queryByRole("button", { name: "新建" })).not.toBeInTheDocument()
-    expect(screen.getByRole("button", { name: "在笔记库中新建" })).toBeInTheDocument()
+    expect(screen.getByRole("button", { name: "在笔记库中新建文件夹" })).toBeInTheDocument()
 
     await user.click(await screen.findByRole("button", { name: "大学数学" }))
     expect(await screen.findByRole("button", { name: "在大学数学中新建" })).toBeInTheDocument()
-    expect(screen.queryByRole("button", { name: "在笔记库中新建" })).not.toBeInTheDocument()
+    expect(screen.queryByRole("button", { name: "在笔记库中新建文件夹" })).not.toBeInTheDocument()
 
     await user.click(screen.getByRole("button", { name: "展开大学数学" }))
     await user.click(screen.getByRole("button", { name: `打开笔记：${note.title}` }))
@@ -105,8 +105,7 @@ describe("NotesWorkspace", () => {
     expect(within(directory).getByText("知识树还是空的，请从笔记库开始建立。")).toBeInTheDocument()
 
     const user = userEvent.setup()
-    await user.click(within(directory).getByRole("button", { name: "在笔记库中新建" }))
-    await user.click(within(directory).getByRole("menuitem", { name: "新建文件夹" }))
+    await user.click(within(directory).getByRole("button", { name: "在笔记库中新建文件夹" }))
     await waitFor(() => expect(within(directory).getByRole("textbox", { name: "文件夹名称" })).toHaveFocus())
     expect(within(directory).getByRole("group", { name: "文件夹名称，位置：笔记库" })).toBeInTheDocument()
   })
@@ -269,13 +268,12 @@ describe("NotesWorkspace", () => {
 
     await user.click(screen.getByRole("button", { name: "知识树" }))
     const drawer = await screen.findByRole("dialog", { name: "知识树" })
-    await user.click(within(drawer).getByRole("button", { name: "在笔记库中新建" }))
-    await user.click(within(drawer).getByRole("menuitem", { name: "新建文件夹" }))
+    await user.click(within(drawer).getByRole("button", { name: "在笔记库中新建文件夹" }))
     await user.type(within(drawer).getByRole("textbox", { name: "文件夹名称" }), "理科{Enter}")
 
     expect(await screen.findByRole("dialog", { name: "知识树" })).toBeInTheDocument()
     expect(within(drawer).getByRole("button", { name: "在理科中新建" })).toBeInTheDocument()
-    expect(within(drawer).queryByRole("button", { name: "在笔记库中新建" })).not.toBeInTheDocument()
+    expect(within(drawer).queryByRole("button", { name: "在笔记库中新建文件夹" })).not.toBeInTheDocument()
     expect(screen.queryByRole("button", { name: "新建子文件夹" })).not.toBeInTheDocument()
     expect(screen.queryByRole("button", { name: "新建笔记" })).not.toBeInTheDocument()
   })
@@ -306,8 +304,7 @@ describe("NotesWorkspace", () => {
     const user = userEvent.setup()
     renderWorkspace()
 
-    await user.click(screen.getByRole("button", { name: "在笔记库中新建" }))
-    await user.click(screen.getByRole("menuitem", { name: "新建文件夹" }))
+    await user.click(screen.getByRole("button", { name: "在笔记库中新建文件夹" }))
     await user.type(screen.getByRole("textbox", { name: "文件夹名称" }), "数学{Enter}")
     await user.click(await screen.findByRole("button", { name: "数学" }))
     await user.click(screen.getByRole("button", { name: "在数学中新建" }))
@@ -450,7 +447,9 @@ describe("NotesWorkspace", () => {
     const user = userEvent.setup()
     renderWorkspace()
 
-    await user.click(screen.getByRole("button", { name: "在笔记库中新建" }))
+    await user.click(screen.getByRole("button", { name: "在笔记库中新建文件夹" }))
+    await user.type(screen.getByRole("textbox", { name: "文件夹名称" }), "课堂笔记{Enter}")
+    await user.click(await screen.findByRole("button", { name: "在课堂笔记中新建" }))
     await user.click(screen.getByRole("menuitem", { name: "新建笔记" }))
     await user.type(screen.getByRole("textbox", { name: "笔记名称" }), "未命名笔记{Enter}")
     const body = await screen.findByLabelText("Markdown 正文")
@@ -491,7 +490,7 @@ describe("NotesWorkspace", () => {
     expect(screen.getByLabelText("Markdown 正文")).toHaveValue("不要丢失")
     expect(screen.queryByRole("textbox", { name: "文件夹名称" })).not.toBeInTheDocument()
     expect(screen.getByText("请先处理当前笔记的保存问题，再切换目录。")).toBeInTheDocument()
-    expect(screen.queryByRole("button", { name: "在笔记库中新建" })).not.toBeInTheDocument()
+    expect(screen.queryByRole("button", { name: "在笔记库中新建文件夹" })).not.toBeInTheDocument()
     await user.click(screen.getByRole("button", { name: "节点操作：未保存笔记" }))
     await user.click(screen.getByRole("button", { name: "重命名" }))
     expect(screen.queryByRole("textbox", { name: "笔记名称" })).not.toBeInTheDocument()
@@ -598,8 +597,7 @@ describe("NotesWorkspace", () => {
 
     await user.click(screen.getByRole("button", { name: "知识树" }))
     const drawer = await screen.findByRole("dialog", { name: "知识树" })
-    await user.click(within(drawer).getByRole("button", { name: "在笔记库中新建" }))
-    await user.click(screen.getByRole("menuitem", { name: "新建文件夹" }))
+    await user.click(within(drawer).getByRole("button", { name: "在笔记库中新建文件夹" }))
 
     const input = within(drawer).getByRole("textbox", { name: "文件夹名称" })
     await waitFor(() => expect(input).toHaveFocus())
@@ -612,8 +610,7 @@ describe("NotesWorkspace", () => {
     await user.click(screen.getByRole("button", { name: "收起知识树" }))
     await user.click(screen.getByRole("button", { name: "知识树" }))
     const directory = await screen.findByRole("complementary", { name: "知识树" })
-    await user.click(within(directory).getByRole("button", { name: "在笔记库中新建" }))
-    await user.click(screen.getByRole("menuitem", { name: "新建文件夹" }))
+    await user.click(within(directory).getByRole("button", { name: "在笔记库中新建文件夹" }))
 
     await waitFor(() => expect(within(directory).getByRole("textbox", { name: "文件夹名称" })).toHaveFocus())
   })
@@ -624,9 +621,8 @@ describe("NotesWorkspace", () => {
     renderWorkspace({ initialEntry: `/notes?note=${note.id}` })
 
     await user.click(await screen.findByRole("button", { name: "笔记库" }))
-    const trigger = screen.getByRole("button", { name: "在笔记库中新建" })
+    const trigger = screen.getByRole("button", { name: "在笔记库中新建文件夹" })
     await user.click(trigger)
-    await user.click(screen.getByRole("menuitem", { name: "新建文件夹" }))
     const input = screen.getByRole("textbox", { name: "文件夹名称" })
     await waitFor(() => expect(input).toHaveFocus())
     await user.keyboard("{Escape}")
