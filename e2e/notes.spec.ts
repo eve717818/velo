@@ -587,6 +587,53 @@ test("phone knowledge tree keeps folder creation visible and offers sibling or c
   await expect(drawer.getByRole("button", { name: "打开笔记：课堂记录" })).toHaveAttribute("aria-current", "page")
 })
 
+test("phone knowledge-tree title strip exports the selected folder as a real PDF", async ({ page }) => {
+  await page.addInitScript(() => {
+    window.localStorage.setItem("velow-notebook:onboarding-complete", "1")
+    Object.defineProperty(Navigator.prototype, "share", { configurable: true, value: undefined })
+    Object.defineProperty(Navigator.prototype, "canShare", { configurable: true, value: undefined })
+  })
+  await page.setViewportSize({ width: 368, height: 694 })
+  await page.goto("/notes")
+  await createFromHeader(page)
+  await editCurrentNote(page, "导数复习", "# 定义\n\n变化率用于描述函数变化。\n\n- 平均变化率\n- 瞬时变化率")
+  await page.getByRole("button", { name: "返回知识树" }).click()
+  const drawer = page.getByRole("dialog", { name: "知识树" })
+  const header = drawer.locator("header")
+  const searchButton = drawer.getByRole("button", { name: "搜索知识树" })
+  const exportButton = drawer.getByRole("button", { name: "导出 PDF" })
+  const closeButton = drawer.getByRole("button", { name: "关闭知识树" })
+  await expect(header).toHaveCSS("border-top-width", "1px")
+  await expect(header).toHaveCSS("border-radius", "14px")
+  await expectTouchTarget(searchButton, { width: 368, height: 694 })
+  await expectTouchTarget(exportButton, { width: 368, height: 694 })
+  const searchBox = await bounds(searchButton)
+  const exportBox = await bounds(exportButton)
+  const closeBox = await bounds(closeButton)
+  expect(searchBox.x + searchBox.width).toBeLessThanOrEqual(exportBox.x + 1)
+  expect(exportBox.x + exportBox.width).toBeLessThanOrEqual(closeBox.x + 1)
+
+  await searchButton.click()
+  await drawer.getByRole("searchbox", { name: "搜索文件夹和笔记" }).fill("变化率")
+  const result = drawer.getByRole("button", { name: "打开搜索结果：导数复习" })
+  await expect(result).toContainText("笔记库 / 新笔记目录 / 导数")
+  await result.click()
+  await expect(drawer).toBeHidden()
+  await page.getByRole("button", { name: "返回知识树" }).click()
+  await drawer.getByRole("button", { name: "新笔记目录", exact: true }).click()
+
+  const downloadPromise = page.waitForEvent("download")
+  await exportButton.click()
+  const download = await downloadPromise
+  expect(download.suggestedFilename()).toBe("新笔记目录.pdf")
+  await mkdir(screenshotDirectory, { recursive: true })
+  const pdfPath = resolve(screenshotDirectory, "notes-folder-export.pdf")
+  await download.saveAs(pdfPath)
+  expect((await readFile(pdfPath)).subarray(0, 5).toString("latin1")).toBe("%PDF-")
+  await expect(page.getByText("新笔记目录.pdf 已保存到浏览器下载。" )).toBeVisible()
+  await page.screenshot({ path: resolve(screenshotDirectory, "notes-pdf-export-mobile.png"), fullPage: true })
+})
+
 test("HTTP preview creates stable IDs without crypto.randomUUID", async ({ page }) => {
   await page.addInitScript(() => {
     window.localStorage.setItem("velow-notebook:onboarding-complete", "1")

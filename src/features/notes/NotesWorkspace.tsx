@@ -1,6 +1,6 @@
 import { useLiveQuery } from "dexie-react-hooks"
-import { ArrowLeft, Download, FolderOpen, Lightbulb, MoreHorizontal, NotebookPen, PanelLeftClose, PanelLeftOpen } from "lucide-react"
-import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react"
+import { ArrowLeft, Download, FileText, Folder, FolderOpen, Lightbulb, MoreHorizontal, NotebookPen, PanelLeftClose, PanelLeftOpen, Search, X } from "lucide-react"
+import { useCallback, useEffect, useId, useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react"
 import { useLocation, useSearchParams } from "react-router-dom"
 import type { KnowledgeNode } from "@/db/types"
 import type { VeloDB } from "@/db/velo-db"
@@ -14,31 +14,29 @@ import type { NewKnowledgeNodeSelection } from "./NewKnowledgeNodeMenu"
 import { loadExpandedFolderIds, saveExpandedFolderIds } from "./tree-expansion"
 import { listDailyInspirationDates, localDateKey, parseLocalDateKey, saveDailyInspiration } from "./daily-inspiration-service"
 import { calendarGrid, type CalendarMonth } from "./daily-inspiration-state"
-import { createFolder, createNote, exportMarkdown, moveNode, renameNode, saveNote } from "./note-service"
+import { createFolder, createNote, moveNode, renameNode, saveNote } from "./note-service"
+import type { exportNotesPdf } from "./pdf-document"
+import { searchKnowledgeTree } from "./knowledge-search"
 import styles from "./NotesWorkspace.module.css"
 
 export interface NoteServiceOverrides {
   createFolder?: typeof createFolder
   createNote?: typeof createNote
-  exportMarkdown?: typeof exportMarkdown
+  exportPdf?: typeof exportNotesPdf
   moveNode?: typeof moveNode
   renameNode?: typeof renameNode
   saveNote?: typeof saveNote
   saveDailyInspiration?: typeof saveDailyInspiration
 }
 
+const defaultExportPdf: typeof exportNotesPdf = async (...args) => {
+  const { exportNotesPdf: exportPdf } = await import("./pdf-document")
+  return exportPdf(...args)
+}
+
 interface NotesWorkspaceProps { db: VeloDB; services?: NoteServiceOverrides }
 type Area = "all" | "daily"
 type NotesLocationState = { selectedFolderId?: string | null }
-
-function downloadMarkdown(filename: string, text: string) {
-  const url = URL.createObjectURL(new Blob([text], { type: "text/markdown;charset=utf-8" }))
-  const anchor = document.createElement("a")
-  anchor.href = url
-  anchor.download = filename
-  anchor.click()
-  URL.revokeObjectURL(url)
-}
 
 function buildBreadcrumbs(nodes: KnowledgeNode[], selected: KnowledgeNode) {
   const byId = new Map(nodes.map((node) => [node.id, node]))
@@ -83,8 +81,28 @@ function nodePath(nodes: KnowledgeNode[], node: KnowledgeNode | null) {
   return ["笔记库", ...(node ? buildBreadcrumbs(nodes, node).map((item) => item.title) : [])].join(" / ")
 }
 
+function hasNoteInScope(nodes: KnowledgeNode[], selectedNodeId: string | null) {
+  const liveNodes = nodes.filter((node) => node.deletedAt === undefined)
+  if (selectedNodeId === null) return liveNodes.some((node) => node.type === "note")
+  const byId = new Map(liveNodes.map((node) => [node.id, node]))
+  const selected = byId.get(selectedNodeId)
+  if (!selected) return false
+  if (selected.type === "note") return true
+  return liveNodes.some((node) => {
+    if (node.type !== "note") return false
+    const visited = new Set<string>()
+    let cursor: KnowledgeNode | undefined = node
+    while (cursor?.parentId && !visited.has(cursor.parentId)) {
+      if (cursor.parentId === selectedNodeId) return true
+      visited.add(cursor.parentId)
+      cursor = byId.get(cursor.parentId)
+    }
+    return false
+  })
+}
+
 export function NotesWorkspace({ db, services }: NotesWorkspaceProps) {
-  const api = useMemo(() => ({ createFolder, createNote, exportMarkdown, moveNode, renameNode, saveNote, saveDailyInspiration, ...services }), [services])
+  const api = useMemo(() => ({ createFolder, createNote, exportPdf: defaultExportPdf, moveNode, renameNode, saveNote, saveDailyInspiration, ...services }), [services])
   const queriedNodes = useLiveQuery(() => db.knowledgeNodes.toArray(), [db])
   const nodes = useMemo(() => queriedNodes ?? [], [queriedNodes])
   const [params, setParams] = useSearchParams()
@@ -112,6 +130,9 @@ export function NotesWorkspace({ db, services }: NotesWorkspaceProps) {
   const [focusTreeNodeId, setFocusTreeNodeId] = useState<string | null>(null)
   const [editorReloadKey, setEditorReloadKey] = useState(0)
   const [message, setMessage] = useState("")
+  const [exportingPdf, setExportingPdf] = useState(false)
+  const [searchOpen, setSearchOpen] = useState(false)
+  const [searchQuery, setSearchQuery] = useState("")
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set())
   const [hasLoadedExpansion, setHasLoadedExpansion] = useState(false)
   const expandedIdsRef = useRef(expandedIds)
@@ -174,6 +195,10 @@ export function NotesWorkspace({ db, services }: NotesWorkspaceProps) {
 
   const liveTreeNodes = useMemo(() => nodes.filter((node) => node.deletedAt === undefined), [nodes])
   const treeNodes = liveTreeNodes
+  const searchResults = useLiveQuery(
+    () => searchOpen && searchQuery.trim() ? searchKnowledgeTree(db, searchQuery) : Promise.resolve([]),
+    [db, searchOpen, searchQuery],
+  )
   const visibleMonth = calendarView.dateKey === dailyDateKey ? calendarView.month : monthForDateKey(dailyDateKey)
   const changeVisibleMonth = useCallback((month: CalendarMonth) => setCalendarView({ dateKey: dailyDateKey, month }), [dailyDateKey])
   const calendarRange = useMemo(() => calendarGrid(visibleMonth.year, visibleMonth.monthIndex).filter((cell) => cell.supported), [visibleMonth])
@@ -211,6 +236,14 @@ export function NotesWorkspace({ db, services }: NotesWorkspaceProps) {
     else next.delete("note")
     setParams(next, { state: node.type === "folder" ? { selectedFolderId: node.id } satisfies NotesLocationState : null })
     if (node.type === "note") setDrawerOpen(false)
+  }
+
+  async function selectSearchResult(nodeId: string) {
+    const node = nodes.find((candidate) => candidate.id === nodeId && candidate.deletedAt === undefined)
+    if (!node) { setMessage("搜索结果已不存在，请重新搜索。"); return }
+    setSearchOpen(false)
+    setSearchQuery("")
+    await selectNode(node)
   }
 
   async function selectArea(nextArea: Area) {
@@ -325,21 +358,46 @@ export function NotesWorkspace({ db, services }: NotesWorkspaceProps) {
     setActionsOpen(false)
   }
 
-  async function doExport() {
-    if (!selected || selected.type !== "note" || !(await flush())) { setMessage("保存成功后才能导出 Markdown。"); return }
-    const exported = await api.exportMarkdown(db, selected.id)
-    downloadMarkdown(exported.filename, exported.text)
+  async function doExportPdf() {
+    if (exportingPdf || !hasNoteInScope(nodes, selectedNodeId)) return
+    if (!(await flush())) { setMessage("请先处理当前笔记的保存问题，再导出 PDF。"); return }
+    setExportingPdf(true)
+    setMessage("正在生成 PDF，请稍候…")
+    try {
+      const exported = await api.exportPdf(db, selectedNodeId)
+      if (exported.delivery === "shared") setMessage(`${exported.filename} 已打开系统保存或分享。`)
+      else if (exported.delivery === "downloaded") setMessage(`${exported.filename} 已保存到浏览器下载。`)
+      else setMessage("已取消 PDF 保存。")
+    } catch (reason) {
+      setMessage(reason instanceof Error ? reason.message : "PDF 导出失败，请重试。")
+    } finally {
+      setExportingPdf(false)
+    }
   }
 
   const breadcrumbs = selected ? buildBreadcrumbs(nodes, selected) : []
   const selectedPath = nodePath(nodes, selected)
   const folderChildCount = selected?.type === "folder" ? nodes.filter((node) => node.parentId === selected.id && node.deletedAt === undefined).length : 0
-  function renderDirectory(showEditor: boolean) {
+  const pdfExportDisabled = exportingPdf || !hasNoteInScope(nodes, selectedNodeId)
+  const desktopPdfDescriptionId = useId()
+  const drawerPdfDescriptionId = useId()
+  const desktopSearchPanelId = useId()
+  const drawerSearchPanelId = useId()
+  function renderPdfExportButton(descriptionId: string) {
+    return <><button aria-describedby={pdfExportDisabled ? descriptionId : undefined} aria-label="导出 PDF" className={styles.pdfExportButton} disabled={pdfExportDisabled} onClick={() => void doExportPdf()} type="button"><Download aria-hidden="true" /><span>{exportingPdf ? "生成中" : "PDF"}</span></button>{pdfExportDisabled ? <span className={styles.visuallyHidden} id={descriptionId}>{exportingPdf ? "PDF 正在生成" : "当前范围没有可导出的笔记"}</span> : null}</>
+  }
+  function renderDirectory(showEditor: boolean, searchPanelId: string) {
     return (
     <div className={styles.directoryBody}>
-      <NoteTree editing={showEditor ? nodeEditor : null} expandedIds={expandedIds} focusNodeId={showEditor ? focusTreeNodeId : null} nodes={treeNodes} onCancelEdit={cancelNodeEditor} onCommitEdit={commitNodeTitle} onCreate={area === "all" ? startCreation : undefined} onSelect={selectNode} onSelectRoot={selectRoot} onToggle={toggleFolder} selectedId={area === "daily" ? null : selectedNodeId} />
+      {showEditor && searchOpen ? <section aria-label="知识树搜索结果" className={styles.searchPanel} id={searchPanelId}>
+        <label className={styles.searchField}><Search aria-hidden="true" /><input aria-label="搜索文件夹和笔记" autoFocus onChange={(event) => setSearchQuery(event.target.value)} placeholder="搜索标题或正文" role="searchbox" value={searchQuery} />{searchQuery ? <button aria-label="清空搜索" onClick={() => setSearchQuery("")} type="button"><X aria-hidden="true" /></button> : null}</label>
+        {!searchQuery.trim() ? <p className={styles.searchHint}>输入文件夹、笔记标题或正文关键词</p> : searchResults === undefined ? <p aria-live="polite" className={styles.searchHint}>正在搜索…</p> : searchResults.length ? <ul className={styles.searchResults}>{searchResults.map((result) => { const ResultIcon = result.type === "folder" ? Folder : FileText; return <li key={result.id}><button aria-label={`打开搜索结果：${result.title}`} onClick={() => void selectSearchResult(result.id)} type="button"><ResultIcon aria-hidden="true" /><span><strong>{result.title}</strong><small>{result.path}</small>{result.snippet ? <em>{result.snippet}</em> : null}</span></button></li> })}</ul> : <p className={styles.searchHint}>没有找到相关内容</p>}
+      </section> : <NoteTree editing={showEditor ? nodeEditor : null} expandedIds={expandedIds} focusNodeId={showEditor ? focusTreeNodeId : null} nodes={treeNodes} onCancelEdit={cancelNodeEditor} onCommitEdit={commitNodeTitle} onCreate={area === "all" ? startCreation : undefined} onSelect={selectNode} onSelectRoot={selectRoot} onToggle={toggleFolder} selectedId={area === "daily" ? null : selectedNodeId} />}
     </div>
     )
+  }
+  function renderDirectoryActions(pdfDescriptionId: string, searchPanelId: string, closeButton: ReactNode) {
+    return <div className={styles.directoryActions}><button aria-controls={searchPanelId} aria-expanded={searchOpen} aria-label="搜索知识树" className={styles.searchToggle} onClick={() => { setSearchOpen((value) => !value); if (searchOpen) setSearchQuery("") }} type="button"><Search aria-hidden="true" /></button>{renderPdfExportButton(pdfDescriptionId)}{closeButton}</div>
   }
 
   return (
@@ -352,13 +410,13 @@ export function NotesWorkspace({ db, services }: NotesWorkspaceProps) {
         </nav>
       </header>
       {message ? <div className={styles.workspaceMessage} role="alert"><span>{message}</span><button onClick={() => setMessage("")} type="button">关闭</button></div> : null}
-      <div className={styles.workspace} style={{ "--notes-sidebar-width": `${sidebarWidth}px` } as React.CSSProperties}>
-        {sidebarVisible ? <aside className={styles.directory} aria-label="知识树"><div className={styles.directoryTop}><strong>知识树</strong><button aria-label="收起知识树" onClick={() => setSidebarVisible(false)} type="button"><PanelLeftClose aria-hidden="true" /></button></div>{renderDirectory(!mobileTree)}<label className={styles.widthControl}><span>知识树宽度</span><input aria-label="知识树宽度" max="360" min="220" onChange={(event) => setSidebarWidth(Number(event.target.value))} type="range" value={sidebarWidth} /></label></aside> : <button aria-label="展开知识树" className={styles.reopenDirectory} onClick={() => setSidebarVisible(true)} type="button"><PanelLeftOpen aria-hidden="true" /></button>}
+      <div className={styles.workspace} style={{ "--notes-sidebar-width": `${sidebarWidth}px` } as CSSProperties}>
+        {sidebarVisible ? <aside className={styles.directory} aria-label="知识树"><div className={styles.directoryTop}><strong>知识树</strong>{renderDirectoryActions(desktopPdfDescriptionId, desktopSearchPanelId, <button aria-label="收起知识树" onClick={() => setSidebarVisible(false)} type="button"><PanelLeftClose aria-hidden="true" /></button>)}</div>{renderDirectory(!mobileTree, desktopSearchPanelId)}<label className={styles.widthControl}><span>知识树宽度</span><input aria-label="知识树宽度" max="360" min="220" onChange={(event) => setSidebarWidth(Number(event.target.value))} type="range" value={sidebarWidth} /></label></aside> : <button aria-label="展开知识树" className={styles.reopenDirectory} onClick={() => setSidebarVisible(true)} type="button"><PanelLeftOpen aria-hidden="true" /></button>}
         <section className={styles.contentPane} aria-label="笔记内容">
-          {area === "daily" ? <div className={styles.dailyWorkspace}><DailyInspirationCalendar contentDateKeys={contentDateKeys} onSelectDate={(dateKey) => void selectDailyDate(dateKey)} onVisibleMonthChange={changeVisibleMonth} selectedDateKey={dailyDateKey} visibleMonth={visibleMonth} /><DailyInspirationEditor db={db} dateKey={dailyDateKey} ref={dailyEditorRef} saveDailyInspiration={api.saveDailyInspiration} /></div> : selected?.type === "folder" ? <div className={styles.emptyState}><span><FolderOpen aria-hidden="true" /></span><h2>{selected.title}</h2><p>{selectedPath} · {folderChildCount} 个子节点</p><div className={styles.folderActions}><button aria-label={`节点操作：${selected.title}`} onClick={(event) => { setActionReturnFocus(event.currentTarget); setActionsOpen(true) }} type="button"><MoreHorizontal aria-hidden="true" />操作</button></div></div> : selected ? <><div className={styles.noteToolbar}><div className={styles.noteToolbarStart}><button aria-label="返回知识树" className={styles.noteBackButton} onClick={() => void openKnowledgeTree()} type="button"><ArrowLeft aria-hidden="true" /></button><nav aria-label="当前笔记路径" className={styles.breadcrumbs}><span><button onClick={() => void selectRoot()} type="button">笔记库</button></span>{breadcrumbs.map((node) => <span key={node.id}><i aria-hidden="true">/</i><button onClick={() => void selectNode(node)} type="button">{node.title}</button></span>)}</nav></div><div className={styles.noteActions}><button onClick={() => void doExport()} type="button"><Download aria-hidden="true" />导出 Markdown</button><button aria-label={`节点操作：${selected.title}`} onClick={(event) => { setActionReturnFocus(event.currentTarget); setActionsOpen(true) }} type="button"><MoreHorizontal aria-hidden="true" /></button></div></div><NoteEditor db={db} key={`${selected.id}:${editorReloadKey}`} nodeId={selected.id} onSaved={() => undefined} ref={editorRef} saveNote={api.saveNote} /></> : <div className={styles.emptyState}><span><NotebookPen aria-hidden="true" /></span><p>在知识树中选择笔记库或文件夹，再点击旁边的＋开始建立，创建后点击旁边的＋可保存。</p></div>}
+          {area === "daily" ? <div className={styles.dailyWorkspace}><DailyInspirationCalendar contentDateKeys={contentDateKeys} onSelectDate={(dateKey) => void selectDailyDate(dateKey)} onVisibleMonthChange={changeVisibleMonth} selectedDateKey={dailyDateKey} visibleMonth={visibleMonth} /><DailyInspirationEditor db={db} dateKey={dailyDateKey} ref={dailyEditorRef} saveDailyInspiration={api.saveDailyInspiration} /></div> : selected?.type === "folder" ? <div className={styles.emptyState}><span><FolderOpen aria-hidden="true" /></span><h2>{selected.title}</h2><p>{selectedPath} · {folderChildCount} 个子节点</p><div className={styles.folderActions}><button aria-label={`节点操作：${selected.title}`} onClick={(event) => { setActionReturnFocus(event.currentTarget); setActionsOpen(true) }} type="button"><MoreHorizontal aria-hidden="true" />操作</button></div></div> : selected ? <><div className={styles.noteToolbar}><div className={styles.noteToolbarStart}><button aria-label="返回知识树" className={styles.noteBackButton} onClick={() => void openKnowledgeTree()} type="button"><ArrowLeft aria-hidden="true" /></button><nav aria-label="当前笔记路径" className={styles.breadcrumbs}><span><button onClick={() => void selectRoot()} type="button">笔记库</button></span>{breadcrumbs.map((node) => <span key={node.id}><i aria-hidden="true">/</i><button onClick={() => void selectNode(node)} type="button">{node.title}</button></span>)}</nav></div><div className={styles.noteActions}><button aria-label={`节点操作：${selected.title}`} onClick={(event) => { setActionReturnFocus(event.currentTarget); setActionsOpen(true) }} type="button"><MoreHorizontal aria-hidden="true" /></button></div></div><NoteEditor db={db} key={`${selected.id}:${editorReloadKey}`} nodeId={selected.id} onSaved={() => undefined} ref={editorRef} saveNote={api.saveNote} /></> : <div className={styles.emptyState}><span><NotebookPen aria-hidden="true" /></span><p>在知识树中选择笔记库或文件夹，再点击旁边的＋开始建立，创建后点击旁边的＋可保存。</p></div>}
         </section>
       </div>
-      <PlanDialog labelledBy={drawerTitleId} onRequestClose={() => setDrawerOpen(false)} open={drawerOpen}><section className={styles.drawer}><header><h2 id={drawerTitleId}>知识树</h2><button aria-label="关闭知识树" onClick={() => setDrawerOpen(false)} type="button">×</button></header>{renderDirectory(mobileTree)}</section></PlanDialog>
+      <PlanDialog labelledBy={drawerTitleId} onRequestClose={() => { setDrawerOpen(false); setSearchOpen(false); setSearchQuery("") }} open={drawerOpen}><section className={styles.drawer}><header className={styles.drawerHeader}><h2 id={drawerTitleId}>知识树</h2>{renderDirectoryActions(drawerPdfDescriptionId, drawerSearchPanelId, <button aria-label="关闭知识树" onClick={() => { setDrawerOpen(false); setSearchOpen(false); setSearchQuery("") }} type="button">×</button>)}</header>{renderDirectory(mobileTree, drawerSearchPanelId)}</section></PlanDialog>
       {selected ? <NoteActionsDialog node={selected} nodes={nodes} onMove={doMove} onRename={() => startRename(actionReturnFocus)} onRequestClose={() => setActionsOpen(false)} open={actionsOpen} returnFocusTo={actionReturnFocus} /> : null}
     </main>
   )

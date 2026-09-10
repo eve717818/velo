@@ -751,20 +751,75 @@ describe("NotesWorkspace", () => {
     expect((await db.knowledgeNodes.get(child.id))?.parentId).toBe(source.id)
   })
 
-  it("exports the latest saved subtree as Markdown", async () => {
-    const root = await createNote(db, { title: "复习资料", parentId: null }, 1)
-    const createObjectURL = vi.spyOn(URL, "createObjectURL").mockReturnValue("blob:test")
-    vi.spyOn(URL, "revokeObjectURL").mockImplementation(() => undefined)
-    const click = vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => undefined)
+  it("exports the selected folder from the mobile knowledge-tree title strip", async () => {
+    usePhoneViewport()
+    const folder = await createFolder(db, { title: "复习资料", parentId: null }, 1)
+    await createNote(db, { title: "导数", parentId: folder.id }, 2)
+    const exportPdf = vi.fn().mockResolvedValue({ delivery: "downloaded", filename: "复习资料.pdf" })
     const user = userEvent.setup()
-    renderWorkspace({ initialEntry: `/notes?note=${root.id}` })
+    renderWorkspace({ services: { exportPdf } })
 
-    await user.type(await screen.findByLabelText("Markdown 正文"), "导出前的修改")
-    await user.click(screen.getByRole("button", { name: "导出 Markdown" }))
+    await user.click(screen.getByRole("button", { name: "知识树" }))
+    const drawer = await screen.findByRole("dialog", { name: "知识树" })
+    await user.click(within(drawer).getByRole("button", { name: "复习资料" }))
+    const pdfButton = within(drawer).getByRole("button", { name: "导出 PDF" })
+    const closeButton = within(drawer).getByRole("button", { name: "关闭知识树" })
+    expect(pdfButton.compareDocumentPosition(closeButton) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
 
-    await waitFor(() => expect(createObjectURL).toHaveBeenCalledTimes(1))
-    expect(click).toHaveBeenCalledTimes(1)
-    expect((await loadNote(db, root.id)).markdown).toContain("导出前的修改")
+    await user.click(pdfButton)
+
+    await waitFor(() => expect(exportPdf).toHaveBeenCalledWith(db, folder.id))
+    expect(await screen.findByText("复习资料.pdf 已保存到浏览器下载。" )).toBeInTheDocument()
+    expect(drawer).toBeVisible()
+    expect(screen.queryByRole("button", { name: "导出 Markdown" })).not.toBeInTheDocument()
+  })
+
+  it("exports the whole notebook from the selected root and disables an empty scope", async () => {
+    usePhoneViewport()
+    const exportPdf = vi.fn().mockResolvedValue({ delivery: "shared", filename: "笔记库.pdf" })
+    const user = userEvent.setup()
+    const view = renderWorkspace({ services: { exportPdf } })
+
+    await user.click(screen.getByRole("button", { name: "知识树" }))
+    let drawer = await screen.findByRole("dialog", { name: "知识树" })
+    expect(within(drawer).getByRole("button", { name: "导出 PDF" })).toBeDisabled()
+
+    view.unmount()
+    await createNote(db, { title: "根笔记", parentId: null }, 1)
+    renderWorkspace({ services: { exportPdf } })
+    await user.click(screen.getByRole("button", { name: "知识树" }))
+    drawer = await screen.findByRole("dialog", { name: "知识树" })
+    await user.click(within(drawer).getByRole("button", { name: "导出 PDF" }))
+
+    await waitFor(() => expect(exportPdf).toHaveBeenCalledWith(db, null))
+    expect(await screen.findByText("笔记库.pdf 已打开系统保存或分享。" )).toBeInTheDocument()
+  })
+
+  it("opens knowledge search beside PDF and opens a body match from its full path", async () => {
+    usePhoneViewport()
+    const folder = await createFolder(db, { title: "数学", parentId: null }, 1)
+    const note = await createNote(db, { title: "导数", parentId: folder.id }, 2)
+    const document = await loadNote(db, note.id)
+    await saveNote(db, note.id, { title: note.title, markdown: "变化率用于描述函数变化。" }, document.revision ?? 0, 3)
+    const user = userEvent.setup()
+    renderWorkspace()
+
+    await user.click(screen.getByRole("button", { name: "知识树" }))
+    const drawer = await screen.findByRole("dialog", { name: "知识树" })
+    const searchButton = within(drawer).getByRole("button", { name: "搜索知识树" })
+    const pdfButton = within(drawer).getByRole("button", { name: "导出 PDF" })
+    expect(searchButton.compareDocumentPosition(pdfButton) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    await user.click(searchButton)
+    const input = within(drawer).getByRole("searchbox", { name: "搜索文件夹和笔记" })
+    expect(input).toHaveFocus()
+
+    await user.type(input, "变化率")
+    const result = await within(drawer).findByRole("button", { name: "打开搜索结果：导数" })
+    expect(result).toHaveTextContent("笔记库 / 数学 / 导数")
+    await user.click(result)
+
+    await waitFor(() => expect(drawer).not.toBeVisible())
+    expect(await screen.findByLabelText("笔记标题")).toHaveValue("导数")
   })
 
   it("keeps a stale local draft visible instead of overwriting a newer database revision", async () => {
