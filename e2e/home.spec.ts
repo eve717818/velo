@@ -40,7 +40,7 @@ test("mobile navigation reaches every milestone surface including settings", asy
   for (const [label, heading] of [
     ["计划", "学习计划"],
     ["笔记", "笔记工作台"],
-    ["专注", "专注"],
+    ["专注", "保持心流"],
   ] as const) {
     await page.getByRole("link", { name: label }).click()
     await expect(page.getByRole("heading", { name: heading })).toBeVisible()

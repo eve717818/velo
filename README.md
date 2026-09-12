@@ -78,6 +78,15 @@ pnpm test:pwa-lifecycle
 
 ## 设计与实施资料
 
+## 心流专注首版
+
+`/focus` 支持自由专注与可选计划任务关联、25/45/60 分钟和自定义倒计时、暂停/继续/结束。计时以持久化时间段为准，暂停不计时；主动暂停记一次中断。结束不自动完成关联任务。心流时间包含累计时长、中断次数和仅显示当月日期的月历，跨午夜时长按本地日期拆分。
+
+浏览器后台或锁屏后不保证准时通知；回到页面会重新核算时间。数据保存在当前浏览器当前地址下，更换端口不会自动迁移旧地址的记录。
+
+验证：`pnpm verify`；`pnpm exec playwright test --config playwright.focus.config.ts`（独立端口 4186，包含手机刷新恢复、暂停记录、月历及无障碍检查）。
+
+
 - [里程碑 2 实施计划](docs/superpowers/plans/2026-08-28-velow-milestone-2-learning-plan.md)
 - [里程碑 2 设计规格](docs/superpowers/specs/2026-08-28-velow-milestone-2-learning-plan-design.md)
 - [里程碑 1 实施计划](docs/superpowers/plans/2026-08-25-velo-milestone-1-foundation-home.md)

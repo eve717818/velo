@@ -1,4 +1,5 @@
 import Dexie, { type Table } from "dexie"
+import type { FocusSession } from '../features/focus/focus-service'
 import { assertValidPlanPeriodKey } from "../features/plans/domain/plan-period-keys"
 import { migrateLegacyKnowledgeTree } from "../features/notes/knowledge-tree-model"
 import type {
@@ -25,6 +26,7 @@ type VersionFourPlanTaskRow = {
 }
 
 export class VeloDB extends Dexie {
+  focusSessions!: Table<FocusSession, string>
   planTasks!: Table<PlanTask, string>
   planTaskGroups!: Table<PlanTaskGroup, string>
   rangePlans!: Table<RangePlan, string>
@@ -166,6 +168,8 @@ export class VeloDB extends Dexie {
         await nodeTable.bulkAdd(migrated.nodes)
         await documentTable.bulkAdd(migrated.documents)
       })
+
+    this.version(9).stores({ focusSessions: 'id, status, startedAt, taskId' })
 
     this.version(8).stores({
       planTasks: "id, [scope+periodKey], scope, periodKey, [scope+periodKey+isCompleted], isCompleted, updatedAt",

@@ -1,0 +1,27 @@
+import { expect, test } from '@playwright/test'
+import AxeBuilder from '@axe-core/playwright'
+
+test('mobile focus survives reload, records interruptions and offers month-only history', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 })
+  await page.addInitScript(() => localStorage.setItem('velow-notebook:onboarding-complete', '1'))
+  await page.goto('/focus')
+  await expect(page.getByRole('heading', { name: '保持心流' })).toBeVisible()
+  await expect(page.getByRole('button', { name: '开始专注' })).toBeEnabled()
+  expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([])
+  await page.getByRole('button', { name: '开始专注' }).click()
+  await expect(page.getByRole('button', { name: '暂停' })).toBeVisible()
+  await page.reload()
+  await page.getByRole('button', { name: '暂停' }).click()
+  await expect(page.getByText(/本次中断 1 次/)).toBeVisible()
+  await page.screenshot({ path: 'test-results/focus-mobile.png', fullPage: true })
+  await page.getByRole('button', { name: '继续', exact: true }).click()
+  await page.getByRole('button', { name: '结束' }).click()
+  await expect(page.getByText(/心流时间已保存/)).toBeVisible()
+  await page.getByRole('button', { name: '心流时间', exact: true }).click()
+  await page.getByLabel('年份').fill('2026')
+  await page.getByLabel('月份').selectOption('8')
+  await expect(page.getByRole('button', { name: /^2026-09-/ })).toHaveCount(30)
+  await expect(page.getByRole('button', { name: /^2026-10-/ })).toHaveCount(0)
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
+  await page.screenshot({ path: 'test-results/focus-history-mobile.png', fullPage: true })
+})
