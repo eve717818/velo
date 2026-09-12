@@ -2,6 +2,12 @@
 
 ## UI baseline follow-up — 2026-09-13
 
+### Typography and spacing follow-up
+
+- Shared font tokens now define a system fallback stack, 24–32px regular page headings, 18px section headings, 16px body text, and 13px captions. Plans, notes, focus and settings page headings use the common role; welcome artwork and the home greeting remain deliberate exceptions.
+- Removed duplicated focus page gutters/bottom padding because AppShell owns outer spacing. Small note headers wrap actions onto a separate row instead of truncating the page title.
+- Build and lint passed; four browser cases covering home, note paths, focus, plans and settings at 320/390/768px passed. Inspected mobile screenshots. Deep dialog typography and 200% text enlargement are not yet comprehensively verified.
+
 - Implemented the three selected plans under design-plans/: 44px home/path targets, shared focus tokens and clearly unavailable capture action.
 - Browser checks at 320/390/768px measured both dimensions of target controls at >=44px, checked long note paths without horizontal overflow, and verified visible capture availability text. Home/focus axe checks passed. Focus refresh/pause/history regression passed.
 - Retained the original logo, compact frameless tree, paper card and timer-specific visuals. This is not a full-site redesign or accessibility certification; 200% text scaling and real-phone review remain for the next typography pass.

@@ -1,4 +1,13 @@
 :root {
+  --font-ui: "Plus Jakarta Sans Variable", system-ui, -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif;
+  --text-page: clamp(1.5rem, 2.8vw, 2rem);
+  --text-section: 1.125rem;
+  --text-body: 1rem;
+  --text-caption: .8125rem;
+  --line-heading: 1.25;
+  --line-body: 1.6;
+  --space-section: 24px;
+  --space-card: 20px;
   --color-canvas: #f1f0f6;
   --color-surface: #ffffff;
   --color-surface-muted: #f4f3f7;

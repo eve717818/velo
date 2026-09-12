@@ -4,9 +4,9 @@
 }
 
 .page h1 {
-  font-size: clamp(36px, 7vw, 64px);
-  letter-spacing: -0.055em;
-  line-height: 1;
+  font-size: var(--text-page);
+  font-weight: 700;
+  line-height: var(--line-heading);
 }
 
 .surface {
@@ -14,9 +14,8 @@
   border: 1px solid var(--color-border);
   border-radius: var(--radius-card-large);
   box-shadow: var(--shadow-card);
-  margin-top: 34px;
-  min-height: 260px;
-  padding: clamp(24px, 5vw, 48px);
+  margin-top: var(--space-section);
+  padding: var(--space-card);
 }
 
 .eyebrow {
@@ -29,8 +28,8 @@
 
 .surface p:last-child {
   color: var(--color-text-muted);
-  font-size: clamp(17px, 2.5vw, 21px);
-  line-height: 1.6;
+  font-size: var(--text-body);
+  line-height: var(--line-body);
   margin-top: 24px;
   max-width: 560px;
 }

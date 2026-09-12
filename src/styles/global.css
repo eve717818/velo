@@ -7,10 +7,14 @@ body,
 body {
   background: var(--color-canvas);
   color: var(--color-text);
-  font-family: "Plus Jakarta Sans Variable", "PingFang SC", "Microsoft YaHei", sans-serif;
-  line-height: 1.5;
+  font-family: var(--font-ui);
+  font-size: var(--text-body);
+  line-height: var(--line-body);
   text-rendering: optimizeLegibility;
 }
+
+h1, h2, h3 { text-wrap: balance; }
+p { text-wrap: pretty; }
 
 @media (prefers-reduced-motion: reduce) {
   *,

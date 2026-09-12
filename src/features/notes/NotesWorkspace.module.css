@@ -102,11 +102,10 @@
 }
 
 .workspaceHeader h1 {
-  font-family: "Outfit Variable", Outfit, sans-serif;
-  font-size: clamp(1.75rem, 4vw, 2.45rem);
-  font-variation-settings: "wght" 660;
-  letter-spacing: -.045em;
-  line-height: 1;
+  font-family: var(--font-ui);
+  font-size: var(--text-page);
+  font-weight: 700;
+  line-height: var(--line-heading);
   margin: 0;
 }
 
@@ -713,7 +712,7 @@
   .dailyText { min-height: max(440px, 64dvh); }
   .workspaceHeader { border-radius: 20px; gap: 8px; padding: 12px; }
   .workspaceHeader > div:first-child { flex: 1 1 auto; min-width: 0; }
-  .workspaceHeader h1 { font-size: clamp(1.3rem, 5.8vw, 1.55rem); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .workspaceHeader h1 { font-size: var(--text-page); overflow-wrap: anywhere; }
   .workspaceHeader p { display: none; }
   .workspace { display: block; min-height: calc(100dvh - 230px); }
   .directory,.reopenDirectory { display: none; }
@@ -739,6 +738,12 @@
   .workspaceTabs { flex: 0 0 auto; gap: 2px; }
   .workspaceTabs button { font-size: .75rem; gap: 4px; padding: 0 9px; white-space: nowrap; }
   .workspaceTabs button svg { height: 17px; width: 17px; }
+}
+
+@media (max-width: 420px) {
+  .workspaceHeader { flex-wrap: wrap; }
+  .workspaceHeader > div:first-child { flex-basis: 100%; }
+  .workspaceTabs { margin-left: auto; }
 }
 
 @media (min-width: 768px) {

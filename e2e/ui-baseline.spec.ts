@@ -47,5 +47,11 @@ for (const width of [320, 390, 768]) {
     await expect(page.getByRole('heading', { name: '保持心流' })).toBeVisible()
     expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([])
     await page.screenshot({ path: `test-results/ui-focus-${width}.png`, fullPage: true })
+    for (const [route, heading] of [['/plans', '学习计划'], ['/settings', '设置']]) {
+      await page.goto(route)
+      await expect(page.getByRole('heading', { name: heading, exact: true })).toBeVisible()
+      expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
+      await page.screenshot({ path: `test-results/ui-${route.slice(1)}-${width}.png`, fullPage: true })
+    }
   })
 }

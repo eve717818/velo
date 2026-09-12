@@ -46,11 +46,10 @@
 }
 
 .headingCopy h1 {
-  font-family: "Outfit Variable", Outfit, sans-serif;
-  font-size: clamp(30px, 8vw, 46px);
-  font-variation-settings: "wght" 660;
-  letter-spacing: -.045em;
-  line-height: 1;
+  font-family: var(--font-ui);
+  font-size: var(--text-page);
+  font-weight: 700;
+  line-height: var(--line-heading);
 }
 
 .headingCopy > p:last-child {
