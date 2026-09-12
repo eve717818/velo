@@ -12,8 +12,8 @@ const actions = [
   },
   {
     label: "拍照录入",
-    description: "拍照提取并整理内容",
-    to: "/notes?capture=1",
+    description: "敬请期待",
+    to: null,
     icon: Camera,
     tone: styles.actionMint,
   },
@@ -36,7 +36,12 @@ export function QuickActions() {
         <span className={styles.cardIndex}>03</span>
       </div>
       <div className={styles.quickActions}>
-        {actions.map(({ description, icon: Icon, label, to, tone }) => (
+        {actions.map(({ description, icon: Icon, label, to, tone }) => to === null ? (
+          <div className={`${styles.quickAction} ${styles.unavailableAction}`} key={label}>
+            <span className={styles.actionIcon} aria-hidden="true"><Icon size={28} strokeWidth={1.9} /></span>
+            <span><strong>{label}</strong><small>{description}</small></span>
+          </div>
+        ) : (
           <Link aria-label={label} className={styles.quickAction} key={label} to={to}>
             <span className={`${styles.actionIcon} ${tone}`} aria-hidden="true">
               <Icon size={28} strokeWidth={1.9} />

@@ -1,5 +1,11 @@
 # Velow Notebook launch-screen design QA
 
+## UI baseline follow-up — 2026-09-13
+
+- Implemented the three selected plans under design-plans/: 44px home/path targets, shared focus tokens and clearly unavailable capture action.
+- Browser checks at 320/390/768px measured both dimensions of target controls at >=44px, checked long note paths without horizontal overflow, and verified visible capture availability text. Home/focus axe checks passed. Focus refresh/pause/history regression passed.
+- Retained the original logo, compact frameless tree, paper card and timer-specific visuals. This is not a full-site redesign or accessibility certification; 200% text scaling and real-phone review remain for the next typography pass.
+
 ## Source truth and render evidence
 
 - Approved logo source: `D:\新建文件夹 (2)\2.jpg` (1413 × 2721 px).

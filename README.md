@@ -66,6 +66,8 @@ pnpm preview
 
 ## 验证
 
+UI 基础统一：查看全部与笔记路径按钮至少 44×44 CSS px；专注页普通控件复用公共颜色/圆角，保留浅紫暂停和计时环；首页拍照录入显示“敬请期待”，不再提供未开放功能链接。
+
 ```powershell
 pnpm verify
 pnpm test:e2e

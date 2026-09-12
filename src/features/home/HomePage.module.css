@@ -47,7 +47,8 @@
   display: inline-flex;
   font-size: 12px;
   font-weight: 680;
-  min-height: 36px;
+  min-height: 44px;
+  min-width: 44px;
   padding: 7px 12px;
   text-decoration: none;
   transition:
@@ -239,6 +240,15 @@
   flex: 0 0 auto;
   justify-content: center;
 }
+
+.quickAction.unavailableAction {
+  color: var(--color-text-muted);
+  cursor: default;
+  transform: none;
+  box-shadow: none;
+  border-color: transparent;
+}
+.quickAction.unavailableAction small { display: block; font-size: 12px; }
 
 .nextIcon,
 .nextArrow {
