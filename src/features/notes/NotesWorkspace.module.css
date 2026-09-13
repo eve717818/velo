@@ -740,6 +740,14 @@
   .workspaceTabs button svg { height: 17px; width: 17px; }
 }
 
+.deletionNotice { position: fixed; z-index: 50; bottom: calc(88px + env(safe-area-inset-bottom)); left: 14px; right: 14px; display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 14px; border-radius: 14px; background: #211c22; color: white; }
+.deletionNotice button { min-height: 44px; padding: 0 14px; border: 0; border-radius: 10px; background: white; color: var(--color-brand); }
+.actionGrid .dangerButton { color: #972344; background: #fff3f5; }
+.deleteConfirmation { border: 1px solid var(--color-border); border-radius: 14px; padding: 14px; margin-top: 14px; display: grid; gap: 12px; }
+.deleteConfirmation > div { display: flex; flex-wrap: wrap; gap: 8px; }
+.deleteConfirmation button { min-height: 44px; padding: 0 12px; border: 0; border-radius: 12px; }
+.deleteConfirmation .confirmDeleteButton { background: #a51f46; color: white; }
+
 @media (max-width: 420px) {
   .workspaceHeader { flex-wrap: wrap; }
   .workspaceHeader > div:first-child { flex-basis: 100%; }

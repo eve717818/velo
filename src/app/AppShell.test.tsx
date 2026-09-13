@@ -21,7 +21,7 @@ describe("AppShell mobile header", () => {
 
     expect(wordmark).toHaveAttribute("data-wordmark-font", "Outfit")
     expect(wordmark.querySelector("img")).toHaveAttribute("src", "/brand/velow-lockup-horizontal.png")
-    expect(within(banner).getByRole("button", { name: "通知" })).toBeInTheDocument()
+    expect(within(banner).getByRole("button", { name: "关闭提醒" })).toBeInTheDocument()
     expect(within(banner).getByRole("button", { name: "打开菜单" })).toBeInTheDocument()
     expect(banner.compareDocumentPosition(greeting) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
   })

@@ -18,6 +18,7 @@ interface NoteTreeProps {
   onCancelEdit: () => void
   onCommitEdit: (title: string) => void | Promise<void>
   onCreate?: (selection: NewKnowledgeNodeSelection, returnFocusTo: HTMLButtonElement | null) => void | Promise<boolean>
+  onFolderActions?: (node: KnowledgeNode, trigger: HTMLButtonElement) => void | Promise<void>
   onSelect: (node: KnowledgeNode) => void | Promise<void>
   onSelectRoot?: () => void | Promise<void>
   onToggle: (nodeId: string) => void | Promise<void>
@@ -40,8 +41,13 @@ function TemporaryRow({ editing, onCancelEdit, onCommitEdit }: Pick<NoteTreeProp
   return <li className={styles.temporaryTreeRow}><div className={styles.treeRow}><span className={styles.treeTogglePlaceholder} /><div aria-label={`${label}，位置：${editing.parentPath}`} className={styles.treeEditGroup} role="group"><span>位置：{editing.parentPath}</span><TreeNodeEditor ariaLabel={label} initialValue="" onCancel={onCancelEdit} onCommit={onCommitEdit} showSubmitPlus /></div></div></li>
 }
 
-function Branch({ node, childrenByParent, visited, selectedId, expandedIds, editing, focusNodeId: _focusNodeId, onCancelEdit, onCommitEdit, onCreate, onSelect, onToggle, nodeRefs }: BranchProps) {
+function Branch({ node, childrenByParent, visited, selectedId, expandedIds, editing, focusNodeId: _focusNodeId, onCancelEdit, onCommitEdit, onCreate, onFolderActions, onSelect, onToggle, nodeRefs }: BranchProps) {
   const childrenId = useId()
+  const press = useRef<{ timer: number; x: number; y: number } | null>(null)
+  const suppressClick = useRef(false)
+  function cancelPress() { if (press.current) window.clearTimeout(press.current.timer); press.current = null }
+  useEffect(() => () => { if (press.current) window.clearTimeout(press.current.timer) }, [])
+
   if (visited.has(node.id)) return null
   const nextVisited = new Set(visited).add(node.id)
   const children = childrenByParent.get(node.id) ?? []
@@ -54,16 +60,24 @@ function Branch({ node, childrenByParent, visited, selectedId, expandedIds, edit
   return <li>
     <div className={styles.treeRow}>
       {expandable ? <button aria-controls={childrenId} aria-expanded={expanded} aria-label={`${expanded ? "收起" : "展开"}${node.title}`} className={styles.treeToggle} onClick={() => void onToggle(node.id)} type="button">{expanded ? <ChevronDown aria-hidden="true" size={16} /> : <ChevronRight aria-hidden="true" size={16} />}</button> : <span className={styles.treeTogglePlaceholder} />}
-      {renaming ? <div aria-label={`${editorLabel(editing)}，位置：${editing.parentPath}`} className={styles.treeEditGroup} role="group"><span>位置：{editing.parentPath}</span><TreeNodeEditor ariaLabel={editorLabel(editing)} initialValue={node.title} onCancel={onCancelEdit} onCommit={onCommitEdit} /></div> : <div className={styles.treeNodeGroup}><button aria-current={selectedId === node.id ? "page" : undefined} aria-label={node.type === "folder" ? node.title : `打开笔记：${node.title}`} className={styles.treeNode} onClick={() => void onSelect(node)} ref={(element) => { if (element) nodeRefs.current.set(node.id, element); else nodeRefs.current.delete(node.id) }} type="button"><NodeIcon aria-hidden="true" size={16} /><span className={styles.treeLabel}>{node.title}</span></button>{showCreate ? <NewKnowledgeNodeMenu containerTitle={node.title} onSelect={onCreate} parentId={node.id} siblingParentId={node.parentId} /> : null}</div>}
+      {renaming ? <div aria-label={`${editorLabel(editing)}，位置：${editing.parentPath}`} className={styles.treeEditGroup} role="group"><span>位置：{editing.parentPath}</span><TreeNodeEditor ariaLabel={editorLabel(editing)} initialValue={node.title} onCancel={onCancelEdit} onCommit={onCommitEdit} /></div> : <div className={styles.treeNodeGroup}><button aria-current={selectedId === node.id ? "page" : undefined} aria-label={node.type === "folder" ? node.title : `打开笔记：${node.title}`} className={styles.treeNode} onPointerDown={event => {
+        if (node.type !== "folder" || !onFolderActions || event.button !== 0) return
+        cancelPress(); suppressClick.current = false
+        const trigger = event.currentTarget
+        press.current = { x: event.clientX, y: event.clientY, timer: window.setTimeout(() => { press.current = null; suppressClick.current = true; void onFolderActions(node, trigger) }, 550) }
+      }} onPointerMove={event => { if (press.current && Math.hypot(event.clientX - press.current.x, event.clientY - press.current.y) > 10) cancelPress() }}
+      onPointerUp={cancelPress} onPointerCancel={cancelPress} onPointerLeave={cancelPress}
+      onContextMenu={event => { if (node.type === "folder" && onFolderActions) { event.preventDefault(); cancelPress(); if (!suppressClick.current) void onFolderActions(node, event.currentTarget); suppressClick.current = true } }}
+      onClick={() => { if (suppressClick.current) { suppressClick.current = false; return }; void onSelect(node) }} ref={(element) => { if (element) nodeRefs.current.set(node.id, element); else nodeRefs.current.delete(node.id) }} type="button"><NodeIcon aria-hidden="true" size={16} /><span className={styles.treeLabel}>{node.title}</span></button>{showCreate ? <NewKnowledgeNodeMenu containerTitle={node.title} onSelect={onCreate} parentId={node.id} siblingParentId={node.parentId} /> : null}</div>}
     </div>
     {(children.length || temporaryChild) ? <ul className={styles.treeChildren} hidden={!expanded} id={childrenId}>
-      {children.map((child) => <Branch key={child.id} {...{ childrenByParent, editing, expandedIds, focusNodeId: _focusNodeId, node: child, nodeRefs, nodes: [], onCancelEdit, onCommitEdit, onCreate, onSelect, onToggle, selectedId, visited: nextVisited }} />)}
+      {children.map((child) => <Branch key={child.id} {...{ childrenByParent, editing, expandedIds, focusNodeId: _focusNodeId, node: child, nodeRefs, nodes: [], onCancelEdit, onCommitEdit, onCreate, onFolderActions, onSelect, onToggle, selectedId, visited: nextVisited }} />)}
       {temporaryChild ? <TemporaryRow {...{ editing, onCancelEdit, onCommitEdit }} /> : null}
     </ul> : null}
   </li>
 }
 
-export function NoteTree({ nodes, selectedId, expandedIds, editing, focusNodeId, onCancelEdit, onCommitEdit, onCreate, onSelect, onSelectRoot, onToggle }: NoteTreeProps) {
+export function NoteTree({ nodes, selectedId, expandedIds, editing, focusNodeId, onCancelEdit, onCommitEdit, onCreate, onFolderActions, onSelect, onSelectRoot, onToggle }: NoteTreeProps) {
   const nodeRefs = useRef(new Map<string, HTMLButtonElement>())
   const childrenByParent = new Map<string | null, KnowledgeNode[]>()
   for (const node of nodes) {
@@ -91,7 +105,7 @@ export function NoteTree({ nodes, selectedId, expandedIds, editing, focusNodeId,
       </div>
       {!roots.length && !temporaryRoot ? <p className={styles.treeEmptyMessage}>知识树还是空的，请从笔记库开始建立。</p> : null}
     </li> : null}
-    {roots.map((node) => <Branch key={node.id} {...{ childrenByParent, editing, expandedIds, focusNodeId, node, nodeRefs, nodes, onCancelEdit, onCommitEdit, onCreate, onSelect, onToggle, selectedId, visited: new Set() }} />)}
+    {roots.map((node) => <Branch key={node.id} {...{ childrenByParent, editing, expandedIds, focusNodeId, node, nodeRefs, nodes, onCancelEdit, onCommitEdit, onCreate, onFolderActions, onSelect, onToggle, selectedId, visited: new Set() }} />)}
     {temporaryRoot ? <TemporaryRow {...{ editing, onCancelEdit, onCommitEdit }} /> : null}
   </ul>
 }

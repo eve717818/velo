@@ -14,7 +14,7 @@ import type { NewKnowledgeNodeSelection } from "./NewKnowledgeNodeMenu"
 import { loadExpandedFolderIds, saveExpandedFolderIds } from "./tree-expansion"
 import { listDailyInspirationDates, localDateKey, parseLocalDateKey, saveDailyInspiration } from "./daily-inspiration-service"
 import { calendarGrid, type CalendarMonth } from "./daily-inspiration-state"
-import { createFolder, createNote, moveNode, renameNode, saveNote } from "./note-service"
+import { createFolder, createNote, moveNode, renameNode, restoreNode, saveNote, trashNode } from "./note-service"
 import type { exportNotesPdf } from "./pdf-document"
 import { searchKnowledgeTree } from "./knowledge-search"
 import styles from "./NotesWorkspace.module.css"
@@ -25,8 +25,10 @@ export interface NoteServiceOverrides {
   exportPdf?: typeof exportNotesPdf
   moveNode?: typeof moveNode
   renameNode?: typeof renameNode
+  restoreNode?: typeof restoreNode
   saveNote?: typeof saveNote
   saveDailyInspiration?: typeof saveDailyInspiration
+  trashNode?: typeof trashNode
 }
 
 const defaultExportPdf: typeof exportNotesPdf = async (...args) => {
@@ -37,6 +39,7 @@ const defaultExportPdf: typeof exportNotesPdf = async (...args) => {
 interface NotesWorkspaceProps { db: VeloDB; services?: NoteServiceOverrides }
 type Area = "all" | "daily"
 type NotesLocationState = { selectedFolderId?: string | null }
+const undoWindowMs = 10_000
 
 function buildBreadcrumbs(nodes: KnowledgeNode[], selected: KnowledgeNode) {
   const byId = new Map(nodes.map((node) => [node.id, node]))
@@ -102,7 +105,7 @@ function hasNoteInScope(nodes: KnowledgeNode[], selectedNodeId: string | null) {
 }
 
 export function NotesWorkspace({ db, services }: NotesWorkspaceProps) {
-  const api = useMemo(() => ({ createFolder, createNote, exportPdf: defaultExportPdf, moveNode, renameNode, saveNote, saveDailyInspiration, ...services }), [services])
+  const api = useMemo(() => ({ createFolder, createNote, exportPdf: defaultExportPdf, moveNode, renameNode, restoreNode, saveNote, saveDailyInspiration, trashNode, ...services }), [services])
   const queriedNodes = useLiveQuery(() => db.knowledgeNodes.toArray(), [db])
   const nodes = useMemo(() => queriedNodes ?? [], [queriedNodes])
   const [params, setParams] = useSearchParams()
@@ -133,9 +136,17 @@ export function NotesWorkspace({ db, services }: NotesWorkspaceProps) {
   const [exportingPdf, setExportingPdf] = useState(false)
   const [searchOpen, setSearchOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState("")
+  const [undoDelete, setUndoDelete] = useState<{ nodeId: string; title: string } | null>(null)
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set())
   const [hasLoadedExpansion, setHasLoadedExpansion] = useState(false)
   const expandedIdsRef = useRef(expandedIds)
+
+
+  useEffect(() => {
+    if (!undoDelete) return
+    const timer = window.setTimeout(() => setUndoDelete(null), undoWindowMs)
+    return () => window.clearTimeout(timer)
+  }, [undoDelete])
   const expansionDbRef = useRef<VeloDB | null>(null)
   const [actionReturnFocus, setActionReturnFocus] = useState<HTMLElement | null>(null)
   const drawerTitleId = useId()
@@ -358,6 +369,33 @@ export function NotesWorkspace({ db, services }: NotesWorkspaceProps) {
     setActionsOpen(false)
   }
 
+  async function doDeleteFolder() {
+    if (!selected || selected.type !== "folder") return
+    if (!(await flush())) throw new Error("请先处理当前笔记的保存问题，再删除文件夹。")
+    const deleted = selected
+    const parent = deleted.parentId ? nodes.find((node) => node.id === deleted.parentId && node.type === "folder" && node.deletedAt === undefined) : null
+    await api.trashNode(db, deleted.id, Date.now())
+    setActionsOpen(false)
+    setActionReturnFocus(null)
+    setUndoDelete({ nodeId: deleted.id, title: deleted.title })
+    const next = new URLSearchParams()
+    setParams(next, { state: parent ? { selectedFolderId: parent.id } satisfies NotesLocationState : null })
+  }
+
+  async function undoFolderDelete() {
+    if (!undoDelete) return
+    try {
+      await api.restoreNode(db, undoDelete.nodeId, Date.now())
+      const restoredId = undoDelete.nodeId
+      setUndoDelete(null)
+      const next = new URLSearchParams()
+      setParams(next, { state: { selectedFolderId: restoredId } satisfies NotesLocationState })
+    } catch (reason) {
+      setUndoDelete(null)
+      setMessage(reason instanceof Error ? reason.message : "无法撤销删除，请重试。")
+    }
+  }
+
   async function doExportPdf() {
     if (exportingPdf || !hasNoteInScope(nodes, selectedNodeId)) return
     if (!(await flush())) { setMessage("请先处理当前笔记的保存问题，再导出 PDF。"); return }
@@ -392,7 +430,7 @@ export function NotesWorkspace({ db, services }: NotesWorkspaceProps) {
       {showEditor && searchOpen ? <section aria-label="知识树搜索结果" className={styles.searchPanel} id={searchPanelId}>
         <label className={styles.searchField}><Search aria-hidden="true" /><input aria-label="搜索文件夹和笔记" autoFocus onChange={(event) => setSearchQuery(event.target.value)} placeholder="搜索标题或正文" role="searchbox" value={searchQuery} />{searchQuery ? <button aria-label="清空搜索" onClick={() => setSearchQuery("")} type="button"><X aria-hidden="true" /></button> : null}</label>
         {!searchQuery.trim() ? <p className={styles.searchHint}>输入文件夹、笔记标题或正文关键词</p> : searchResults === undefined ? <p aria-live="polite" className={styles.searchHint}>正在搜索…</p> : searchResults.length ? <ul className={styles.searchResults}>{searchResults.map((result) => { const ResultIcon = result.type === "folder" ? Folder : FileText; return <li key={result.id}><button aria-label={`打开搜索结果：${result.title}`} onClick={() => void selectSearchResult(result.id)} type="button"><ResultIcon aria-hidden="true" /><span><strong>{result.title}</strong><small>{result.path}</small>{result.snippet ? <em>{result.snippet}</em> : null}</span></button></li> })}</ul> : <p className={styles.searchHint}>没有找到相关内容</p>}
-      </section> : <NoteTree editing={showEditor ? nodeEditor : null} expandedIds={expandedIds} focusNodeId={showEditor ? focusTreeNodeId : null} nodes={treeNodes} onCancelEdit={cancelNodeEditor} onCommitEdit={commitNodeTitle} onCreate={area === "all" ? startCreation : undefined} onSelect={selectNode} onSelectRoot={selectRoot} onToggle={toggleFolder} selectedId={area === "daily" ? null : selectedNodeId} />}
+      </section> : <NoteTree editing={showEditor ? nodeEditor : null} expandedIds={expandedIds} focusNodeId={showEditor ? focusTreeNodeId : null} nodes={treeNodes} onCancelEdit={cancelNodeEditor} onCommitEdit={commitNodeTitle} onCreate={area === "all" ? startCreation : undefined} onFolderActions={async (node, trigger) => { if (!(await flush())) return; await selectNode(node); setDrawerOpen(false); setActionReturnFocus(trigger); setActionsOpen(true) }} onSelect={selectNode} onSelectRoot={selectRoot} onToggle={toggleFolder} selectedId={area === "daily" ? null : selectedNodeId} />}
     </div>
     )
   }
@@ -410,6 +448,7 @@ export function NotesWorkspace({ db, services }: NotesWorkspaceProps) {
         </nav>
       </header>
       {message ? <div className={styles.workspaceMessage} role="alert"><span>{message}</span><button onClick={() => setMessage("")} type="button">关闭</button></div> : null}
+      {undoDelete ? <div aria-label="文件夹删除通知" className={styles.deletionNotice} role="status"><span>已删除“{undoDelete.title}”</span><button aria-label={`撤销删除${undoDelete.title}`} onClick={() => void undoFolderDelete()} type="button">撤销</button></div> : null}
       <div className={styles.workspace} style={{ "--notes-sidebar-width": `${sidebarWidth}px` } as CSSProperties}>
         {sidebarVisible ? <aside className={styles.directory} aria-label="知识树"><div className={styles.directoryTop}><strong>知识树</strong>{renderDirectoryActions(desktopPdfDescriptionId, desktopSearchPanelId, <button aria-label="收起知识树" onClick={() => setSidebarVisible(false)} type="button"><PanelLeftClose aria-hidden="true" /></button>)}</div>{renderDirectory(!mobileTree, desktopSearchPanelId)}<label className={styles.widthControl}><span>知识树宽度</span><input aria-label="知识树宽度" max="360" min="220" onChange={(event) => setSidebarWidth(Number(event.target.value))} type="range" value={sidebarWidth} /></label></aside> : <button aria-label="展开知识树" className={styles.reopenDirectory} onClick={() => setSidebarVisible(true)} type="button"><PanelLeftOpen aria-hidden="true" /></button>}
         <section className={styles.contentPane} aria-label="笔记内容">
@@ -417,7 +456,7 @@ export function NotesWorkspace({ db, services }: NotesWorkspaceProps) {
         </section>
       </div>
       <PlanDialog labelledBy={drawerTitleId} onRequestClose={() => { setDrawerOpen(false); setSearchOpen(false); setSearchQuery("") }} open={drawerOpen}><section className={styles.drawer}><header className={styles.drawerHeader}><h2 id={drawerTitleId}>知识树</h2>{renderDirectoryActions(drawerPdfDescriptionId, drawerSearchPanelId, <button aria-label="关闭知识树" onClick={() => { setDrawerOpen(false); setSearchOpen(false); setSearchQuery("") }} type="button">×</button>)}</header>{renderDirectory(mobileTree, drawerSearchPanelId)}</section></PlanDialog>
-      {selected ? <NoteActionsDialog node={selected} nodes={nodes} onMove={doMove} onRename={() => startRename(actionReturnFocus)} onRequestClose={() => setActionsOpen(false)} open={actionsOpen} returnFocusTo={actionReturnFocus} /> : null}
+      {selected ? <NoteActionsDialog node={selected} nodes={nodes} onDelete={doDeleteFolder} onMove={doMove} onRename={() => startRename(actionReturnFocus)} onRequestClose={() => setActionsOpen(false)} open={actionsOpen} returnFocusTo={actionReturnFocus} /> : null}
     </main>
   )
 }

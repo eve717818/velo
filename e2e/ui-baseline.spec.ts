@@ -15,6 +15,14 @@ for (const width of [320, 390, 768]) {
     await expect(page.getByText('敬请期待')).toBeVisible()
     expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([])
     await page.screenshot({ path: `test-results/ui-home-${width}.png`, fullPage: true })
+    if (width === 390) {
+      await page.getByRole('button', { name: '关闭提醒', exact: true }).click()
+      await expect(page.getByRole('button', { name: '开启提醒', exact: true })).toHaveAttribute('aria-pressed', 'true')
+      await page.reload()
+      await expect(page.getByRole('button', { name: '开启提醒', exact: true })).toBeVisible()
+      await page.getByRole('button', { name: '开启提醒', exact: true }).click()
+      await page.getByRole('button', { name: '关闭提醒设置提示' }).click()
+    }
     await page.goto('/notes')
     await expect(page.getByRole('heading', { name: '笔记工作台' })).toBeVisible()
     // Isolated browser test context only; no user data is changed.
@@ -43,6 +51,22 @@ for (const width of [320, 390, 768]) {
     }
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
     await page.screenshot({ path: `test-results/ui-notes-${width}.png`, fullPage: true })
+    if (width === 390) {
+      await page.getByRole('button', { name: '返回知识树' }).click()
+      const folder = page.getByRole('dialog', { name: '知识树', exact: true }).getByRole('button', { name: '数', exact: true })
+      const box = (await folder.boundingBox())!
+      await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2)
+      await page.mouse.down()
+      await expect(page.getByRole('button', { name: '删除文件夹', exact: true })).toBeVisible()
+      await page.mouse.up()
+      await page.getByRole('button', { name: '删除文件夹', exact: true }).click()
+      await expect(page.getByText(/1 篇笔记/)).toBeVisible()
+      await page.getByRole('button', { name: '确认删除文件夹' }).click()
+      await expect(page.getByRole('button', { name: '撤销删除数' })).toBeVisible()
+      await page.getByRole('button', { name: '撤销删除数' }).click()
+      await page.goto('/notes?note=ui-note')
+      await expect(page.getByLabel('笔记标题')).toHaveValue('路径测试')
+    }
     await page.goto('/focus')
     await expect(page.getByRole('heading', { name: '保持心流' })).toBeVisible()
     expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([])
